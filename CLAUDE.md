@@ -6,11 +6,24 @@ fila y saber qué se cambió y cuándo.
 
 ## Reglas que no se rompen
 
-- **Nunca edites los CSV a mano ni con Write/Edit.** Usa `nueva.py` y `cafe.py`:
+- **Nunca añadas filas a mano ni con Write/Edit.** Usa `nueva.py` y `cafe.py`:
   son los que calculan los campos derivados y validan. Una fila escrita a mano
   se salta las validaciones.
-- **Los CSV solo crecen por abajo.** Jamás reordenes, reformatees ni reescribas
-  filas existentes: rompe el `git blame`, que es la razón de ser del repo.
+- **Los dos ficheros no tienen la misma regla**, porque no son la misma clase de
+  dato:
+
+  | Fichero | Qué es | Regla |
+  |---|---|---|
+  | `extracciones.csv` | Log de eventos | **Append-only estricto.** Una fila registra algo que pasó. No se edita jamás. |
+  | `cafes.csv` | Estado de entidades | Filas **mutables**: `estado` pasa a `terminado`, una ficha se completa cuando llegan los datos. |
+  | `recetas.csv` | Catálogo | Como `cafes.csv`. |
+
+- **Nunca reordenes ni reescribas el pasado**, en ningún fichero. Eso es lo que
+  rompe el `git blame`, que es la razón de ser del repo. Cambiar el `estado` de
+  una bolsa es legítimo; reordenar filas o reformatear las que ya están, no.
+- **Los CSV van en UTF-8 y LF.** Si editas uno con una herramienta de Windows,
+  comprueba que no lo ha dejado en CRLF: `.gitattributes` protege el repo, pero
+  no el fichero de trabajo, y los scripts añaden con `\n`.
 - **Fechas siempre en `AAAA-MM-DD`.**
 - **Una sola variable por extracción.** Si el usuario cambió dos cosas a la vez,
   díselo: el dato no sirve para comparar. Regístralo igual si insiste, pero que
@@ -29,11 +42,17 @@ equilibrado, un 8»). Tradúcelo a un comando, no a una edición del CSV:
 
 ```bash
 python nueva.py --dry-run --cafe gary --temp 91 --clics 28 --tiempo 3:30 \
-    --variable "91 °C" --defecto equilibrado --nota 8 --notas "..."
+    --drawdown 40 --variable "91 °C" --defecto equilibrado --nota 8 --notas "..."
 ```
 
 Enseña la fila del `--dry-run`, y cuando la confirme repite sin `--dry-run`.
-`id`, `dias_tueste` y `ratio` los calcula el script: no los pases.
+`id`, `dias_tueste`, `ratio` y `reparto` los calcula el script: no los pases.
+El `reparto` sale de escalar las fases de la receta al agua real, así que solo
+pasa `--reparto` si ese día se desvió de la receta.
+
+`--drawdown` va en segundos y es lo que mide el tiempo entre el final del último
+vertido y el fin del goteo. Es el dato del que depende la sugerencia de
+molienda: pídelo aunque sea opcional.
 
 Si falta algún dato obligatorio (`--cafe`, `--temp`, `--clics`, `--tiempo`,
 `--variable`, `--defecto`, `--nota`), pregúntaselo antes de ejecutar en vez de
