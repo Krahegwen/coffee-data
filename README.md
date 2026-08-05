@@ -52,3 +52,25 @@ Una variable por extracción. Si mueves dos, el dato no sirve.
 
 Los CSV se editan añadiendo filas al final, nunca reordenando. Un commit por
 extracción, con el mensaje `#N café: variable cambiada` (ej. `#2 Gary: 91 °C`).
+
+## Puesta en marcha
+
+Requiere Python 3.11 o superior. Los scripts solo usan la librería estándar;
+pytest hace falta únicamente para desarrollar.
+
+```bash
+git clone https://github.com/Krahegwen/coffee-data.git
+cd coffee-data
+git config core.hooksPath hooks
+python -m pip install pytest
+```
+
+`git config core.hooksPath hooks` activa el hook de `pre-commit`, que ejecuta
+los tests antes de cada commit y lo aborta si fallan. Hay que ejecutarlo una
+vez por clon: git no activa los hooks solo.
+
+| Comando | Qué hace |
+|---|---|
+| `python nueva.py` | Añade una extracción preguntando campo a campo. Calcula `id`, `dias_tueste` y `ratio`. |
+| `python resumen.py` | Ranking, histórico y aviso de frescura. |
+| `python -m pytest` | Tests de `nueva.py`. |
