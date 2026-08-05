@@ -4,7 +4,7 @@ const { activa, comprobada, comprobar, abrir } = useSesion()
 const router = useRouter()
 
 const form = reactive<Record<string, any>>({
-  id: '', nombre: '', tostador: '', origen: '', region: '', variedad: '',
+  nombre: '', tostador: '', origen: '', region: '', variedad: '',
   proceso: '', altitud_m: '', sca: '', fecha_tueste: '', consumir_antes: '',
   peso_g: '', precio_eur: '', notas_tostador: '', estado: 'abierto',
   fecha_compra: '', fecha_recepcion: '', url: '', conservacion: '',

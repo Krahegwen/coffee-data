@@ -8,7 +8,7 @@ import {
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
 import {
-  fechaValida, validarCafe, validarCambiosExtraccion, validarExtraccion,
+  fechaValida, slugDe, validarCafe, validarCambiosExtraccion, validarExtraccion,
   validarReceta,
 } from "../src/validacion.js";
 
@@ -444,10 +444,16 @@ describe("alta de bolsas", () => {
     assert.equal(valores.sca, 87);
   });
 
-  it("exige un id con formato de slug", () => {
-    for (const id of ["Etiopia", "con espacio", "etiopía", "-guion", ""]) {
+  it("exige un id con formato de slug si lo mandas", () => {
+    for (const id of ["Etiopia", "con espacio", "etiopía", "-guion"]) {
       assert.ok(validarCafe(nueva({ id }), { nuevo: true }).errores.length, `id ${id}`);
     }
+  });
+
+  it("un id vacío no es error: se deriva del nombre", () => {
+    const { valores, errores } = validarCafe(nueva({ id: "" }), { nuevo: true });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.id, "etiopia_guji");
   });
 
   it("exige nombre", () => {
@@ -623,5 +629,44 @@ describe("recetas", () => {
   it("al editar, el id no se toca", () => {
     const { errores } = validarReceta(receta(), { nuevo: false });
     assert.ok(errores.some((e) => e.includes("no se puede cambiar")));
+  });
+});
+
+describe("id derivado del nombre", () => {
+  it("minúsculas, sin acentos y espacios a guion bajo", () => {
+    assert.equal(slugDe("Etiopía Guji"), "etiopia_guji");
+    assert.equal(slugDe("ABBIE"), "abbie");
+  });
+
+  it("los caracteres raros caen", () => {
+    assert.equal(slugDe("Café  del Día (2)"), "cafe_del_dia_2");
+    assert.equal(slugDe("Ñu 100% arábica"), "nu_100_arabica");
+    assert.equal(slugDe("Gary — nº 3"), "gary_n_3");
+  });
+
+  it("sin guiones bajos sueltos en los extremos ni repetidos", () => {
+    assert.equal(slugDe("  ...Gary...  "), "gary");
+    assert.equal(slugDe("a---b"), "a_b");
+  });
+
+  it("un nombre sin letras ni números no da id", () => {
+    assert.equal(slugDe("  ---  "), "");
+    assert.equal(slugDe(""), "");
+  });
+
+  it("el alta lo usa cuando no mandas id", () => {
+    const { valores, errores } = validarCafe({ nombre: "Etiopía Guji" }, { nuevo: true });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.id, "etiopia_guji");
+  });
+
+  it("un id explícito sigue mandando", () => {
+    const { valores } = validarCafe({ id: "eth-guji", nombre: "Etiopía Guji" }, { nuevo: true });
+    assert.equal(valores.id, "eth-guji");
+  });
+
+  it("si del nombre no sale id, lo dice claro", () => {
+    const { errores } = validarCafe({ nombre: "···" }, { nuevo: true });
+    assert.ok(errores.some((e) => e.includes("no sale un id utilizable")));
   });
 });

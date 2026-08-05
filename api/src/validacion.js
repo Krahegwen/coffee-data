@@ -60,6 +60,23 @@ const NUMEROS_CAFE = {
 // sin acentos. Mismo criterio que el CHECK de la base.
 const ID = /^[a-z0-9][a-z0-9_-]*$/;
 
+/**
+ * Convierte un nombre en id. Se hace aquí y no en la app para que salga igual
+ * venga de donde venga: del formulario, de curl o de un script.
+ *
+ *   "Etiopía Guji"        -> etiopia_guji
+ *   "Café  del Día (2)"   -> cafe_del_dia_2
+ */
+export function slugDe(nombre) {
+  return String(nombre ?? "")
+    .normalize("NFD")                  // separa la tilde de la letra
+    .replace(/[̀-ͯ]/g, "")  // y la tira
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")       // todo lo demás pasa a guion bajo
+    .replace(/_+/g, "_")               // sin repetidos
+    .replace(/^_+|_+$/g, "");          // ni en los extremos
+}
+
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Fecha real en AAAA-MM-DD, con el calendario comprobado. */
@@ -189,10 +206,13 @@ export function validarCafe(cuerpo, { nuevo }) {
   }
 
   if (nuevo) {
-    const id = String(entrada.id ?? "").trim();
+    // Si no lo mandan, sale del nombre: el id es ruido para quien registra.
+    const id = vacio(entrada.id) ? slugDe(entrada.nombre) : String(entrada.id).trim();
     if (!ID.test(id)) {
       errores.push(
-        `id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo, empezando por letra o número`,
+        vacio(entrada.id)
+          ? `del nombre ${JSON.stringify(entrada.nombre)} no sale un id utilizable: necesita alguna letra o número`
+          : `id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo, empezando por letra o número`,
       );
     }
     valores.id = id;

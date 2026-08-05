@@ -31,7 +31,7 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `GET /api/recetas` | Recetas con sus pasos |
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` derivados. `?cafe=gary` filtra, `?retiradas=1` es la papelera |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
-| `POST /api/cafes` | Da de alta una bolsa |
+| `POST /api/cafes` | Da de alta una bolsa. Sin `id`, se deriva del nombre |
 | `POST /api/recetas` | Crea una receta con sus pasos |
 | `PUT /api/recetas/:id` | Guarda una receta. Los pasos **reemplazan** a los que había |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
@@ -305,3 +305,16 @@ sabría qué guiar.
 Editar una receta **no toca las extracciones ya registradas**: cada una guardó
 su propio `reparto` cuando se registró. La receta es la intención; el reparto
 es lo que echaste.
+
+## El id de las bolsas
+
+No se escribe: sale del nombre. `Etiopía Guji` → `etiopia_guji`. Minúsculas,
+acentos fuera, y todo lo que no sea letra o número pasa a guion bajo.
+
+Lo calcula el **servidor**, no el formulario, para que salga igual venga de la
+app, de curl o de un script; la app solo enseña cuál va a ser mientras
+escribes.
+
+Si el id ya existe se le añade sufijo —`gary`, `gary_2`— porque comprar dos
+veces el mismo café es normal y no debería ser un callejón sin salida. Mandar
+un `id` explícito sigue siendo posible, y si choca da 409: ahí el error es tuyo.

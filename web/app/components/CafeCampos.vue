@@ -9,17 +9,30 @@ import { ESTADOS } from '~/composables/useApi'
  */
 const modelo = defineModel<Record<string, any>>({ required: true })
 const props = defineProps<{ nuevo?: boolean }>()
+
+/**
+ * El id sale del nombre y no se pide: es ruido para quien registra y una
+ * fuente de erratas. Esto solo lo enseña; quien lo calcula de verdad es el
+ * servidor, para que salga igual venga de la app o de un script.
+ */
+const idPrevisto = computed(() =>
+  String(modelo.value.nombre ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, ''),
+)
 </script>
 
 <template>
-  <label v-if="props.nuevo">
-    id (minúsculas, sin espacios)
-    <input v-model="modelo.id" placeholder="etiopia" required autocapitalize="none">
-  </label>
-
   <label>
     Nombre
     <input v-model="modelo.nombre" placeholder="Etiopía Guji" required>
+    <span v-if="props.nuevo && idPrevisto" class="idprevisto">
+      se guardará como <code>{{ idPrevisto }}</code>
+    </span>
   </label>
 
   <div class="pareja">
@@ -105,6 +118,9 @@ details {
   padding-top: 0.85rem;
   margin-bottom: 0.5rem;
 }
+
+.idprevisto { font-size: 0.75rem; color: var(--suave); }
+.idprevisto code { color: var(--acento); }
 
 summary {
   cursor: pointer;

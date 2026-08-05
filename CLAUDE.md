@@ -65,11 +65,15 @@ Tienen endpoints, y la app tiene pantallas: `/cafes`, `/cafes/nueva` y
 
 ```bash
 curl -X POST https://brew.krahegwen.com/api/cafes -H "Authorization: Bearer $COFFEE_TOKEN" \
-  -H 'content-type: application/json' -d '{"id":"etiopia","nombre":"Etiopía Guji","peso_g":250}'
+  -H 'content-type: application/json' -d '{"nombre":"Etiopía Guji","peso_g":250}'
 
 curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bearer $COFFEE_TOKEN" \
   -H 'content-type: application/json' -d '{"estado":"terminado"}'
 ```
+
+**No mandes `id`**: sale del nombre (minúsculas, sin acentos, espacios a guion
+bajo). Si ya existe, se le pone sufijo — `gary`, `gary_2` — porque la segunda
+bolsa del mismo café es normal. Un `id` explícito que choque sigue dando 409.
 
 El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
 del usuario no son un banco de pruebas**: para verificar, usa la base local

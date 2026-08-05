@@ -139,10 +139,27 @@ async function crearCafe(request, env) {
   const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
   if (errores.length) return json({ errores }, 422);
 
+  const derivado = cuerpo?.id === undefined || String(cuerpo.id).trim() === "";
   const existe = await env.DB.prepare("SELECT id FROM cafes WHERE id = ?")
     .bind(valores.id)
     .first();
-  if (existe) return json({ errores: [`ya existe un café con id '${valores.id}'`] }, 409);
+  if (existe) {
+    // Si el id lo mandaron a propósito, el choque es un error suyo. Si lo
+    // derivamos del nombre, la segunda bolsa del mismo café es normal:
+    // gary, gary_2, gary_3.
+    if (!derivado) {
+      return json({ errores: [`ya existe un café con id '${valores.id}'`] }, 409);
+    }
+    const base = valores.id;
+    let n = 2;
+    let libre = `${base}_${n}`;
+    // eslint-disable-next-line no-await-in-loop
+    while (await env.DB.prepare("SELECT id FROM cafes WHERE id = ?").bind(libre).first()) {
+      n += 1;
+      libre = `${base}_${n}`;
+    }
+    valores.id = libre;
+  }
 
   const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
   const marcadores = columnas.map(() => "?").join(", ");
