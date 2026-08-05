@@ -4,9 +4,13 @@
  * lo que parece: es lo que se lee en la pestaña, en los marcadores y, ya
  * instalada, en el conmutador de aplicaciones del móvil.
  */
+const APP = 'Bitácora de café'
+
 useHead({
+  // El título estático del HTML ya es el nombre de la app: si se colase por
+  // la plantilla saldría repetido en la portada.
   titleTemplate: (pantalla?: string) =>
-    pantalla ? `${pantalla} · Bitácora de café` : 'Bitácora de café',
+    !pantalla || pantalla === APP ? APP : `${pantalla} · ${APP}`,
 })
 </script>
 
