@@ -11,6 +11,7 @@ import sys
 
 from comun import (
     CAFES,
+    actualizar_fila,
     agregar_fila,
     confirmar,
     leer_csv,
@@ -32,8 +33,20 @@ CAMPOS_CLI = (
     "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
     "altitud", "sca", "tueste", "consumir_antes", "peso", "precio",
     "notas_tostador", "estado", "compra", "recepcion", "foto", "url",
+    "conservacion",
 )
 OBLIGATORIOS_CLI = ("id", "nombre")
+
+# Flag -> columna. El id no está: es la clave a la que apuntan las extracciones.
+CAMPO_A_COLUMNA = {
+    "nombre": "nombre", "tostador": "tostador", "origen": "origen",
+    "region": "region", "variedad": "variedad", "proceso": "proceso",
+    "altitud": "altitud_m", "sca": "sca", "tueste": "fecha_tueste",
+    "consumir_antes": "consumir_antes", "peso": "peso_g", "precio": "precio_eur",
+    "notas_tostador": "notas_tostador", "estado": "estado",
+    "compra": "fecha_compra", "recepcion": "fecha_recepcion", "foto": "foto",
+    "url": "url", "conservacion": "conservacion",
+}
 
 
 def validar_id(valor, cafes):
@@ -58,6 +71,36 @@ def opcional(valor, validador):
     if valor is None or str(valor).strip() == "":
         return ""
     return validador(valor)
+
+
+VALIDADORES = {
+    "altitud_m": validar_numero,
+    "sca": validar_numero,
+    "peso_g": validar_numero,
+    "precio_eur": validar_numero,
+    "fecha_tueste": validar_fecha,
+    "consumir_antes": validar_fecha,
+    "fecha_compra": validar_fecha,
+    "fecha_recepcion": validar_fecha,
+    "estado": validar_estado,
+}
+
+
+def construir_cambios(args):
+    """Solo las columnas cuyo flag se ha pasado. Un flag vacío borra el valor."""
+    if args.id is not None:
+        raise ValueError(
+            "el id no se puede cambiar: es la clave a la que apuntan las extracciones"
+        )
+    cambios = {}
+    for campo, columna in CAMPO_A_COLUMNA.items():
+        valor = getattr(args, campo)
+        if valor is None:
+            continue
+        cambios[columna] = opcional(valor, VALIDADORES[columna]) if columna in VALIDADORES else valor
+    if not cambios:
+        raise ValueError("--editar necesita al menos un campo que cambiar")
+    return cambios
 
 
 def construir_fila(args, cafes):
@@ -86,6 +129,7 @@ def construir_fila(args, cafes):
         "fecha_recepcion": opcional(args.recepcion, validar_fecha),
         "foto": args.foto or "",
         "url": args.url or "",
+        "conservacion": args.conservacion or "",
     }
 
 
@@ -112,6 +156,7 @@ def preguntar_fila(cafes):
     fila["fecha_recepcion"] = preguntar("fecha_recepcion (AAAA-MM-DD)", validador=validar_fecha, obligatorio=False)
     fila["foto"] = preguntar("foto (ruta, p. ej. fotos/abbie.jpg)", obligatorio=False)
     fila["url"] = preguntar("url de la ficha del tostador", obligatorio=False)
+    fila["conservacion"] = preguntar("conservacion (bolsa, tarro de vacío...)", obligatorio=False)
     return fila
 
 
@@ -141,6 +186,11 @@ def parsear_argumentos(argv=None):
     parser.add_argument("--recepcion", help="fecha de recepción, AAAA-MM-DD")
     parser.add_argument("--foto", help="ruta de la foto, p. ej. fotos/abbie.jpg")
     parser.add_argument("--url", help="ficha del tostador")
+    parser.add_argument("--conservacion", help="dónde está el café: bolsa, tarro de vacío...")
+    parser.add_argument(
+        "--editar", metavar="ID",
+        help="corrige una ficha ya existente con los flags que le pases",
+    )
     parser.add_argument(
         "--dry-run", action="store_true", help="muestra la fila sin escribirla"
     )
@@ -151,6 +201,27 @@ def main(argv=None):
     args = parsear_argumentos(argv)
     columnas, filas = leer_csv(CAFES)
     cafes = {c["id"]: c for c in filas}
+
+    if args.editar:
+        try:
+            if args.editar not in cafes:
+                raise ValueError(
+                    f"no existe ningún café con id {args.editar!r}. "
+                    f"Hay: {', '.join(sorted(cafes))}"
+                )
+            cambios = construir_cambios(args)
+        except ValueError as error:
+            print(f"cafe.py: {error}", file=sys.stderr)
+            return 2
+
+        mostrar_resumen({**cafes[args.editar], **cambios}, columnas)
+        if args.dry_run:
+            print("\n--dry-run: no se ha escrito nada.")
+            return 0
+        actualizar_fila(args.editar, cambios, CAFES)
+        print(f"\nFicha de {args.editar!r} actualizada: {', '.join(sorted(cambios))}")
+        print(f'Commit:  git commit -am "Actualizar ficha de {cafes[args.editar]["nombre"]}"')
+        return 0
 
     interactivo = all(getattr(args, campo) is None for campo in CAMPOS_CLI)
     if interactivo:

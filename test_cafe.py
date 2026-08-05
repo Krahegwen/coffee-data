@@ -49,7 +49,8 @@ def test_fila_minima_deja_vacio_lo_que_no_se_sabe():
     assert fila["estado"] == "abierto"
     vacios = ["tostador", "origen", "region", "variedad", "proceso", "altitud_m",
               "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
-              "notas_tostador", "fecha_compra", "fecha_recepcion", "foto", "url"]
+              "notas_tostador", "fecha_compra", "fecha_recepcion", "foto", "url",
+              "conservacion"]
     assert all(fila[campo] == "" for campo in vacios)
 
 
@@ -83,6 +84,39 @@ def test_fila_exige_los_obligatorios():
     args = cafe.parsear_argumentos(["--id", "etiopia"])
     with pytest.raises(ValueError, match="obligatorios"):
         cafe.construir_fila(args, CAFES)
+
+
+def test_editar_recoge_solo_los_flags_pasados():
+    args = cafe.parsear_argumentos(
+        ["--editar", "abbie", "--estado", "TERMINADO", "--conservacion", "Fellow Atmos 1.2 L"]
+    )
+    assert cafe.construir_cambios(args) == {
+        "estado": "terminado",
+        "conservacion": "Fellow Atmos 1.2 L",
+    }
+
+
+def test_editar_valida_igual_que_el_alta():
+    args = cafe.parsear_argumentos(["--editar", "abbie", "--tueste", "11-05-2026"])
+    with pytest.raises(ValueError):
+        cafe.construir_cambios(args)
+
+
+def test_editar_no_deja_cambiar_el_id():
+    args = cafe.parsear_argumentos(["--editar", "abbie", "--id", "otro"])
+    with pytest.raises(ValueError, match="id no se puede cambiar"):
+        cafe.construir_cambios(args)
+
+
+def test_editar_exige_algun_campo():
+    args = cafe.parsear_argumentos(["--editar", "abbie"])
+    with pytest.raises(ValueError, match="al menos un campo"):
+        cafe.construir_cambios(args)
+
+
+def test_editar_admite_vaciar_un_campo():
+    args = cafe.parsear_argumentos(["--editar", "abbie", "--url", ""])
+    assert cafe.construir_cambios(args) == {"url": ""}
 
 
 @pytest.mark.parametrize(

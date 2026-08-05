@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Utilidades compartidas por nueva.py y cafe.py."""
 import csv
+import io
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -36,6 +37,50 @@ def agregar_fila(fila, ruta):
 
     with open(ruta, "a", encoding="utf-8", newline="") as f:
         csv.writer(f, lineterminator="\n").writerow([fila[c] for c in columnas])
+
+
+def actualizar_fila(clave, cambios, ruta, columna_clave="id"):
+    """Reescribe una sola fila de un CSV de estado, dejando el resto intacto.
+
+    Solo vale para `cafes.csv` y `recetas.csv`. `extracciones.csv` es un log de
+    eventos: una fila registra algo que pasó y no se corrige nunca.
+    """
+    if Path(ruta).name == EXTRACCIONES.name:
+        raise ValueError(
+            "extracciones.csv es un log de eventos: sus filas no se editan"
+        )
+
+    columnas, _ = leer_csv(ruta)
+    desconocidas = [c for c in cambios if c not in columnas]
+    if desconocidas:
+        raise ValueError(f"Columnas desconocidas: {', '.join(desconocidas)}")
+    if not cambios:
+        raise ValueError("No hay nada que cambiar")
+
+    indice_clave = columnas.index(columna_clave)
+    texto = Path(ruta).read_bytes().decode("utf-8")
+    lineas = texto.split("\n")
+
+    encontrada = False
+    for numero, linea in enumerate(lineas):
+        if numero == 0 or linea == "":
+            continue
+        fila = next(csv.reader([linea]))
+        if fila[indice_clave] != clave:
+            continue
+
+        actual = dict(zip(columnas, fila))
+        actual.update(cambios)
+        salida = io.StringIO()
+        csv.writer(salida, lineterminator="").writerow([actual[c] for c in columnas])
+        lineas[numero] = salida.getvalue()
+        encontrada = True
+        break
+
+    if not encontrada:
+        raise ValueError(f"No existe ninguna fila con {columna_clave}={clave!r}")
+
+    Path(ruta).write_bytes("\n".join(lineas).encode("utf-8"))
 
 
 # --- validaciones genéricas --------------------------------------------------
