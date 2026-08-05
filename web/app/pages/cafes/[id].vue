@@ -85,6 +85,7 @@ const ficheroFoto = ref<HTMLInputElement | null>(null)
 const subiendoFoto = ref(false)
 const erroresFoto = ref<string[]>([])
 const encogida = ref<{ antes: number, despues: number } | null>(null)
+const dialogoFoto = ref<HTMLDialogElement | null>(null)
 
 async function subirFoto(evento: Event) {
   const fichero = (evento.target as HTMLInputElement).files?.[0]
@@ -119,6 +120,7 @@ async function quitarFoto() {
     erroresFoto.value = erroresDe(fallo)
   } finally {
     subiendoFoto.value = false
+    dialogoFoto.value?.close()
   }
 }
 </script>
@@ -154,20 +156,38 @@ async function quitarFoto() {
       </p>
       <div v-if="activa" class="botones-foto">
         <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
-          {{ subiendoFoto ? 'Encogiendo y subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
+          <!-- Corto a propósito: una etiqueta más larga parte en dos líneas y
+               el botón pega un salto en mitad de la subida. -->
+          {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
         </button>
         <button
           v-if="original.foto"
           type="button"
           class="secundario"
           :disabled="subiendoFoto"
-          @click="quitarFoto"
+          @click="dialogoFoto?.showModal()"
         >
           Quitar
         </button>
       </div>
       <p v-if="erroresFoto.length" class="fallo">{{ erroresFoto.join(' · ') }}</p>
     </section>
+
+    <!-- Quitar borra el objeto de R2 y no se puede deshacer, y en el móvil el
+         botón cae al lado del de cambiar la foto. -->
+    <dialog ref="dialogoFoto" @cancel="dialogoFoto?.close()">
+      <h3>¿Quitar la foto de {{ original.nombre }}?</h3>
+      <p>
+        Esta sí se borra del todo, no hay papelera: si la quieres de vuelta
+        tendrás que subirla otra vez desde el móvil.
+      </p>
+      <div class="botones">
+        <button type="button" class="secundario" @click="dialogoFoto?.close()">Cancelar</button>
+        <button type="button" class="peligro" :disabled="subiendoFoto" @click="quitarFoto">
+          {{ subiendoFoto ? 'Quitando…' : 'Quitar' }}
+        </button>
+      </div>
+    </dialog>
 
     <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 
@@ -244,8 +264,27 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 
 .botones-foto { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.botones-foto button { margin-top: 0; }
 .sin-foto { margin: 0; }
 .encogida { margin: 0.5rem 0 0; }
+
+dialog {
+  border: 1px solid var(--linea);
+  border-radius: 0.8rem;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  padding: 1rem;
+  max-width: min(28rem, calc(100vw - 2rem));
+  margin: auto;
+}
+
+dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
+
+.botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.botones button { margin-top: 0; }
+.peligro { background: #c2410c; color: #fff; border: 0; }
 
 .secundario {
   background: transparent;
