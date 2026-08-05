@@ -10,6 +10,10 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 
 ## La API
 
+En producción: **`https://coffee.krahegwen.com`**, sobre Cloudflare Workers y D1.
+
+En local, con su propia base y sin tocar la de verdad:
+
 ```bash
 pnpm install
 pnpm exec wrangler d1 execute coffee --local --file=migrations/0001_esquema.sql
@@ -33,7 +37,12 @@ escalar la receta al agua real, salvo que lo mandes explícito porque ese día t
 desviaste), y `ratio` y `dias_tueste`, que los deriva la vista.
 
 Escribir exige `Authorization: Bearer <TOKEN_ESCRITURA>`. En local va en
-`.dev.vars`; en producción, `wrangler secret put`.
+`.dev.vars`; en producción, `wrangler secret put`. Sin secreto configurado el
+Worker **falla cerrado**: no autoriza a nadie.
+
+El Worker no sirve por `workers.dev`, solo por el dominio propio. El subdominio
+`workers.dev` de una cuenta se genera a partir del correo y puede llevar el
+nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 
 ## Ficheros
 

@@ -9,6 +9,12 @@
   // y multiplican la superficie expuesta, así que fuera.
   "preview_urls": false,
 
+  // Dominio propio, y workers.dev apagado: el subdominio workers.dev de la
+  // cuenta se generó a partir del correo y lleva el nombre real dentro, así
+  // que no puede ser la URL que acabe incrustada en la app.
+  "workers_dev": false,
+  "routes": [{ "pattern": "coffee.krahegwen.com", "custom_domain": true }],
+
   // El binding es el nombre con el que el código ve la base: env.DB.
   // En local (--local, wrangler dev) usa un SQLite en .wrangler y el id da igual.
   "d1_databases": [
