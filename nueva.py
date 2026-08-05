@@ -21,6 +21,7 @@ from comun import (
     validar_numero,
     validar_opcion,
 )
+from recetas import cargar_recetas, reparto_de, validar_receta_id
 
 DEFECTOS = ["equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton"]
 
@@ -29,11 +30,12 @@ DOSIS_BASE = "20"
 AGUA_BASE = "300"
 MOLINILLO_BASE = "Comandante C40"
 METODO_BASE = "V60 4:6 Kasuya"
-REPARTO_BASE = "60-60-90-90"
+RECETA_BASE = "kasuya-46-base"
 
 CAMPOS_CLI = (
     "fecha", "cafe", "dosis", "agua", "temp", "molinillo", "clics", "metodo",
-    "reparto", "tiempo", "variable", "defecto", "notas", "nota", "siguiente",
+    "receta", "reparto", "tiempo", "drawdown", "variable", "defecto", "notas",
+    "nota", "siguiente",
 )
 OBLIGATORIOS_CLI = ("cafe", "temp", "clics", "tiempo", "variable", "defecto", "nota")
 
@@ -97,9 +99,20 @@ def validar_defecto(valor):
     return validar_opcion(valor, DEFECTOS, "defecto")
 
 
+def validar_drawdown(valor):
+    """Drawdown en segundos enteros: desde el último vertido hasta que deja de gotear."""
+    try:
+        segundos = int(str(valor).strip())
+    except ValueError:
+        raise ValueError(f"El drawdown va en segundos enteros: {valor!r}") from None
+    if segundos < 0:
+        raise ValueError(f"El drawdown no puede ser negativo: {segundos}")
+    return segundos
+
+
 # --- construcción de la fila -------------------------------------------------
 
-def construir_fila(args, cafes, extracciones, hoy):
+def construir_fila(args, cafes, recetas, extracciones, hoy):
     """Fila completa a partir de los argumentos de línea de comandos."""
     faltan = [f"--{c}" for c in OBLIGATORIOS_CLI if getattr(args, c) is None]
     if faltan:
@@ -108,6 +121,9 @@ def construir_fila(args, cafes, extracciones, hoy):
     cafe_id = validar_cafe_id(args.cafe, cafes)
     dosis = validar_numero(DOSIS_BASE if args.dosis is None else args.dosis)
     agua = validar_numero(AGUA_BASE if args.agua is None else args.agua)
+    receta_id = validar_receta_id(
+        RECETA_BASE if args.receta is None else args.receta, recetas
+    )
 
     return {
         "id": siguiente_id(extracciones),
@@ -121,17 +137,19 @@ def construir_fila(args, cafes, extracciones, hoy):
         "molinillo": args.molinillo or MOLINILLO_BASE,
         "clics": validar_numero(args.clics),
         "metodo": args.metodo or METODO_BASE,
-        "reparto": args.reparto or REPARTO_BASE,
+        "reparto": args.reparto or reparto_de(recetas[receta_id], agua),
         "tiempo_total": args.tiempo,
         "variable_cambiada": args.variable,
         "defecto": validar_defecto(args.defecto),
         "notas_cata": args.notas or "",
         "nota": validar_nota(args.nota),
         "siguiente_ajuste": args.siguiente or "",
+        "receta_id": receta_id,
+        "drawdown_s": "" if args.drawdown is None else validar_drawdown(args.drawdown),
     }
 
 
-def preguntar_fila(cafes, extracciones, hoy):
+def preguntar_fila(cafes, recetas, extracciones, hoy):
     """Fila completa preguntando campo a campo."""
     fila = {"id": siguiente_id(extracciones)}
     print(f"\nNueva extracción #{fila['id']}\n")
@@ -158,8 +176,18 @@ def preguntar_fila(cafes, extracciones, hoy):
     fila["molinillo"] = preguntar("molinillo", MOLINILLO_BASE)
     fila["clics"] = preguntar("clics", validador=validar_numero)
     fila["metodo"] = preguntar("metodo", METODO_BASE)
-    fila["reparto"] = preguntar("reparto", REPARTO_BASE)
+    fila["receta_id"] = preguntar(
+        f"receta_id ({', '.join(sorted(recetas))})",
+        RECETA_BASE,
+        lambda v: validar_receta_id(v, recetas),
+    )
+    fila["reparto"] = preguntar(
+        "reparto", reparto_de(recetas[fila["receta_id"]], fila["agua_g"])
+    )
     fila["tiempo_total"] = preguntar("tiempo_total (m:ss)")
+    fila["drawdown_s"] = preguntar(
+        "drawdown_s (segundos, opcional)", validador=validar_drawdown, obligatorio=False
+    )
     fila["variable_cambiada"] = preguntar("variable_cambiada")
     fila["defecto"] = preguntar(
         f"defecto ({', '.join(DEFECTOS)})", validador=validar_defecto
@@ -187,8 +215,10 @@ def parsear_argumentos(argv=None):
     parser.add_argument("--molinillo", help=f"por defecto, {MOLINILLO_BASE}")
     parser.add_argument("--clics", help="clics del molinillo")
     parser.add_argument("--metodo", help=f"por defecto, {METODO_BASE}")
-    parser.add_argument("--reparto", help=f"por defecto, {REPARTO_BASE}")
+    parser.add_argument("--receta", help=f"receta_id (por defecto, {RECETA_BASE})")
+    parser.add_argument("--reparto", help="por defecto, las fases de la receta escaladas al agua")
     parser.add_argument("--tiempo", help="tiempo total, m:ss")
+    parser.add_argument("--drawdown", help="segundos desde el último vertido hasta que deja de gotear")
     parser.add_argument("--variable", help="qué has cambiado respecto a la extracción anterior")
     parser.add_argument("--defecto", help=", ".join(DEFECTOS))
     parser.add_argument("--notas", help="notas de cata")
@@ -203,15 +233,16 @@ def parsear_argumentos(argv=None):
 def main(argv=None):
     args = parsear_argumentos(argv)
     cafes = cargar_cafes()
+    recetas = cargar_recetas()
     columnas, extracciones = leer_csv(EXTRACCIONES)
     hoy = date.today()
 
     interactivo = all(getattr(args, campo) is None for campo in CAMPOS_CLI)
     if interactivo:
-        fila = preguntar_fila(cafes, extracciones, hoy)
+        fila = preguntar_fila(cafes, recetas, extracciones, hoy)
     else:
         try:
-            fila = construir_fila(args, cafes, extracciones, hoy)
+            fila = construir_fila(args, cafes, recetas, extracciones, hoy)
         except ValueError as error:
             print(f"nueva.py: {error}", file=sys.stderr)
             return 2

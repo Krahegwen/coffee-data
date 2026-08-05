@@ -49,7 +49,7 @@ def test_fila_minima_deja_vacio_lo_que_no_se_sabe():
     assert fila["estado"] == "abierto"
     vacios = ["tostador", "origen", "region", "variedad", "proceso", "altitud_m",
               "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
-              "notas_tostador"]
+              "notas_tostador", "fecha_compra", "fecha_recepcion", "foto", "url"]
     assert all(fila[campo] == "" for campo in vacios)
 
 
@@ -65,6 +65,8 @@ def test_fila_completa():
             "--tostador", "Manea Coffee", "--origen", "Etiopía", "--altitud", "2000",
             "--sca", "87", "--tueste", "2026-08-01", "--consumir-antes", "2027-08-01",
             "--peso", "250", "--precio", "14,5", "--estado", "pendiente",
+            "--compra", "2026-07-28", "--recepcion", "2026-07-31",
+            "--foto", "fotos/etiopia.jpg", "--url", "https://ejemplo.test/etiopia",
         ),
         CAFES,
     )
@@ -72,6 +74,9 @@ def test_fila_completa():
     assert fila["fecha_tueste"] == "2026-08-01"
     assert fila["precio_eur"] == "14.5"
     assert fila["estado"] == "pendiente"
+    assert fila["fecha_compra"] == "2026-07-28"
+    assert fila["fecha_recepcion"] == "2026-07-31"
+    assert fila["foto"] == "fotos/etiopia.jpg"
 
 
 def test_fila_exige_los_obligatorios():
@@ -87,6 +92,8 @@ def test_fila_exige_los_obligatorios():
         ("--tueste", "01-08-2026"),
         ("--sca", "muy bueno"),
         ("--estado", "a medias"),
+        ("--compra", "11-05-2026"),
+        ("--recepcion", "2026-13-40"),
     ],
 )
 def test_fila_propaga_las_validaciones(extra):

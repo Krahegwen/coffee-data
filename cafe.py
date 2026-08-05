@@ -31,7 +31,7 @@ FORMATO_ID = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 CAMPOS_CLI = (
     "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
     "altitud", "sca", "tueste", "consumir_antes", "peso", "precio",
-    "notas_tostador", "estado",
+    "notas_tostador", "estado", "compra", "recepcion", "foto", "url",
 )
 OBLIGATORIOS_CLI = ("id", "nombre")
 
@@ -82,6 +82,10 @@ def construir_fila(args, cafes):
         "precio_eur": opcional(args.precio, validar_numero),
         "notas_tostador": args.notas_tostador or "",
         "estado": validar_estado(args.estado or ESTADO_BASE),
+        "fecha_compra": opcional(args.compra, validar_fecha),
+        "fecha_recepcion": opcional(args.recepcion, validar_fecha),
+        "foto": args.foto or "",
+        "url": args.url or "",
     }
 
 
@@ -104,6 +108,10 @@ def preguntar_fila(cafes):
     fila["precio_eur"] = preguntar("precio_eur", validador=validar_numero, obligatorio=False)
     fila["notas_tostador"] = preguntar("notas_tostador", obligatorio=False)
     fila["estado"] = preguntar(f"estado ({', '.join(ESTADOS)})", ESTADO_BASE, validar_estado)
+    fila["fecha_compra"] = preguntar("fecha_compra (AAAA-MM-DD)", validador=validar_fecha, obligatorio=False)
+    fila["fecha_recepcion"] = preguntar("fecha_recepcion (AAAA-MM-DD)", validador=validar_fecha, obligatorio=False)
+    fila["foto"] = preguntar("foto (ruta, p. ej. fotos/abbie.jpg)", obligatorio=False)
+    fila["url"] = preguntar("url de la ficha del tostador", obligatorio=False)
     return fila
 
 
@@ -129,6 +137,10 @@ def parsear_argumentos(argv=None):
     parser.add_argument("--precio", help="precio en euros")
     parser.add_argument("--notas-tostador", dest="notas_tostador")
     parser.add_argument("--estado", help=f"{', '.join(ESTADOS)} (por defecto, {ESTADO_BASE})")
+    parser.add_argument("--compra", help="fecha de compra, AAAA-MM-DD")
+    parser.add_argument("--recepcion", help="fecha de recepción, AAAA-MM-DD")
+    parser.add_argument("--foto", help="ruta de la foto, p. ej. fotos/abbie.jpg")
+    parser.add_argument("--url", help="ficha del tostador")
     parser.add_argument(
         "--dry-run", action="store_true", help="muestra la fila sin escribirla"
     )

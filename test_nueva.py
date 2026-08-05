@@ -12,6 +12,11 @@ CAFES = {
     "descafeinado": {"id": "descafeinado", "nombre": "Descafeinado", "fecha_tueste": ""},
 }
 
+CATALOGO = {
+    "kasuya-46-base": {"id": "kasuya-46-base", "fases_g": "60-60-90-90"},
+    "kasuya-46-claridad": {"id": "kasuya-46-claridad", "fases_g": "60-60-60-60-60"},
+}
+
 EXTRACCIONES = [{"id": "1"}]
 
 
@@ -99,14 +104,14 @@ def test_siguiente_id_continua_la_serie():
 # --- modo no interactivo -----------------------------------------------------
 
 def test_fila_desde_flags_calcula_los_tres_campos():
-    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    fila = nueva.construir_fila(argumentos(), CAFES, CATALOGO, EXTRACCIONES, HOY)
     assert fila["id"] == 2
     assert fila["dias_tueste"] == 77
     assert fila["ratio"] == "15.0"
 
 
 def test_fila_desde_flags_aplica_la_receta_base():
-    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    fila = nueva.construir_fila(argumentos(), CAFES, CATALOGO, EXTRACCIONES, HOY)
     assert fila["fecha"] == "2026-08-05"
     assert fila["dosis_g"] == "20"
     assert fila["agua_g"] == "300"
@@ -114,18 +119,20 @@ def test_fila_desde_flags_aplica_la_receta_base():
     assert fila["metodo"] == "V60 4:6 Kasuya"
     assert fila["reparto"] == "60-60-90-90"
     assert fila["notas_cata"] == ""
+    assert fila["receta_id"] == "kasuya-46-base"
+    assert fila["drawdown_s"] == ""
 
 
 def test_fila_desde_flags_tiene_las_columnas_del_csv_real():
     columnas, _ = nueva.leer_csv(nueva.EXTRACCIONES)
-    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    fila = nueva.construir_fila(argumentos(), CAFES, CATALOGO, EXTRACCIONES, HOY)
     assert sorted(fila) == sorted(columnas)
 
 
 def test_fila_desde_flags_admite_sobrescribir_los_defectos():
     fila = nueva.construir_fila(
         argumentos("--dosis", "18", "--reparto", "50-70-90-90", "--fecha", "2026-08-04"),
-        CAFES, EXTRACCIONES, HOY,
+        CAFES, CATALOGO, EXTRACCIONES, HOY,
     )
     assert fila["dosis_g"] == "18"
     assert fila["ratio"] == "16.7"
@@ -138,7 +145,42 @@ def test_fila_desde_flags_admite_sobrescribir_los_defectos():
 def test_fila_desde_flags_exige_los_obligatorios():
     args = nueva.parsear_argumentos(["--cafe", "gary"])
     with pytest.raises(ValueError, match="obligatorios"):
-        nueva.construir_fila(args, CAFES, EXTRACCIONES, HOY)
+        nueva.construir_fila(args, CAFES, CATALOGO, EXTRACCIONES, HOY)
+
+
+def test_el_reparto_sale_de_la_receta_escalada_al_agua():
+    fila = nueva.construir_fila(
+        argumentos("--agua", "270"), CAFES, CATALOGO, EXTRACCIONES, HOY
+    )
+    assert fila["reparto"] == "54-54-81-81"
+
+
+def test_otra_receta_cambia_el_reparto():
+    fila = nueva.construir_fila(
+        argumentos("--receta", "kasuya-46-claridad"), CAFES, CATALOGO, EXTRACCIONES, HOY
+    )
+    assert fila["receta_id"] == "kasuya-46-claridad"
+    assert fila["reparto"] == "60-60-60-60-60"
+
+
+def test_el_reparto_explicito_manda_sobre_la_receta():
+    fila = nueva.construir_fila(
+        argumentos("--reparto", "70-50-90-90"), CAFES, CATALOGO, EXTRACCIONES, HOY
+    )
+    assert fila["reparto"] == "70-50-90-90"
+
+
+def test_drawdown_se_guarda_como_entero():
+    fila = nueva.construir_fila(
+        argumentos("--drawdown", "42"), CAFES, CATALOGO, EXTRACCIONES, HOY
+    )
+    assert fila["drawdown_s"] == 42
+
+
+@pytest.mark.parametrize("valor", ["-1", "medio minuto", "1:05"])
+def test_drawdown_invalido(valor):
+    with pytest.raises(ValueError):
+        nueva.validar_drawdown(valor)
 
 
 @pytest.mark.parametrize(
@@ -148,8 +190,10 @@ def test_fila_desde_flags_exige_los_obligatorios():
         ("--nota", "12"),
         ("--defecto", "quemado"),
         ("--temp", "caliente"),
+        ("--receta", "chemex"),
+        ("--drawdown", "-5"),
     ],
 )
 def test_fila_desde_flags_propaga_las_validaciones(extra):
     with pytest.raises(ValueError):
-        nueva.construir_fila(argumentos(*extra), CAFES, EXTRACCIONES, HOY)
+        nueva.construir_fila(argumentos(*extra), CAFES, CATALOGO, EXTRACCIONES, HOY)
