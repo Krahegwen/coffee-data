@@ -33,20 +33,23 @@ function restante(cafeId: string, pesoG: number | null) {
     v-for="cafe in porEstado" :key="cafe.id"
     :to="`/cafes/${cafe.id}`" class="tarjeta"
   >
-    <div class="fila">
-      <strong>{{ cafe.nombre }}</strong>
-      <span :class="['estado', cafe.estado]">{{ cafe.estado }}</span>
+    <CafeFoto :foto="cafe.foto" :nombre="cafe.nombre" />
+    <div class="cuerpo">
+      <div class="fila">
+        <strong>{{ cafe.nombre }}</strong>
+        <span :class="['estado', cafe.estado]">{{ cafe.estado }}</span>
+      </div>
+      <p class="meta">
+        <span v-if="cafe.tostador">{{ cafe.tostador }}</span>
+        <span v-if="cafe.origen"> · {{ cafe.origen }}</span>
+        <span v-if="diasDesdeTueste(cafe.fecha_tueste) !== null">
+          · {{ diasDesdeTueste(cafe.fecha_tueste) }} d de tueste
+        </span>
+      </p>
+      <p v-if="restante(cafe.id, cafe.peso_g) !== null" class="meta">
+        quedan ~{{ restante(cafe.id, cafe.peso_g) }} g de {{ cafe.peso_g }}
+      </p>
     </div>
-    <p class="meta">
-      <span v-if="cafe.tostador">{{ cafe.tostador }}</span>
-      <span v-if="cafe.origen"> · {{ cafe.origen }}</span>
-      <span v-if="diasDesdeTueste(cafe.fecha_tueste) !== null">
-        · {{ diasDesdeTueste(cafe.fecha_tueste) }} d de tueste
-      </span>
-    </p>
-    <p v-if="restante(cafe.id, cafe.peso_g) !== null" class="meta">
-      quedan ~{{ restante(cafe.id, cafe.peso_g) }} g de {{ cafe.peso_g }}
-    </p>
   </NuxtLink>
 
   <p class="nota">
@@ -76,7 +79,9 @@ h2 { font-size: 1.05rem; margin: 0; }
 }
 
 .tarjeta {
-  display: block;
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
   background: var(--tarjeta);
   border: 1px solid var(--linea);
   border-radius: 0.7rem;
@@ -85,6 +90,9 @@ h2 { font-size: 1.05rem; margin: 0; }
   color: inherit;
   text-decoration: none;
 }
+
+/* min-width: 0 o un nombre largo desborda en vez de partirse. */
+.cuerpo { flex: 1; min-width: 0; }
 
 .fila { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; }
 .meta { margin: 0.25rem 0 0; color: var(--suave); font-size: 0.85rem; }

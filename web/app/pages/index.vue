@@ -39,26 +39,32 @@ function restante(cafeId: string, pesoG: number | null) {
   <section>
     <h2>Bolsas abiertas</h2>
     <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
-    <article v-for="cafe in abiertas" :key="cafe.id" class="tarjeta">
-      <div class="fila">
-        <strong>{{ cafe.nombre }}</strong>
-        <span v-if="diasDesdeTueste(cafe.fecha_tueste) !== null"
-              :class="['dias', { pasado: (diasDesdeTueste(cafe.fecha_tueste) ?? 0) > 60 }]">
-          {{ diasDesdeTueste(cafe.fecha_tueste) }} d
-        </span>
+    <NuxtLink
+      v-for="cafe in abiertas" :key="cafe.id"
+      :to="`/cafes/${cafe.id}`" class="tarjeta bolsa"
+    >
+      <CafeFoto :foto="cafe.foto" :nombre="cafe.nombre" />
+      <div class="cuerpo">
+        <div class="fila">
+          <strong>{{ cafe.nombre }}</strong>
+          <span v-if="diasDesdeTueste(cafe.fecha_tueste) !== null"
+                :class="['dias', { pasado: (diasDesdeTueste(cafe.fecha_tueste) ?? 0) > 60 }]">
+            {{ diasDesdeTueste(cafe.fecha_tueste) }} d
+          </span>
+        </div>
+        <p class="meta">
+          <span v-if="cafe.tostador">{{ cafe.tostador }}</span>
+          <span v-if="cafe.origen"> · {{ cafe.origen }}</span>
+          <span v-if="cafe.proceso"> · {{ cafe.proceso }}</span>
+        </p>
+        <p class="meta">
+          <span v-if="restante(cafe.id, cafe.peso_g) !== null">
+            quedan ~{{ restante(cafe.id, cafe.peso_g) }} g
+          </span>
+          <span v-if="cafe.conservacion"> · {{ cafe.conservacion }}</span>
+        </p>
       </div>
-      <p class="meta">
-        <span v-if="cafe.tostador">{{ cafe.tostador }}</span>
-        <span v-if="cafe.origen"> · {{ cafe.origen }}</span>
-        <span v-if="cafe.proceso"> · {{ cafe.proceso }}</span>
-      </p>
-      <p class="meta">
-        <span v-if="restante(cafe.id, cafe.peso_g) !== null">
-          quedan ~{{ restante(cafe.id, cafe.peso_g) }} g
-        </span>
-        <span v-if="cafe.conservacion"> · {{ cafe.conservacion }}</span>
-      </p>
-    </article>
+    </NuxtLink>
   </section>
 
   <section>
@@ -97,6 +103,17 @@ h2 {
 }
 
 .tarjeta.enlace { display: block; color: inherit; text-decoration: none; }
+
+.tarjeta.bolsa {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* min-width: 0 o un nombre largo desborda en vez de partirse. */
+.cuerpo { flex: 1; min-width: 0; }
 
 .fila {
   display: flex;

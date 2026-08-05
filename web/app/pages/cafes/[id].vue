@@ -122,6 +122,42 @@ async function quitarFoto() {
   <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
 
   <template v-else>
+    <!-- Nombre y foto van antes del muro de sesión: mirar la bolsa no es
+         editarla, y en un móvil recién instalado no habría sesión todavía. -->
+    <h2>{{ original.nombre }}</h2>
+
+    <section class="tarjeta">
+      <img
+        v-if="original.foto"
+        :src="urlFoto(original.foto)!"
+        alt="La bolsa de este café"
+        class="foto"
+      >
+      <p v-else class="meta sin-foto">Sin foto todavía.</p>
+      <input
+        ref="ficheroFoto"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        hidden
+        @change="subirFoto"
+      >
+      <div v-if="activa" class="botones-foto">
+        <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
+          {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
+        </button>
+        <button
+          v-if="original.foto"
+          type="button"
+          class="secundario"
+          :disabled="subiendoFoto"
+          @click="quitarFoto"
+        >
+          Quitar
+        </button>
+      </div>
+      <p v-if="erroresFoto.length" class="fallo">{{ erroresFoto.join(' · ') }}</p>
+    </section>
+
     <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 
     <section v-else-if="!activa" class="tarjeta">
@@ -132,54 +168,18 @@ async function quitarFoto() {
       <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
     </section>
 
-    <template v-else>
-      <form @submit.prevent="enviar">
-        <h2>{{ original.nombre }}</h2>
-        <p class="meta">
-          id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
-          que apuntan las extracciones.
-        </p>
+    <form v-else @submit.prevent="enviar">
+      <p class="meta">
+        id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
+        que apuntan las extracciones.
+      </p>
 
-        <CafeCampos v-model="form" />
+      <CafeCampos v-model="form" />
 
-        <button type="submit" :disabled="enviando || !hayCambios">
-          {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
-        </button>
-      </form>
-
-      <section class="tarjeta">
-        <h2>Foto de la bolsa</h2>
-        <img
-          v-if="original.foto"
-          :src="urlFoto(original.foto)!"
-          alt="La bolsa de este café"
-          class="foto"
-        >
-        <p v-else class="meta">Sin foto todavía.</p>
-        <input
-          ref="ficheroFoto"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          hidden
-          @change="subirFoto"
-        >
-        <div class="botones-foto">
-          <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
-            {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
-          </button>
-          <button
-            v-if="original.foto"
-            type="button"
-            class="secundario"
-            :disabled="subiendoFoto"
-            @click="quitarFoto"
-          >
-            Quitar
-          </button>
-        </div>
-        <p v-if="erroresFoto.length" class="fallo">{{ erroresFoto.join(' · ') }}</p>
-      </section>
-    </template>
+      <button type="submit" :disabled="enviando || !hayCambios">
+        {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
+      </button>
+    </form>
   </template>
 
   <section v-if="errores.length" class="tarjeta errores">
@@ -222,14 +222,18 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .tarjeta input { width: 100%; margin: 0.5rem 0; font-size: 16px; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta); }
 
+/* Con tope de alto: una foto vertical de móvil ocuparía tres pantallas. */
 .foto {
-  width: 100%;
+  display: block;
+  max-width: 100%;
+  max-height: 55vh;
+  margin: 0 auto;
   border-radius: 0.5rem;
   border: 1px solid var(--linea);
-  margin: 0.4rem 0;
 }
 
-.botones-foto { display: flex; gap: 0.5rem; }
+.botones-foto { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.sin-foto { margin: 0; }
 
 .secundario {
   background: transparent;
