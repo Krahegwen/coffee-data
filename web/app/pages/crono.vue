@@ -17,11 +17,13 @@ const agua = ref(300)
 watchEffect(() => { if (!cafeId.value && abiertas.value.length) cafeId.value = abiertas.value[0]!.id })
 
 const pasos = ref<PasoGuion[]>([])
-const arrancado = ref(false)
+/** En la pantalla del cronómetro; no implica que el reloj vaya. */
+const enCrono = ref(false)
+const corriendo = ref(false)
 const transcurrido = ref(0)
 const finGoteo = ref<number | null>(null)
 
-let reloj: ReturnType<typeof setInterval> | null = null
+let animacion = 0
 let inicio = 0
 let despierta: WakeLockSentinel | null = null
 
@@ -62,6 +64,29 @@ const drawdown = computed(() =>
     : null,
 )
 
+// El anillo: la bola da una vuelta entera por paso.
+const RADIO = 45
+const VUELTA = 2 * Math.PI * RADIO
+
+/**
+ * Lo recorrido del paso actual, de 0 a 1. En el último no hay siguiente hora
+ * contra la que medir, así que se da por cerrado: el plan ya no manda nada y
+ * lo que queda es esperar al goteo.
+ */
+const progresoPaso = computed(() => {
+  if (!actual.value || siguiente.value === null) return 1
+  const desde = actual.value.t_inicio_s ?? 0
+  const hasta = siguiente.value.t_inicio_s!
+  if (hasta <= desde) return 1
+  return Math.min(1, Math.max(0, (transcurrido.value - desde) / (hasta - desde)))
+})
+
+/** Posición de la bola sobre el anillo, empezando arriba y hacia la derecha. */
+const bola = computed(() => {
+  const rad = (progresoPaso.value * 360 - 90) * (Math.PI / 180)
+  return { x: 50 + RADIO * Math.cos(rad), y: 50 + RADIO * Math.sin(rad) }
+})
+
 function reloj_mmss(segundos: number) {
   const m = Math.floor(segundos / 60)
   const s = Math.floor(segundos % 60)
@@ -74,15 +99,37 @@ async function cargar() {
 
 watch([recetaId, agua], cargar, { immediate: true })
 
-async function arrancar() {
+/**
+ * Lleva al cronómetro, pero con el reloj parado: se arranca al verter, no al
+ * llegar. Entre una cosa y otra hay que coger el hervidor.
+ */
+async function alCronometro() {
   if (!pasos.value.length) await cargar()
-  // Contra el reloj del sistema y no sumando ticks: un setInterval acumula
-  // deriva, y aquí 45 segundos tienen que ser 45.
+  transcurrido.value = 0
+  finGoteo.value = null
+  corriendo.value = false
+  enCrono.value = true
+}
+
+/** Segundos desde el arranque, leídos del reloj del sistema. */
+function ahora() {
+  return (performance.now() - inicio) / 1000
+}
+
+async function iniciar() {
+  // Contra el reloj del sistema y no sumando ticks: sumar acumula deriva, y
+  // aquí 45 segundos tienen que ser 45. Con requestAnimationFrame la bola va
+  // fluida en vez de a diez saltos por segundo.
   inicio = performance.now()
   transcurrido.value = 0
   finGoteo.value = null
-  arrancado.value = true
-  reloj = setInterval(() => { transcurrido.value = (performance.now() - inicio) / 1000 }, 100)
+  corriendo.value = true
+
+  const tic = () => {
+    transcurrido.value = ahora()
+    animacion = requestAnimationFrame(tic)
+  }
+  animacion = requestAnimationFrame(tic)
 
   // Que no se apague la pantalla con las manos ocupadas.
   try {
@@ -91,19 +138,23 @@ async function arrancar() {
 }
 
 function marcarFinGoteo() {
+  // Del reloj del sistema, no de la última pintada: con la pestaña de fondo
+  // el navegador congela las animaciones y el valor se quedaría corto.
+  transcurrido.value = ahora()
   finGoteo.value = transcurrido.value
   parar()
 }
 
 function parar() {
-  if (reloj) { clearInterval(reloj); reloj = null }
+  if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
+  corriendo.value = false
   despierta?.release?.()
   despierta = null
 }
 
 function reiniciar() {
   parar()
-  arrancado.value = false
+  enCrono.value = false
   transcurrido.value = 0
   finGoteo.value = null
 }
@@ -129,7 +180,7 @@ onUnmounted(parar)
 <template>
   <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
-  <section v-if="!arrancado">
+  <section v-if="!enCrono">
     <h2>Preparar</h2>
     <label>
       Café
@@ -156,41 +207,63 @@ onUnmounted(parar)
       </li>
     </ol>
 
-    <button @click="arrancar">Empezar</button>
+    <button @click="alCronometro">Al cronómetro</button>
   </section>
 
   <section v-else class="corriendo">
-    <p class="crono">{{ reloj_mmss(transcurrido) }}</p>
+    <!-- El anillo es decorativo: lo que hay que saber está en los números. -->
+    <div class="esfera">
+      <svg class="anillo" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="pista" cx="50" cy="50" :r="RADIO" />
+        <circle
+          class="avance" cx="50" cy="50" :r="RADIO"
+          :stroke-dasharray="`${VUELTA * progresoPaso} ${VUELTA}`"
+        />
+        <circle class="bola" :cx="bola.x" :cy="bola.y" r="3.6" />
+      </svg>
 
-    <div v-if="actual" class="paso">
-      <p class="accion">{{ actual.accion }}</p>
-      <p v-if="actual.accion === 'verter'" class="objetivo">
-        hasta <strong>{{ actual.acumulado_g }} g</strong>
-        <span class="delta">(+{{ actual.agua_g }})</span>
-      </p>
-      <p v-if="!actual.lectura_fiable" class="ojo">
-        No mires la báscula: la cuchara pesa mientras está dentro.
-      </p>
-      <p v-if="actual.notas" class="notas">{{ actual.notas }}</p>
+      <div class="dentro">
+        <p class="crono">{{ reloj_mmss(transcurrido) }}</p>
+        <template v-if="actual">
+          <p class="accion">{{ actual.accion }}</p>
+          <!-- El espacio va explícito: Vue se come el salto de línea entre
+               etiquetas y quedaba «60 g(+60)». -->
+          <p v-if="actual.accion === 'verter'" class="objetivo">
+            hasta <strong>{{ actual.acumulado_g }} g</strong>&#32;<span
+              class="delta"
+            >(+{{ actual.agua_g }})</span>
+          </p>
+        </template>
+        <p v-else class="accion">preparados…</p>
+      </div>
     </div>
-    <p v-else class="accion">preparados…</p>
 
-    <p v-if="siguiente" class="faltan">
+    <!-- Fuera del anillo: los textos largos no caben dentro sin estrujarlo. -->
+    <p v-if="actual && !actual.lectura_fiable" class="ojo">
+      No mires la báscula: la cuchara pesa mientras está dentro.
+    </p>
+    <p v-if="actual?.notas" class="notas">{{ actual.notas }}</p>
+
+    <p v-if="siguiente && corriendo" class="faltan">
       {{ siguiente.accion }}{{ siguiente.accion === 'verter' ? ` hasta ${siguiente.acumulado_g} g` : '' }}
       en <strong>{{ Math.ceil(faltan ?? 0) }} s</strong>
     </p>
 
-    <button v-if="finGoteo === null" class="goteo" @click="marcarFinGoteo">
+    <button v-if="!corriendo && finGoteo === null" @click="iniciar">Iniciar</button>
+
+    <button v-else-if="finGoteo === null" class="goteo" @click="marcarFinGoteo">
       Dejó de gotear
     </button>
 
-    <div v-else class="tarjeta">
+    <div v-if="finGoteo !== null" class="tarjeta">
       <p><strong>{{ reloj_mmss(finGoteo) }}</strong> en total</p>
       <p v-if="drawdown !== null" class="meta">Goteo: {{ drawdown }} s, medido solo</p>
       <button @click="registrar">Registrar esta extracción</button>
     </div>
 
-    <button class="secundario" @click="reiniciar">Reiniciar</button>
+    <button class="secundario" @click="reiniciar">
+      {{ corriendo || finGoteo !== null ? 'Reiniciar' : 'Atrás' }}
+    </button>
   </section>
 </template>
 
@@ -256,24 +329,56 @@ button {
 
 .corriendo { text-align: center; }
 
+/* Cuadrada a la fuerza: el anillo se deforma si el alto no sigue al ancho. */
+.esfera {
+  position: relative;
+  width: min(78vw, 20rem);
+  aspect-ratio: 1;
+  margin: 1rem auto 0.5rem;
+  display: grid;
+  place-items: center;
+}
+
+.anillo { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.pista { fill: none; stroke: var(--linea); stroke-width: 2; }
+
+.avance {
+  fill: none;
+  stroke: var(--acento);
+  stroke-width: 2;
+  stroke-linecap: round;
+  /* El trazo nace a las tres en punto; girándolo empieza arriba, como la
+     bola, que se posiciona con la misma referencia. */
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.bola { fill: var(--acento); }
+
+/* Con el margen suficiente para que el texto no toque el anillo. */
+.dentro { position: relative; padding: 0 14%; }
+
 .crono {
-  font-size: 4rem;
+  /* Se encoge con la pantalla: dentro del círculo no hay sitio de sobra. */
+  font-size: clamp(2.4rem, 15vw, 3.6rem);
   font-weight: 200;
   font-variant-numeric: tabular-nums;
-  margin: 1.5rem 0 0.5rem;
+  margin: 0 0 0.25rem;
   letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 .accion {
-  font-size: 1.6rem;
+  font-size: clamp(1.1rem, 5.5vw, 1.5rem);
   font-weight: 600;
   margin: 0;
   text-transform: capitalize;
 }
 
-.objetivo { font-size: 1.5rem; margin: 0.35rem 0; }
+.objetivo { font-size: clamp(0.95rem, 4.5vw, 1.25rem); margin: 0.3rem 0 0; }
 .objetivo strong { color: var(--acento); }
-.delta { color: var(--suave); font-size: 1rem; }
+.delta { color: var(--suave); font-size: 0.85em; }
 
 .ojo {
   color: #c2410c;
@@ -286,7 +391,7 @@ button {
 .faltan {
   color: var(--suave);
   font-size: 0.95rem;
-  margin: 1.25rem 0;
+  margin: 0.75rem 0;
 }
 
 .tarjeta {
