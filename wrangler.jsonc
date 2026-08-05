@@ -5,14 +5,13 @@
   "compatibility_date": "2026-08-05",
   "observability": { "enabled": true },
 
-  // database_id se rellena tras crear la base:
-  //   pnpm exec wrangler d1 create coffee
-  // En local (--local, wrangler dev) el id da igual: usa un SQLite en .wrangler.
+  // El binding es el nombre con el que el código ve la base: env.DB.
+  // En local (--local, wrangler dev) usa un SQLite en .wrangler y el id da igual.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "coffee",
-      "database_id": "PENDIENTE-crear-con-wrangler-d1-create",
+      "database_id": "de776103-1a8f-45a0-8b7b-3c4b6aec74c5",
       "migrations_dir": "migrations"
     }
   ]
