@@ -9,6 +9,8 @@ const id = String(route.params.id)
 const { data: bolsas } = await useAsyncData(`cafe-${id}`, cafes)
 const original = computed(() => (bolsas.value ?? []).find((c) => c.id === id) ?? null)
 
+useHead({ title: () => original.value?.nombre ?? 'Bolsa' })
+
 const form = reactive<Record<string, any>>({})
 const enviando = ref(false)
 const errores = ref<string[]>([])

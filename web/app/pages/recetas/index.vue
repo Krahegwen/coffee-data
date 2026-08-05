@@ -1,4 +1,6 @@
 <script setup lang="ts">
+useHead({ title: 'Recetas' })
+
 const { recetas } = useApi()
 const { data: catalogo } = await useAsyncData('recetas-lista', recetas)
 

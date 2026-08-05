@@ -7,6 +7,8 @@ const route = useRoute()
 const router = useRouter()
 const id = Number(route.params.id)
 
+useHead({ title: `Extracción #${id}` })
+
 const { data: historial } = await useAsyncData(`ext-${id}`, () => extracciones())
 const { data: bolsas } = await useAsyncData('cafes-ext', cafes)
 const { data: catalogo } = await useAsyncData('recetas-ext', recetas)

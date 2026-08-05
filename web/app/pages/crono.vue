@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { PasoGuion } from '~/composables/useApi'
 
+useHead({ title: 'Cronómetro' })
+
 const { cafes, recetas, guion } = useApi()
 const router = useRouter()
 

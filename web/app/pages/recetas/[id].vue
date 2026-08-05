@@ -18,6 +18,8 @@ const original = computed(() =>
   esNueva.value ? null : (catalogo.value ?? []).find((r) => r.id === id) ?? null,
 )
 
+useHead({ title: () => (esNueva.value ? 'Nueva receta' : original.value?.nombre ?? 'Receta') })
+
 const form = reactive({ id: '', nombre: '', ratio: 15 as number | '', notas: '' })
 const pasos = ref<PasoEditable[]>([
   { accion: 'verter', agua_g: 60, t_inicio_s: 0, notas: '' },

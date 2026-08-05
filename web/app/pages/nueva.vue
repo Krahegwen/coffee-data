@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
+useHead({ title: 'Registrar extracción' })
+
 const { cafes, recetas, crear } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()

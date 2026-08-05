@@ -1,4 +1,6 @@
 <script setup lang="ts">
+useHead({ title: 'Nueva bolsa' })
+
 const { crearCafe } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const router = useRouter()

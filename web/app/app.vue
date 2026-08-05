@@ -1,3 +1,15 @@
+<script setup lang="ts">
+/**
+ * El título de cada pantalla se cuelga del nombre de la app. Importa más de
+ * lo que parece: es lo que se lee en la pestaña, en los marcadores y, ya
+ * instalada, en el conmutador de aplicaciones del móvil.
+ */
+useHead({
+  titleTemplate: (pantalla?: string) =>
+    pantalla ? `${pantalla} · Bitácora de café` : 'Bitácora de café',
+})
+</script>
+
 <template>
   <div class="marco">
     <header>

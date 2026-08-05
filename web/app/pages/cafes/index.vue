@@ -1,4 +1,6 @@
 <script setup lang="ts">
+useHead({ title: 'Bolsas' })
+
 const { cafes, extracciones } = useApi()
 
 const { data: bolsas } = await useAsyncData('cafes-lista', cafes)

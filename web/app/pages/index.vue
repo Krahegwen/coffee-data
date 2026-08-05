@@ -19,6 +19,21 @@ function restante(cafeId: string, pesoG: number | null) {
   if (!pesoG) return null
   return Math.max(0, Math.round(pesoG - consumido(cafeId)))
 }
+
+const puedeInstalar = usePuedeInstalar()
+const yaInstalada = useYaInstalada()
+const comoInstalar = ref(false)
+
+async function instalar() {
+  // Que no quede colgada la ayuda de un intento anterior si ahora sí hay
+  // diálogo: el navegador puede mandar el evento más tarde.
+  comoInstalar.value = false
+  const respuesta = await pedirInstalacion()
+  // Si el navegador nunca mandó el evento no hay diálogo que abrir: lo único
+  // honesto es contar dónde está la opción en el menú.
+  if (respuesta === 'sin-evento') comoInstalar.value = true
+  if (respuesta === 'accepted') puedeInstalar.value = false
+}
 </script>
 
 <template>
@@ -35,6 +50,18 @@ function restante(cafeId: string, pesoG: number | null) {
       <NuxtLink to="/recetas" class="registrar secundario">Recetas</NuxtLink>
     </div>
   </div>
+
+  <!-- Solo mientras no esté instalada: una vez lo está, sobra. -->
+  <section v-if="!yaInstalada" class="instalacion">
+    <button type="button" class="instalar" @click="instalar">
+      Instalar en el móvil
+    </button>
+    <p v-if="comoInstalar" class="ayuda">
+      Este navegador no ofrece el diálogo. Búscalo en su menú (⋮) como
+      «Instalar aplicación» o «Añadir a pantalla de inicio». Si acabas de
+      actualizar la app, recarga una vez y vuelve a intentarlo.
+    </p>
+  </section>
 
   <section>
     <h2>Bolsas abiertas</h2>
@@ -170,6 +197,26 @@ h2 {
   border: 1px solid var(--linea);
   min-height: 2.5rem;
   padding: 0.6rem;
+}
+
+.instalacion { margin-top: 0.75rem; }
+
+.instalar {
+  font: inherit;
+  width: 100%;
+  min-height: 44px;
+  background: transparent;
+  border: 1px dashed var(--linea);
+  border-radius: 0.6rem;
+  color: var(--acento);
+  padding: 0.7rem;
+  cursor: pointer;
+}
+
+.ayuda {
+  color: var(--suave);
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0;
 }
 
 .vacio, .aviso {
