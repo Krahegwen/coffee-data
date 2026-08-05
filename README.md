@@ -15,6 +15,7 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 | `resumen.py` | Ranking, histórico y aviso de frescura. `python resumen.py` |
 | `comun.py` | Lectura, escritura y validaciones que comparten los scripts. |
 | `recetas.py` | Carga del catálogo y escalado de vertidos al agua real. |
+| `sugerencias.py` | Qué cambiar en la próxima extracción. |
 
 ## Esquema · `cafes.csv`
 
@@ -75,6 +76,25 @@ Retirar el dripper al terminar el goteo.
 | Quiero más claridad y fuerza | Fase 2 en 3 vertidos (60-60-60) |
 
 Una variable por extracción. Si mueves dos, el dato no sirve.
+
+## Sugerencias
+
+`nueva.py` propone qué mover en la siguiente, y lo usa como valor por defecto
+de `siguiente_ajuste`. No hay ningún modelo detrás, y es deliberado:
+
+- **Reglas fijas.** La tabla de arriba más el goteo. El `drawdown_s` manda sobre
+  el sabor: es una señal mecánica y no depende de cómo tengas el paladar ese día.
+- **Deltas emparejados.** Como el protocolo cambia **una** variable entre
+  extracciones, cada par consecutivo del mismo café ya es una comparación
+  controlada. Con dos pares en la misma dirección empieza a informar: «bajar
+  `temp_c` movió la nota +1.5 de media». Una regresión sobre estos datos daría
+  coeficientes de ruido con pinta de precisión.
+- **Cobertura.** Qué valores ya has probado con ese café, para no repetir sin
+  darte cuenta.
+
+Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
+`sugerencias.py` y son puntos de partida, no verdades: cámbialos cuando tengas
+extracciones suficientes para saber cuáles son los tuyos.
 
 ## Convención
 

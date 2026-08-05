@@ -22,6 +22,7 @@ from comun import (
     validar_opcion,
 )
 from recetas import cargar_recetas, reparto_de, validar_receta_id
+from sugerencias import formatear, sugerir, texto_corto
 
 DEFECTOS = ["equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton"]
 
@@ -194,7 +195,9 @@ def preguntar_fila(cafes, recetas, extracciones, hoy):
     )
     fila["notas_cata"] = preguntar("notas_cata", obligatorio=False)
     fila["nota"] = preguntar("nota (1-10)", validador=validar_nota)
-    fila["siguiente_ajuste"] = preguntar("siguiente_ajuste", obligatorio=False)
+    # Con la cata ya respondida el motor puede proponer el siguiente ajuste.
+    propuesta = texto_corto(sugerir(fila, list(extracciones) + [fila]))
+    fila["siguiente_ajuste"] = preguntar("siguiente_ajuste", propuesta, obligatorio=False)
     return fila
 
 
@@ -248,6 +251,8 @@ def main(argv=None):
             return 2
 
     mostrar_resumen(fila, columnas)
+    print()
+    print(formatear(sugerir(fila, list(extracciones) + [fila])))
 
     if args.dry_run:
         print("\n--dry-run: no se ha escrito nada.")

@@ -67,6 +67,22 @@ Un commit por extracción, con el formato que imprime el propio script:
 Por ejemplo `#2 Gary: 91 °C`. El hook de `pre-commit` pasa los tests antes de
 dejar entrar el commit; si fallan, arréglalos, no uses `--no-verify`.
 
+Tras guardar, el script imprime un bloque `SUGERENCIAS` con qué mover en la
+siguiente. Reléeselo al usuario: es la mitad del valor de registrar. Recuerda
+que solo se aplica **la primera**.
+
+## Corregir la ficha de una bolsa
+
+`cafes.csv` es estado, así que sus filas se corrigen. Nunca a mano:
+
+```bash
+python cafe.py --editar abbie --estado terminado
+python cafe.py --editar gary --conservacion "Fellow Atmos 1.2 L"
+```
+
+Solo cambia los campos que pases. El `id` no se puede tocar: es la clave a la
+que apuntan las extracciones.
+
 ## Dar de alta una bolsa
 
 ```bash
