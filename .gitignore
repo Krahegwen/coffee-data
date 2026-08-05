@@ -16,3 +16,4 @@ dist/
 .nuxt/
 .output/
 .data/
+.env

@@ -57,6 +57,45 @@ export interface Receta {
   pasos: Paso[]
 }
 
+export interface Cambio {
+  variable: string
+  cambio: string
+  porque: string
+}
+
+export interface Sugerencias {
+  avisos: string[]
+  cambios: Cambio[]
+  cobertura: Record<string, string[]>
+  conforme: boolean
+  resumen: string
+}
+
+export interface Creada {
+  extraccion: Extraccion
+  cafe: string
+  sugerencias: Sugerencias
+}
+
+/** Lo que la app manda. El servidor calcula id, reparto, ratio y dias_tueste. */
+export interface NuevaExtraccion {
+  cafe_id: string
+  temp_c: number
+  clics: number
+  tiempo_total: string
+  variable_cambiada: string
+  defecto: string
+  nota: number
+  dosis_g?: number
+  agua_g?: number
+  drawdown_s?: number
+  receta_id?: string
+  dripper?: string
+  notas_cata?: string
+  siguiente_ajuste?: string
+  fecha?: string
+}
+
 export function useApi() {
   const base = useRuntimeConfig().public.apiBase
 
@@ -67,7 +106,28 @@ export function useApi() {
       query: cafeId ? { cafe: cafeId } : undefined,
     })
 
-  return { base, cafes, recetas, extracciones }
+  /**
+   * Registra una extracción. Entera o ninguna: si el servidor rechaza algo,
+   * no se escribe nada y devuelve la lista de errores.
+   */
+  async function crear(datos: NuevaExtraccion, token: string): Promise<Creada> {
+    return await $fetch<Creada>(`${base}/api/extracciones`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+      body: datos,
+    })
+  }
+
+  return { base, cafes, recetas, extracciones, crear }
+}
+
+/** Saca los mensajes legibles de lo que devuelva la API al fallar. */
+export function erroresDe(fallo: unknown): string[] {
+  const datos = (fallo as { data?: { errores?: string[]; error?: string } })?.data
+  if (datos?.errores?.length) return datos.errores
+  if (datos?.error) return [datos.error]
+  const mensaje = (fallo as Error)?.message
+  return [mensaje || 'No se pudo guardar']
 }
 
 /** Días desde el tueste hasta hoy. Null si la bolsa no tiene fecha. */

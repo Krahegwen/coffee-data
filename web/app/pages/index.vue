@@ -27,6 +27,8 @@ function restante(cafeId: string, pesoG: number | null) {
     últimos datos guardados en cuanto la app esté instalada.
   </div>
 
+  <NuxtLink to="/nueva" class="registrar">+ Registrar extracción</NuxtLink>
+
   <section>
     <h2>Bolsas abiertas</h2>
     <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
@@ -119,6 +121,18 @@ h2 {
 }
 
 .dias.pasado { color: #c2410c; }
+
+.registrar {
+  display: block;
+  text-align: center;
+  font-weight: 600;
+  color: #fff;
+  background: var(--acento);
+  border-radius: 0.6rem;
+  padding: 0.85rem;
+  text-decoration: none;
+  min-height: 3rem;
+}
 
 .vacio, .aviso {
   color: var(--suave);

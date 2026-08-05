@@ -29,6 +29,25 @@ function cors(env) {
   };
 }
 
+/**
+ * Añade CORS a lo que salga, sea acierto o error.
+ *
+ * Sin esto el navegador no puede leer el cuerpo de un 422 y el usuario ve un
+ * error de CORS en lugar de qué campo le falta. Se aplica en la salida y no
+ * en cada `return` para que no se pueda olvidar en uno.
+ */
+function conCors(respuesta, env) {
+  const cabeceras = new Headers(respuesta.headers);
+  for (const [clave, valor] of Object.entries(cors(env))) {
+    cabeceras.set(clave, valor);
+  }
+  return new Response(respuesta.body, {
+    status: respuesta.status,
+    statusText: respuesta.statusText,
+    headers: cabeceras,
+  });
+}
+
 async function pasosDe(env, recetaId) {
   const { results } = await env.DB.prepare(
     "SELECT * FROM pasos WHERE receta_id = ? ORDER BY orden",
@@ -96,8 +115,40 @@ async function crearExtraccion(request, env) {
       sugerencias: { ...sugerencia, resumen: textoCorto(sugerencia) },
     },
     201,
-    cors(env),
   );
+}
+
+async function enrutar(request, env, url, ruta) {
+  if (request.method === "GET") {
+    if (ruta === "/api/cafes") {
+      const { results } = await env.DB.prepare(
+        "SELECT * FROM cafes ORDER BY estado, nombre",
+      ).all();
+      return json(results);
+    }
+    if (ruta === "/api/recetas") {
+      const { results } = await env.DB.prepare("SELECT * FROM recetas ORDER BY id").all();
+      const conPasos = await Promise.all(
+        results.map(async (receta) => ({ ...receta, pasos: await pasosDe(env, receta.id) })),
+      );
+      return json(conPasos);
+    }
+    if (ruta === "/api/extracciones") {
+      const cafeId = url.searchParams.get("cafe");
+      const consulta = cafeId
+        ? env.DB.prepare("SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY id DESC").bind(cafeId)
+        : env.DB.prepare("SELECT * FROM v_extracciones ORDER BY id DESC");
+      const { results } = await consulta.all();
+      return json(results);
+    }
+  }
+
+  if (request.method === "POST" && ruta === "/api/extracciones") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    return await crearExtraccion(request, env);
+  }
+
+  return json({ error: "ruta no encontrada" }, 404);
 }
 
 export default {
@@ -110,40 +161,9 @@ export default {
     }
 
     try {
-      if (request.method === "GET") {
-        if (ruta === "/api/cafes") {
-          const { results } = await env.DB.prepare(
-            "SELECT * FROM cafes ORDER BY estado, nombre",
-          ).all();
-          return json(results, 200, cors(env));
-        }
-        if (ruta === "/api/recetas") {
-          const { results } = await env.DB.prepare(
-            "SELECT * FROM recetas ORDER BY id",
-          ).all();
-          const conPasos = await Promise.all(
-            results.map(async (receta) => ({ ...receta, pasos: await pasosDe(env, receta.id) })),
-          );
-          return json(conPasos, 200, cors(env));
-        }
-        if (ruta === "/api/extracciones") {
-          const cafeId = url.searchParams.get("cafe");
-          const consulta = cafeId
-            ? env.DB.prepare("SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY id DESC").bind(cafeId)
-            : env.DB.prepare("SELECT * FROM v_extracciones ORDER BY id DESC");
-          const { results } = await consulta.all();
-          return json(results, 200, cors(env));
-        }
-      }
-
-      if (request.method === "POST" && ruta === "/api/extracciones") {
-        if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
-        return await crearExtraccion(request, env);
-      }
-
-      return json({ error: "ruta no encontrada" }, 404, cors(env));
+      return conCors(await enrutar(request, env, url, ruta), env);
     } catch (error) {
-      return json({ error: error.message }, 500, cors(env));
+      return conCors(json({ error: error.message }, 500), env);
     }
   },
 };
