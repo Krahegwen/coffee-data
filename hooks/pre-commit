@@ -1,0 +1,28 @@
+#!/bin/sh
+# Ejecuta los tests antes de cada commit y lo aborta si fallan.
+# Activar tras clonar:  git config core.hooksPath hooks
+
+PYTHON=""
+for candidato in python3 python py; do
+    if command -v "$candidato" >/dev/null 2>&1 && "$candidato" -c "import sys" >/dev/null 2>&1; then
+        PYTHON="$candidato"
+        break
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo "pre-commit: no se encuentra Python. Commit abortado." >&2
+    exit 1
+fi
+
+if ! "$PYTHON" -c "import pytest" >/dev/null 2>&1; then
+    echo "pre-commit: falta pytest. Instálalo con: $PYTHON -m pip install pytest" >&2
+    echo "pre-commit: commit abortado." >&2
+    exit 1
+fi
+
+echo "pre-commit: ejecutando los tests..."
+if ! "$PYTHON" -m pytest -q; then
+    echo "pre-commit: los tests fallan. Commit abortado." >&2
+    exit 1
+fi
