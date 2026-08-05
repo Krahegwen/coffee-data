@@ -88,4 +88,11 @@ header h1 {
  * pantallas y el fallo era el mismo en todas.
  */
 .pareja > * { min-width: 0; }
+
+/*
+ * El campo del token, en la tarjeta de abrir sesión que aparece en cinco
+ * pantallas. Daba 39 px: es el primer control que toca quien estrena el
+ * móvil, y era el más pequeño de la app.
+ */
+input[type="password"] { min-height: 44px; }
 </style>
