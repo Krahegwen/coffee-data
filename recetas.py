@@ -1,17 +1,51 @@
 #!/usr/bin/env python3
-"""Catálogo de recetas y escalado de vertidos.
+"""Catálogo de recetas y sus pasos.
 
-`fases_g` guarda los gramos de cada vertido, y su suma es el agua de
-referencia. Escalar por el agua real hace la receta independiente de la dosis:
-60-60-90-90 sobre 300 g son 54-54-81-81 sobre 270 g.
+Una receta es una lista de pasos, no solo una lista de vertidos: agitar, meter
+la cuchara o esperar el goteo son pasos sin agua, y hacen falta para guiar una
+extracción de verdad.
+
+Solo los pasos `verter` llevan gramos y solo ellos escalan con el agua: la suma
+de los vertidos es el agua de referencia, así que 60-60-90-90 sobre 300 g son
+54-54-81-81 sobre 270 g. Los tiempos no se tocan.
+
+Cada acción se comporta distinto frente a una báscula, y eso importa cuando la
+app la lea:
+
+    verter   el peso sube; el objetivo es acumulado ("hasta 120 g")
+    agitar   el peso hace ruido; hay que ignorar la báscula
+    remover  el peso SUBE, la cuchara pesa mientras está dentro; ignorar
+    esperar  el peso hace meseta; la meseta es el fin del goteo
+    retirar  el peso cae de golpe; la caída marca el fin de la extracción
 """
-from comun import RECETAS, leer_csv
+from collections import defaultdict
+
+from comun import PASOS, RECETAS, leer_csv, validar_opcion
+
+ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"]
+
+# La única acción que lleva agua y, por tanto, la única que escala.
+CON_AGUA = "verter"
+
+# Acciones durante las que la lectura de la báscula no es de fiar.
+SIN_LECTURA_FIABLE = ("agitar", "remover")
 
 
 def cargar_recetas(ruta=RECETAS):
     """Diccionario id -> fila de recetas.csv."""
     _, filas = leer_csv(ruta)
     return {r["id"]: r for r in filas}
+
+
+def cargar_pasos(ruta=PASOS):
+    """Diccionario receta_id -> lista de pasos, ordenada."""
+    _, filas = leer_csv(ruta)
+    por_receta = defaultdict(list)
+    for fila in filas:
+        por_receta[fila["receta_id"]].append(fila)
+    for pasos in por_receta.values():
+        pasos.sort(key=lambda p: int(p["orden"]))
+    return dict(por_receta)
 
 
 def validar_receta_id(valor, recetas):
@@ -24,45 +58,70 @@ def validar_receta_id(valor, recetas):
     return receta_id
 
 
-def escalar_fases(fases_g, agua_g):
-    """Vertidos escalados al agua real. La suma cuadra exactamente con el agua."""
-    partes = [p for p in str(fases_g).split("-") if p.strip() != ""]
-    if not partes:
-        raise ValueError(f"fases_g vacío: {fases_g!r}")
-    try:
-        partes = [float(p) for p in partes]
-    except ValueError:
-        raise ValueError(f"fases_g debe ser números separados por guiones: {fases_g!r}") from None
+def validar_accion(valor):
+    """La acción debe ser una de las conocidas."""
+    return validar_opcion(valor, ACCIONES, "accion")
 
-    referencia = sum(partes)
+
+def vertidos(pasos):
+    """Solo los pasos que llevan agua."""
+    return [p for p in pasos if p["accion"] == CON_AGUA]
+
+
+def escalar(gramos, agua_g):
+    """Escala una lista de gramos para que sume exactamente el agua."""
+    if not gramos:
+        raise ValueError("No hay ningún vertido que escalar")
+
+    referencia = sum(gramos)
     if referencia <= 0:
-        raise ValueError(f"fases_g debe sumar más que 0: {fases_g!r}")
+        raise ValueError("Los vertidos deben sumar más que 0")
 
     agua = float(str(agua_g).replace(",", "."))
     if agua <= 0:
         raise ValueError(f"El agua debe ser mayor que 0: {agua_g!r}")
 
-    escaladas = [round(parte * agua / referencia) for parte in partes]
+    escalados = [round(g * agua / referencia) for g in gramos]
     # El redondeo puede desviar algún gramo: se ajusta en el último vertido.
-    escaladas[-1] += round(agua) - sum(escaladas)
-    return escaladas
+    escalados[-1] += round(agua) - sum(escalados)
+    return escalados
 
 
-def formatear_fases(fases):
-    """Lista de gramos -> '60-60-90-90'."""
-    return "-".join(str(f) for f in fases)
+def escalar_pasos(pasos, agua_g):
+    """Los pasos con los vertidos escalados al agua real."""
+    salida = [dict(paso) for paso in pasos]
+    indices = [i for i, paso in enumerate(salida) if paso["accion"] == CON_AGUA]
+    if not indices:
+        raise ValueError("La receta no tiene ningún vertido")
+
+    try:
+        gramos = [float(salida[i]["agua_g"]) for i in indices]
+    except (TypeError, ValueError):
+        raise ValueError("Hay un vertido sin gramos válidos") from None
+
+    for indice, escalado in zip(indices, escalar(gramos, agua_g)):
+        salida[indice]["agua_g"] = escalado
+    return salida
 
 
-def reparto_de(receta, agua_g):
-    """Reparto listo para guardar en extracciones.csv."""
-    return formatear_fases(escalar_fases(receta["fases_g"], agua_g))
+def reparto_de(pasos, agua_g):
+    """Reparto listo para guardar en extracciones.csv: '60-60-90-90'."""
+    return "-".join(str(p["agua_g"]) for p in vertidos(escalar_pasos(pasos, agua_g)))
 
 
-def acumulado(fases):
-    """Gramos acumulados tras cada vertido. Para el countdown de la app."""
+def guion(pasos, agua_g):
+    """Los pasos con el agua escalada y el acumulado. Para el countdown."""
     total = 0
-    suma = []
-    for fase in fases:
-        total += fase
-        suma.append(total)
-    return suma
+    salida = []
+    for paso in escalar_pasos(pasos, agua_g):
+        total += float(paso["agua_g"] or 0)
+        salida.append({
+            "orden": int(paso["orden"]),
+            "t_inicio_s": int(paso["t_inicio_s"]) if str(paso["t_inicio_s"]).strip() else None,
+            "accion": paso["accion"],
+            "agua_g": paso["agua_g"],
+            "acumulado_g": round(total),
+            "lectura_fiable": paso["accion"] not in SIN_LECTURA_FIABLE,
+            "notas": paso["notas"],
+        })
+    return salida

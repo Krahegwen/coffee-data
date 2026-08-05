@@ -9,7 +9,8 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 |---|---|
 | `cafes.csv` | Una fila por bolsa: origen, variedad, proceso, fecha de tueste, etc. |
 | `extracciones.csv` | Una fila por preparación. `cafe_id` apunta a `cafes.csv`. |
-| `recetas.csv` | Catálogo de recetas: vertidos, intervalo y ratio. |
+| `recetas.csv` | Catálogo de recetas. |
+| `pasos.csv` | Los pasos de cada receta: vertidos, agitados, esperas. |
 | `nueva.py` | Añade una extracción. `python nueva.py` |
 | `cafe.py` | Da de alta una bolsa. `python cafe.py` |
 | `resumen.py` | Ranking, histórico y aviso de frescura. `python resumen.py` |
@@ -40,22 +41,47 @@ una temperatura de extracción más baja.
 en segundos enteros, no en `m:ss`, porque es el valor con el que se decide si
 hay que mover la molienda.
 
-## Esquema · `recetas.csv`
+## Esquema · `recetas.csv` y `pasos.csv`
 
-`id` · `nombre` · `fases_g` · `intervalo_s` · `ratio` · `notas`
+`recetas.csv`: `id` · `nombre` · `ratio` · `notas`
 
-`fases_g` son los gramos de cada vertido, y **su suma es el agua de
-referencia**. Escalar por el agua real hace la receta independiente de la
-dosis: `60-60-90-90` sobre 300 g son `54-54-81-81` sobre 270 g. La receta es la
-intención; el `reparto` de la extracción es lo que echaste de verdad.
+`pasos.csv`: `receta_id` · `orden` · `t_inicio_s` · `accion` · `agua_g` · `notas`
+
+Una receta es una **lista de pasos**, no solo una lista de vertidos: agitar,
+meter la cuchara o esperar el goteo son pasos sin agua y hacen falta para guiar
+una extracción de verdad.
+
+`accion`: `verter` | `agitar` | `remover` | `esperar` | `retirar`
+
+Solo `verter` lleva gramos y solo `verter` escala con el agua: **la suma de los
+vertidos es el agua de referencia**, así que `60-60-90-90` sobre 300 g son
+`54-54-81-81` sobre 270 g. Los tiempos no se tocan. La receta es la intención;
+el `reparto` de la extracción es lo que echaste de verdad.
+
+### Cada acción frente a la báscula
+
+Importa para el cronómetro, y explica por qué un autoavance por peso a lo bruto
+se rompería:
+
+| Acción | El peso | Qué debe hacer la app |
+|---|---|---|
+| `verter` | Sube | Objetivo **acumulado** («hasta 120 g»), que es como se vierte con báscula |
+| `agitar` | Ruido y picos | Ignorar la báscula, solo tiempo |
+| `remover` | **Sube**: la cuchara pesa mientras está dentro | Ignorar la báscula, o saltará el paso sola |
+| `esperar` | Meseta | La meseta **es** el fin del goteo: de ahí sale `drawdown_s` |
+| `retirar` | **Cae de golpe** | La caída marca el fin de la extracción |
+
+`recetas.guion(pasos, agua)` devuelve todo eso ya resuelto: agua escalada,
+acumulado y si la lectura es fiable en cada paso.
 
 ## Las dos reglas de edición
 
 `extracciones.csv` es un **log de eventos**: append-only estricto, una fila no
-se edita nunca. `cafes.csv` y `recetas.csv` son **estado**: sus filas se pueden
-corregir y `estado` tiene que poder pasar a `terminado`.
+se edita nunca. `cafes.csv`, `recetas.csv` y `pasos.csv` son **catálogo y
+estado**: sus filas se pueden corregir, y `estado` tiene que poder pasar a
+`terminado`.
 
-En ninguno de los tres se reordenan ni se reescriben filas del pasado.
+En ninguno se reordenan ni se reescriben filas del pasado.
 
 `defecto`: `equilibrado` | `amargor` | `astringente` | `plano` | `agrio` | `salado` | `carton`
 

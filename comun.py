@@ -10,6 +10,7 @@ BASE = Path(__file__).parent
 CAFES = BASE / "cafes.csv"
 EXTRACCIONES = BASE / "extracciones.csv"
 RECETAS = BASE / "recetas.csv"
+PASOS = BASE / "pasos.csv"
 
 
 def leer_csv(ruta):

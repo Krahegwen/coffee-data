@@ -16,7 +16,7 @@ fila y saber qué se cambió y cuándo.
   |---|---|---|
   | `extracciones.csv` | Log de eventos | **Append-only estricto.** Una fila registra algo que pasó. No se edita jamás. |
   | `cafes.csv` | Estado de entidades | Filas **mutables**: `estado` pasa a `terminado`, una ficha se completa cuando llegan los datos. |
-  | `recetas.csv` | Catálogo | Como `cafes.csv`. |
+  | `recetas.csv`, `pasos.csv` | Catálogo | Como `cafes.csv`. |
 
 - **Nunca reordenes ni reescribas el pasado**, en ningún fichero. Eso es lo que
   rompe el `git blame`, que es la razón de ser del repo. Cambiar el `estado` de
@@ -95,6 +95,18 @@ python cafe.py --id etiopia --nombre "Etiopía Guji" --tueste 2026-08-01
 Solo `--id` y `--nombre` son obligatorios. El `id` va en minúsculas, sin espacios
 ni acentos, porque se usa como `--cafe` y aparece en cada fila de extracciones.
 Commit: `Nuevo café: <nombre>`.
+
+## Añadir una receta
+
+Una receta son dos cosas: su fila en `recetas.csv` y sus pasos en `pasos.csv`.
+No hay CLI todavía, así que se editan a mano, con cuidado:
+
+- Solo `verter` lleva gramos. `agitar`, `remover`, `esperar` y `retirar` van a 0.
+- La **suma de los vertidos es el agua de referencia**; el escalado la reparte
+  al agua real. No hace falta que sume 300, pero sé consciente de qué sumas.
+- `t_inicio_s` es el segundo en que empieza el paso, vacío si depende del goteo.
+- Toda receta necesita al menos un `verter` y sus pasos, o `nueva.py` la rechaza.
+  Hay un test que comprueba que el catálogo cuadra.
 
 ## Interpretar los resultados
 
