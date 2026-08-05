@@ -5,6 +5,10 @@
   "compatibility_date": "2026-08-05",
   "observability": { "enabled": true },
 
+  // Las Preview URLs publican una URL por versión desplegada. No hacen falta
+  // y multiplican la superficie expuesta, así que fuera.
+  "preview_urls": false,
+
   // El binding es el nombre con el que el código ve la base: env.DB.
   // En local (--local, wrangler dev) usa un SQLite en .wrangler y el id da igual.
   "d1_databases": [

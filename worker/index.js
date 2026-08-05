@@ -5,6 +5,7 @@
  * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
  * es lo que permite cambiar de método de autenticación sin tocar la app.
  */
+import { autorizado } from "./auth.js";
 import { repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
 import { CAMPOS, validarExtraccion } from "./validacion.js";
@@ -26,27 +27,6 @@ function cors(env) {
     "access-control-allow-headers": "content-type, authorization",
     "access-control-max-age": "86400",
   };
-}
-
-/**
- * Único punto donde se decide quién puede escribir.
- *
- * Hoy: un token en cabecera, con Cloudflare Access delante para el navegador.
- * El día que se cambie a GitHub App, se reescribe esta función y nada más:
- * la app no sabe nada de cómo se autoriza.
- */
-function autorizado(request, env) {
-  const esperado = env.TOKEN_ESCRITURA;
-  if (!esperado) return false; // sin secreto configurado no se escribe, punto
-  const cabecera = request.headers.get("authorization") || "";
-  const recibido = cabecera.replace(/^Bearer\s+/i, "");
-  if (recibido.length !== esperado.length) return false;
-  // Comparación en tiempo constante: no filtrar el token carácter a carácter.
-  let diferencia = 0;
-  for (let i = 0; i < esperado.length; i += 1) {
-    diferencia |= recibido.charCodeAt(i) ^ esperado.charCodeAt(i);
-  }
-  return diferencia === 0;
 }
 
 async function pasosDe(env, recetaId) {

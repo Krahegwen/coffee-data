@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { autorizado, tokenDe } from "./auth.js";
 import { escalarPasos, guion, repartoDe, vertidos } from "./recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "./sugerencias.js";
 import { fechaValida, validarExtraccion } from "./validacion.js";
@@ -27,6 +28,40 @@ const extraccion = (campos = {}) => ({
   agua_g: 300, reparto: "60-60-90-90", receta_id: "kasuya-46-base",
   molinillo: "Comandante C40", dripper: "v60-02-plastico", drawdown_s: null,
   defecto: "equilibrado", nota: 7, ...campos,
+});
+
+describe("autorización", () => {
+  const peticion = (cabecera) => ({ headers: { get: () => cabecera } });
+
+  it("acepta el token correcto", () => {
+    assert.equal(autorizado(peticion("Bearer secreto"), { TOKEN_ESCRITURA: "secreto" }), true);
+  });
+
+  it("tolera el salto de línea que mete wrangler secret put por tubería", () => {
+    assert.equal(autorizado(peticion("Bearer secreto"), { TOKEN_ESCRITURA: "secreto\n" }), true);
+    assert.equal(autorizado(peticion("Bearer secreto"), { TOKEN_ESCRITURA: "secreto\r\n" }), true);
+    assert.equal(autorizado(peticion("Bearer secreto  "), { TOKEN_ESCRITURA: "secreto" }), true);
+  });
+
+  it("rechaza un token distinto o de otra longitud", () => {
+    assert.equal(autorizado(peticion("Bearer otro"), { TOKEN_ESCRITURA: "secreto" }), false);
+    assert.equal(autorizado(peticion("Bearer secretoo"), { TOKEN_ESCRITURA: "secreto" }), false);
+  });
+
+  it("falla cerrado si no hay secreto configurado", () => {
+    assert.equal(autorizado(peticion("Bearer loquesea"), {}), false);
+    assert.equal(autorizado(peticion("Bearer "), { TOKEN_ESCRITURA: "" }), false);
+  });
+
+  it("rechaza sin cabecera", () => {
+    assert.equal(autorizado(peticion(null), { TOKEN_ESCRITURA: "secreto" }), false);
+  });
+
+  it("extrae el token con y sin prefijo", () => {
+    assert.equal(tokenDe("Bearer abc"), "abc");
+    assert.equal(tokenDe("bearer  abc "), "abc");
+    assert.equal(tokenDe("abc"), "abc");
+  });
 });
 
 describe("escalado de recetas", () => {
