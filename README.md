@@ -9,7 +9,10 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 |---|---|
 | `cafes.csv` | Una fila por bolsa: origen, variedad, proceso, fecha de tueste, etc. |
 | `extracciones.csv` | Una fila por preparación. `cafe_id` apunta a `cafes.csv`. |
+| `nueva.py` | Añade una extracción. `python nueva.py` |
+| `cafe.py` | Da de alta una bolsa. `python cafe.py` |
 | `resumen.py` | Ranking, histórico y aviso de frescura. `python resumen.py` |
+| `comun.py` | Lectura, escritura y validaciones que comparten los scripts. |
 
 ## Esquema · `cafes.csv`
 
@@ -72,5 +75,28 @@ vez por clon: git no activa los hooks solo.
 | Comando | Qué hace |
 |---|---|
 | `python nueva.py` | Añade una extracción preguntando campo a campo. Calcula `id`, `dias_tueste` y `ratio`. |
+| `python cafe.py` | Da de alta una bolsa nueva en `cafes.csv`. |
 | `python resumen.py` | Ranking, histórico y aviso de frescura. |
-| `python -m pytest` | Tests de `nueva.py`. |
+| `python -m pytest` | Tests. |
+
+## En un solo comando
+
+Los dos scripts aceptan también los campos como argumentos, para no depender de
+las preguntas. La fila entra entera o no entra: si algo no valida, no se
+escribe nada y el script sale con código 2.
+
+```bash
+python nueva.py --cafe gary --temp 91 --clics 28 --tiempo 3:30 \
+    --variable "91 °C" --defecto equilibrado --nota 8 \
+    --notas "Más dulzor, menos amargor" --siguiente "Probar 26 clics"
+
+python cafe.py --id etiopia --nombre "Etiopía Guji" --tostador "Manea Coffee" \
+    --tueste 2026-08-01 --proceso Natural --sca 87
+```
+
+Lo que no pases toma el valor de la receta base: `--dosis 20`, `--agua 300`,
+`--molinillo "Comandante C40"`, `--metodo "V60 4:6 Kasuya"`,
+`--reparto 60-60-90-90` y `--fecha` de hoy. En `cafe.py` solo `--id` y
+`--nombre` son obligatorios; lo que no sepas se queda vacío.
+
+Añade `--dry-run` para ver la fila sin escribirla. `--help` lista todo.
