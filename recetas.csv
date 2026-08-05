@@ -1,0 +1,4 @@
+id,nombre,fases_g,intervalo_s,ratio,notas
+kasuya-46-base,4:6 Kasuya base,60-60-90-90,45,15,Receta base del repo
+kasuya-46-dulzor,4:6 más dulzor,50-70-90-90,45,15,Fase 1 desigual: más dulzor y menos acidez
+kasuya-46-claridad,4:6 más claridad,60-60-60-60-60,45,15,Fase 2 en tres vertidos: más claridad
