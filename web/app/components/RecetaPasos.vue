@@ -54,6 +54,15 @@ function mover(i: number, salto: number) {
 
 <template>
   <div class="pasos">
+    <!-- Los campos ya llevan aria-label, así que para un lector de pantalla
+         esta fila solo repetiría: es ayuda visual. -->
+    <div v-if="pasos.length" class="cabeceras" aria-hidden="true">
+      <span />
+      <span>acción</span>
+      <span>desde (s)</span>
+      <span>agua (g)</span>
+    </div>
+
     <div v-for="(paso, i) in pasos" :key="i" class="paso">
       <div class="linea">
         <span class="num">{{ i + 1 }}</span>
@@ -95,6 +104,10 @@ function mover(i: number, salto: number) {
 </template>
 
 <style scoped>
+/* Una sola definición de las columnas: la fila de títulos y la de campos
+   tienen que cuadrar, y si se tocan por separado acaban desalineándose. */
+.pasos { --columnas: 1.3rem 1fr 4.5rem 4.5rem; --hueco: 0.4rem; }
+
 .paso {
   border: 1px solid var(--linea);
   border-radius: 0.6rem;
@@ -103,11 +116,21 @@ function mover(i: number, salto: number) {
   background: var(--tarjeta);
 }
 
-.linea {
+.linea, .cabeceras {
   display: grid;
-  grid-template-columns: 1.3rem 1fr 4.5rem 4.5rem;
-  gap: 0.4rem;
+  grid-template-columns: var(--columnas);
+  gap: var(--hueco);
   align-items: center;
+}
+
+.cabeceras {
+  /* El borde de la tarjeta cuenta: sin ese píxel los títulos van corridos. */
+  padding: 0 calc(0.65rem + 1px);
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--suave);
 }
 
 .num { color: var(--suave); font-size: 0.8rem; text-align: center; }
@@ -121,6 +144,9 @@ select, input {
   border-radius: 0.4rem;
   padding: 0.45rem 0.4rem;
   min-width: 0;
+  /* 44 px para el dedo, y de paso igualan con el resto de campos del
+     formulario, que ya median eso. */
+  min-height: 44px;
 }
 
 .singramos { color: var(--suave); text-align: center; font-size: 0.85rem; }
@@ -129,6 +155,10 @@ select, input {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  /* Con los mandos a 44 px, en una pantalla de 320 no caben junto al aviso
+     de la báscula: que bajen a su línea en vez de estrujar el texto. */
+  flex-wrap: wrap;
+  gap: 0.3rem;
   margin-top: 0.4rem;
   font-size: 0.78rem;
   color: var(--suave);
@@ -146,8 +176,8 @@ select, input {
   padding: 0.2rem 0.45rem;
   margin-left: 0.25rem;
   cursor: pointer;
-  min-height: 2rem;
-  min-width: 2rem;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .mandos button:disabled { opacity: 0.35; cursor: default; }

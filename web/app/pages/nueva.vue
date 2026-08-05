@@ -238,7 +238,11 @@ input, select, textarea {
   font-size: 16px;
 }
 
-input[type="range"] { padding: 0; accent-color: var(--acento); }
+/*
+ * El alto es zona de agarre, no grosor: la barra se sigue viendo fina, pero
+ * a 18 px se falla al arrastrar con el dedo.
+ */
+input[type="range"] { padding: 0; accent-color: var(--acento); height: 44px; }
 
 button {
   font: inherit;
