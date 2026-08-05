@@ -34,6 +34,10 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: 'es' },
+      // Estático a propósito: con `ssr: false` el título que pone useHead
+      // solo aparece al hidratar, y hasta entonces la pestaña saldría con la
+      // URL. Este va en el HTML generado; el de cada pantalla lo afina luego.
+      title: 'Bitácora de café',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'theme-color', content: '#3b2314' },
