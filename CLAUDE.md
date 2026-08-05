@@ -58,12 +58,29 @@ opcional.
 **La respuesta trae un bloque `sugerencias`. Reléeselo al usuario**: es la mitad
 del valor de registrar. Solo se aplica la primera.
 
-## Cafés y recetas
+## Cafés
 
-No hay endpoint de alta todavía. Mientras tanto se hace por SQL directo:
+Tienen endpoints, y la app tiene pantallas: `/cafes`, `/cafes/nueva` y
+`/cafes/<id>`.
 
 ```bash
-pnpm exec wrangler d1 execute coffee --remote --command "UPDATE cafes SET estado='terminado' WHERE id='abbie'"
+curl -X POST https://brew.krahegwen.com/api/cafes -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"id":"etiopia","nombre":"Etiopía Guji","peso_g":250}'
+
+curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"estado":"terminado"}'
+```
+
+El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
+del usuario no son un banco de pruebas**: para verificar, usa la base local
+(`pnpm dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
+
+## Recetas
+
+Todavía sin endpoint: se hacen por SQL directo.
+
+```bash
+pnpm exec wrangler d1 execute coffee --remote --command "SELECT * FROM recetas"
 ```
 
 Al añadir una receta hacen falta su fila en `recetas` y sus pasos en `pasos`.

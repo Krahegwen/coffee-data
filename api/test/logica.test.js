@@ -7,7 +7,7 @@ import {
 } from "../src/auth.js";
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
-import { fechaValida, validarExtraccion } from "../src/validacion.js";
+import { fechaValida, validarCafe, validarExtraccion } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
   receta_id: "kasuya-46-base", orden, t_inicio_s, accion, agua_g, notas: "",
@@ -411,5 +411,89 @@ describe("validación de extracciones", () => {
     const { valores, errores } = validarExtraccion(cuerpo({ dosis_g: "18,5" }));
     assert.deepEqual(errores, []);
     assert.equal(valores.dosis_g, 18.5);
+  });
+});
+
+describe("alta de bolsas", () => {
+  const nueva = (campos = {}) => ({ id: "etiopia", nombre: "Etiopía Guji", ...campos });
+
+  it("con lo mínimo, el resto queda vacío y abierta", () => {
+    const { valores, errores } = validarCafe(nueva(), { nuevo: true });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.id, "etiopia");
+    assert.equal(valores.estado, "abierto");
+    assert.equal(valores.tostador, null);
+    assert.equal(valores.fecha_tueste, null);
+  });
+
+  it("acepta la ficha completa", () => {
+    const { valores, errores } = validarCafe(
+      nueva({
+        tostador: "Manea Coffee", origen: "Etiopía", altitud_m: 2000, sca: 87,
+        fecha_tueste: "2026-08-01", peso_g: 250, precio_eur: "14,5",
+        estado: "PENDIENTE", conservacion: "Fellow Atmos 1.2 L",
+      }),
+      { nuevo: true },
+    );
+    assert.deepEqual(errores, []);
+    assert.equal(valores.precio_eur, 14.5);
+    assert.equal(valores.estado, "pendiente");
+    assert.equal(valores.sca, 87);
+  });
+
+  it("exige un id con formato de slug", () => {
+    for (const id of ["Etiopia", "con espacio", "etiopía", "-guion", ""]) {
+      assert.ok(validarCafe(nueva({ id }), { nuevo: true }).errores.length, `id ${id}`);
+    }
+  });
+
+  it("exige nombre", () => {
+    assert.ok(validarCafe({ id: "x", nombre: "  " }, { nuevo: true }).errores.length);
+  });
+
+  it("rechaza fechas que no existen", () => {
+    for (const f of ["2026-02-30", "01-08-2026", "2026-13-01"]) {
+      assert.ok(validarCafe(nueva({ fecha_tueste: f }), { nuevo: true }).errores.length, f);
+    }
+  });
+
+  it("rechaza números fuera de rango", () => {
+    assert.ok(validarCafe(nueva({ sca: 120 }), { nuevo: true }).errores.length);
+    assert.ok(validarCafe(nueva({ peso_g: 0 }), { nuevo: true }).errores.length);
+    assert.ok(validarCafe(nueva({ altitud_m: -5 }), { nuevo: true }).errores.length);
+    assert.deepEqual(validarCafe(nueva({ precio_eur: 0 }), { nuevo: true }).errores, []);
+  });
+
+  it("rechaza campos inventados", () => {
+    assert.ok(validarCafe(nueva({ tueste: "2026-08-01" }), { nuevo: true }).errores.length);
+  });
+});
+
+describe("corrección de bolsas", () => {
+  it("solo toca lo que viene", () => {
+    const { valores, errores } = validarCafe({ estado: "terminado" }, { nuevo: false });
+    assert.deepEqual(errores, []);
+    assert.deepEqual(Object.keys(valores), ["estado"]);
+    assert.equal(valores.estado, "terminado");
+  });
+
+  it("admite vaciar un campo", () => {
+    const { valores } = validarCafe({ url: "" }, { nuevo: false });
+    assert.equal(valores.url, null);
+  });
+
+  it("no deja cambiar el id", () => {
+    const { errores } = validarCafe({ id: "otro" }, { nuevo: false });
+    assert.ok(errores.some((e) => e.includes("no se puede cambiar")));
+  });
+
+  it("exige algún campo", () => {
+    assert.ok(validarCafe({}, { nuevo: false }).errores.some((e) => e.includes("ningún campo")));
+  });
+
+  it("valida igual que el alta", () => {
+    assert.ok(validarCafe({ estado: "a medias" }, { nuevo: false }).errores.length);
+    assert.ok(validarCafe({ fecha_tueste: "2026-02-30" }, { nuevo: false }).errores.length);
+    assert.ok(validarCafe({ nombre: "" }, { nuevo: false }).errores.length);
   });
 });

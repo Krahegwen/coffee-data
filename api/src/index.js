@@ -12,7 +12,7 @@
 import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
 import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
-import { CAMPOS, validarExtraccion } from "./validacion.js";
+import { CAMPOS, CAMPOS_CAFE, validarCafe, validarExtraccion } from "./validacion.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 
@@ -124,8 +124,81 @@ async function sesion(request, env, url) {
   return json({ activa: true }, 200, { "set-cookie": cabeceraDeSesion(token, { seguro }) });
 }
 
+/** Da de alta una bolsa. */
+async function crearCafe(request, env) {
+  let cuerpo;
+  try {
+    cuerpo = await request.json();
+  } catch {
+    return json({ error: "el cuerpo debe ser JSON" }, 400);
+  }
+
+  const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
+  if (errores.length) return json({ errores }, 422);
+
+  const existe = await env.DB.prepare("SELECT id FROM cafes WHERE id = ?")
+    .bind(valores.id)
+    .first();
+  if (existe) return json({ errores: [`ya existe un café con id '${valores.id}'`] }, 409);
+
+  const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
+  const marcadores = columnas.map(() => "?").join(", ");
+  try {
+    await env.DB.prepare(
+      `INSERT INTO cafes (${columnas.join(", ")}) VALUES (${marcadores})`,
+    )
+      .bind(...columnas.map((c) => valores[c]))
+      .run();
+  } catch (error) {
+    return json({ errores: [`la base rechazó la bolsa: ${error.message}`] }, 422);
+  }
+
+  const cafe = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(valores.id).first();
+  return json({ cafe }, 201);
+}
+
+/** Corrige una ficha ya existente. Solo toca los campos que vengan. */
+async function editarCafe(request, env, id) {
+  const cafe = await env.DB.prepare("SELECT id FROM cafes WHERE id = ?").bind(id).first();
+  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+
+  let cuerpo;
+  try {
+    cuerpo = await request.json();
+  } catch {
+    return json({ error: "el cuerpo debe ser JSON" }, 400);
+  }
+
+  const { valores, errores } = validarCafe(cuerpo, { nuevo: false });
+  if (errores.length) return json({ errores }, 422);
+
+  // Los nombres de columna salen de una lista blanca; los valores van atados.
+  const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
+  const asignaciones = columnas.map((c) => `${c} = ?`).join(", ");
+  try {
+    await env.DB.prepare(`UPDATE cafes SET ${asignaciones} WHERE id = ?`)
+      .bind(...columnas.map((c) => valores[c]), id)
+      .run();
+  } catch (error) {
+    return json({ errores: [`la base rechazó el cambio: ${error.message}`] }, 422);
+  }
+
+  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
+  return json({ cafe: actualizado, cambiado: columnas });
+}
+
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
+
+  if (ruta === "/api/cafes" && request.method === "POST") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    return await crearCafe(request, env);
+  }
+
+  if (ruta.startsWith("/api/cafes/") && request.method === "PATCH") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    return await editarCafe(request, env, decodeURIComponent(ruta.slice("/api/cafes/".length)));
+  }
 
   if (request.method === "GET") {
     if (ruta === "/api/guion") {

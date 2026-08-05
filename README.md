@@ -32,6 +32,8 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `GET /api/recetas` | Recetas con sus pasos |
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` ya derivados. `?cafe=gary` filtra |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
+| `POST /api/cafes` | Da de alta una bolsa |
+| `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
 | `POST /api/extracciones` | Registra una extracción. Devuelve la fila y las sugerencias |
 | `GET/POST/DELETE /api/sesion` | Consulta, abre y cierra la sesión de escritura |
 

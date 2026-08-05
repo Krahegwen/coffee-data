@@ -4,17 +4,29 @@
  * autenticación del servidor sin tocar nada de aquí.
  */
 
+export const ESTADOS = ['abierto', 'terminado', 'pendiente'] as const
+
 export interface Cafe {
   id: string
   nombre: string
   tostador: string | null
   origen: string | null
+  region: string | null
+  variedad: string | null
   proceso: string | null
+  altitud_m: number | null
+  sca: number | null
   fecha_tueste: string | null
+  consumir_antes: string | null
   peso_g: number | null
-  estado: 'abierto' | 'terminado' | 'pendiente'
-  conservacion: string | null
+  precio_eur: number | null
+  notas_tostador: string | null
+  estado: (typeof ESTADOS)[number]
+  fecha_compra: string | null
+  fecha_recepcion: string | null
   foto: string | null
+  url: string | null
+  conservacion: string | null
 }
 
 export interface Extraccion {
@@ -118,6 +130,17 @@ export function useApi() {
       query: cafeId ? { cafe: cafeId } : undefined,
     })
 
+  /** Da de alta una bolsa. */
+  const crearCafe = (datos: Record<string, unknown>) =>
+    $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
+
+  /** Corrige una ficha. Solo se manda lo que cambia. */
+  const editarCafe = (id: string, cambios: Record<string, unknown>) =>
+    $fetch<{ cafe: Cafe; cambiado: string[] }>(`${base}/api/cafes/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: cambios,
+    })
+
   /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
   const guion = (recetaId: string, aguaG: number) =>
     $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
@@ -135,7 +158,7 @@ export function useApi() {
     })
   }
 
-  return { base, cafes, recetas, extracciones, guion, crear }
+  return { base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe }
 }
 
 /** Saca los mensajes legibles de lo que devuelva la API al fallar. */

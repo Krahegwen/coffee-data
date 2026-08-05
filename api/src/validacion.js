@@ -33,6 +33,33 @@ export const CAMPOS = [
   "notas_cata", "nota", "siguiente_ajuste", "receta_id", "drawdown_s", "dripper",
 ];
 
+export const ESTADOS = ["abierto", "terminado", "pendiente"];
+
+// Las columnas de cafes que se pueden mandar. creado_en y actualizado_en no
+// están: los pone la base.
+export const CAMPOS_CAFE = [
+  "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
+  "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
+  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion", "foto", "url",
+  "conservacion",
+];
+
+const FECHAS_CAFE = ["fecha_tueste", "consumir_antes", "fecha_compra", "fecha_recepcion"];
+const TEXTOS_CAFE = [
+  "tostador", "origen", "region", "variedad", "proceso", "notas_tostador",
+  "foto", "url", "conservacion",
+];
+const NUMEROS_CAFE = {
+  altitud_m: { min: 0, incluido: false, que: "mayor que 0" },
+  sca: { min: 0, max: 100, incluido: true, que: "entre 0 y 100" },
+  peso_g: { min: 0, incluido: false, que: "mayor que 0" },
+  precio_eur: { min: 0, incluido: true, que: "cero o más" },
+};
+
+// El id viaja en cada extracción y en la URL: sin espacios, sin mayúsculas y
+// sin acentos. Mismo criterio que el CHECK de la base.
+const ID = /^[a-z0-9][a-z0-9_-]*$/;
+
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Fecha real en AAAA-MM-DD, con el calendario comprobado. */
@@ -141,6 +168,87 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   }
   for (const campo of ["reparto", "tiempo_total", "variable_cambiada", "notas_cata", "siguiente_ajuste"]) {
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
+  }
+
+  return { valores, errores };
+}
+
+/**
+ * Valida una bolsa. Con `nuevo`, exige id y nombre y devuelve la fila entera.
+ * Sin él es una corrección: solo entran los campos que vengan, y el id no,
+ * porque es la clave a la que apuntan las extracciones.
+ */
+export function validarCafe(cuerpo, { nuevo }) {
+  const errores = [];
+  const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
+  const valores = {};
+
+  const desconocidos = Object.keys(entrada).filter((c) => !CAMPOS_CAFE.includes(c));
+  if (desconocidos.length) {
+    errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+  }
+
+  if (nuevo) {
+    const id = String(entrada.id ?? "").trim();
+    if (!ID.test(id)) {
+      errores.push(
+        `id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo, empezando por letra o número`,
+      );
+    }
+    valores.id = id;
+  } else if (entrada.id !== undefined) {
+    errores.push("el id no se puede cambiar: es la clave a la que apuntan las extracciones");
+  }
+
+  if (nuevo || entrada.nombre !== undefined) {
+    const nombre = String(entrada.nombre ?? "").trim();
+    if (!nombre) errores.push("el nombre no puede estar vacío");
+    valores.nombre = nombre;
+  }
+
+  if (nuevo || entrada.estado !== undefined) {
+    const estado = vacio(entrada.estado) ? "abierto" : String(entrada.estado).trim().toLowerCase();
+    if (!ESTADOS.includes(estado)) {
+      errores.push(`estado no permitido: ${JSON.stringify(entrada.estado)}. Válidos: ${ESTADOS.join(", ")}`);
+    }
+    valores.estado = estado;
+  }
+
+  for (const campo of FECHAS_CAFE) {
+    if (!nuevo && entrada[campo] === undefined) continue;
+    if (vacio(entrada[campo])) {
+      valores[campo] = null;
+      continue;
+    }
+    const fecha = String(entrada[campo]).trim();
+    if (!fechaValida(fecha)) {
+      errores.push(`${campo} inválida, se espera AAAA-MM-DD: ${JSON.stringify(entrada[campo])}`);
+    }
+    valores[campo] = fecha;
+  }
+
+  for (const [campo, regla] of Object.entries(NUMEROS_CAFE)) {
+    if (!nuevo && entrada[campo] === undefined) continue;
+    if (vacio(entrada[campo])) {
+      valores[campo] = null;
+      continue;
+    }
+    const n = numero(entrada[campo]);
+    const fuera =
+      n === null ||
+      (regla.incluido ? n < regla.min : n <= regla.min) ||
+      (regla.max !== undefined && n > regla.max);
+    if (fuera) errores.push(`${campo} debe ser un número ${regla.que}`);
+    valores[campo] = n;
+  }
+
+  for (const campo of TEXTOS_CAFE) {
+    if (!nuevo && entrada[campo] === undefined) continue;
+    valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
+  }
+
+  if (!nuevo && !Object.keys(valores).length) {
+    errores.push("no hay ningún campo que corregir");
   }
 
   return { valores, errores };
