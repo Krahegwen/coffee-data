@@ -13,10 +13,21 @@
   // cuenta se generó a partir del correo y lleva el nombre real dentro, así
   // que no puede ser la URL que acabe incrustada en la app.
   "workers_dev": false,
-  "routes": [{ "pattern": "coffee.krahegwen.com", "custom_domain": true }],
+  "routes": [{ "pattern": "brew.krahegwen.com", "custom_domain": true }],
 
-  // El binding es el nombre con el que el código ve la base: env.DB.
-  // En local (--local, wrangler dev) usa un SQLite en .wrangler y el id da igual.
+  // La app y la API viven en el mismo origen: un Worker sirve las dos cosas.
+  // Eso elimina CORS de raíz y deja la puerta abierta a guardar el token en
+  // una cookie httpOnly en lugar de en localStorage.
+  //
+  // run_worker_first manda /api/* al script; lo demás sale de los estáticos, y
+  // lo que no exista cae en index.html porque la app enruta en el cliente.
+  "assets": {
+    "directory": "../web/.output/public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
   "d1_databases": [
     {
       "binding": "DB",

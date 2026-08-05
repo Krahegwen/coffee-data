@@ -2,7 +2,7 @@
 
 Bitácora de extracciones de café en V60 con el método 4:6 de Tetsu Kasuya.
 Los datos viven en **Cloudflare D1** y se registran por la **API**
-(`https://coffee.krahegwen.com`). Los CSV del repo son una exportación.
+(`https://brew.krahegwen.com`). Los CSV del repo son una exportación.
 
 ## Reglas que no se rompen
 
@@ -17,13 +17,13 @@ Los datos viven en **Cloudflare D1** y se registran por la **API**
   la misma extracción.
 - **La PWA nunca hablará con la base ni mandará SQL.** Manda una extracción en
   JSON al endpoint. Ese contrato es lo que permite cambiar de autenticación sin
-  tocar la app, y toda la decisión de auth vive en `worker/auth.js`.
+  tocar la app, y toda la decisión de auth vive en `api/src/auth.js`.
 - **Nada de GitHub Actions.** La verificación vive en el hook de `pre-commit`,
   que ejecuta pytest y los tests del Worker.
 - **Repo público**: ni datos personales ni credenciales en el código, en los
   mensajes de commit o en la configuración. Y ojo con las URL: el subdominio
   `workers.dev` de la cuenta lleva el nombre real dentro, por eso el Worker
-  sirve solo por `coffee.krahegwen.com`.
+  sirve solo por `brew.krahegwen.com`.
 - **Solo librería estándar** en los scripts de Python. En el Worker, cero
   dependencias de runtime.
 
@@ -33,7 +33,7 @@ El usuario lo contará en lenguaje normal («un Gary a 91 grados, 28 clics, 3:30
 equilibrado, un 8»). Tradúcelo a un `POST`:
 
 ```bash
-curl -X POST https://coffee.krahegwen.com/api/extracciones \
+curl -X POST https://brew.krahegwen.com/api/extracciones \
   -H "Authorization: Bearer $COFFEE_TOKEN" \
   -H 'content-type: application/json' \
   -d '{"cafe_id":"gary","temp_c":91,"clics":28,"tiempo_total":"3:30",

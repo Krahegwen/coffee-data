@@ -9,15 +9,21 @@ este repo son una **exportación**, no el original: se regeneran con
 
 ## La API
 
-En producción: **`https://coffee.krahegwen.com`**, sobre Cloudflare Workers y D1.
+En producción, **`https://brew.krahegwen.com`**: la app y la API las sirve el
+**mismo Worker**. `/api/*` lo atiende el script y el resto sale de los
+estáticos de la app.
+
+Compartir origen no es cosmético: elimina CORS de raíz, y deja la puerta
+abierta a mover el token de `localStorage` a una cookie `httpOnly`, que es la
+mejora pendiente de la autenticación.
 
 En local, con su propia base y sin tocar la de verdad:
 
 ```bash
 pnpm install
-pnpm exec wrangler d1 execute coffee --local --file=migrations/0001_esquema.sql
-pnpm exec wrangler d1 execute coffee --local --file=migrations/0002_semilla.sql
-pnpm dev
+pnpm db:local     # esquema y semilla en una D1 local
+pnpm dev:api      # la API en :8787
+pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 ```
 
 | Ruta | Qué hace |
@@ -29,7 +35,7 @@ pnpm dev
 
 El `POST` recibe **una extracción en JSON, nunca una operación de git ni SQL**.
 Ese contrato es lo que permite cambiar de método de autenticación sin tocar la
-app: solo se reescribe `autorizado()` en `worker/auth.js`.
+app: solo se reescribe `autorizado()` en `api/src/auth.js`.
 
 Lo que calcula el servidor y no debes mandar: el `id`, el `reparto` (sale de
 escalar la receta al agua real, salvo que lo mandes explícito porque ese día te
@@ -65,14 +71,19 @@ estáticos. El día que haya páginas públicas indexables —recetas, una landi
 se activa el prerender **solo para esas rutas** y el resto sigue siendo cliente.
 Esa puerta abierta es la razón de elegir Nuxt y no Vue pelado.
 
-```bash
-pnpm dev:web     # con la API de producción
-COFFEE_API=http://127.0.0.1:8787 pnpm dev:web   # contra la API local
-```
-
 Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
+
+La app se despliega dentro del Worker, así que **hay que construirla antes**:
+
+```bash
+pnpm --filter @coffee/web build
+pnpm deploy:api
+```
+
+En desarrollo, `nuxt dev` proxea `/api` al Worker de `:8787`, así que también
+ahí es el mismo origen y el código no se entera de la diferencia.
 
 ## Esquema · `cafes.csv`
 
@@ -127,7 +138,7 @@ se rompería:
 | `esperar` | Meseta | La meseta **es** el fin del goteo: de ahí sale `drawdown_s` |
 | `retirar` | **Cae de golpe** | La caída marca el fin de la extracción |
 
-`guion(pasos, agua)` en `worker/recetas.js` devuelve todo eso ya resuelto: agua
+`guion(pasos, agua)` en `api/src/recetas.js` devuelve todo eso ya resuelto: agua
 escalada, acumulado y si la lectura es fiable en cada paso.
 
 ## Qué garantiza la base
@@ -187,13 +198,13 @@ siguiente. No hay ningún modelo detrás, y es deliberado:
   darte cuenta.
 
 Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
-`worker/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
+`api/src/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
 tengas extracciones suficientes para saber cuáles son los tuyos.
 
 ## Registrar una extracción
 
 ```bash
-curl -X POST https://coffee.krahegwen.com/api/extracciones \
+curl -X POST https://brew.krahegwen.com/api/extracciones \
   -H "Authorization: Bearer $COFFEE_TOKEN" \
   -H 'content-type: application/json' \
   -d '{"cafe_id":"gary","temp_c":91,"clics":28,"tiempo_total":"3:30",

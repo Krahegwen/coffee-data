@@ -1,5 +1,9 @@
 /**
- * API de la bitácora sobre D1.
+ * Bitácora de café: la API y la app, servidas por el mismo Worker.
+ *
+ * `/api/*` lo atiende este script; todo lo demás sale de los estáticos de la
+ * app (binding ASSETS). Al compartir origen no hace falta CORS en ninguna
+ * parte, y el token puede acabar en una cookie httpOnly.
  *
  * La app nunca habla con la base directamente ni sabe de SQL: manda una
  * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
@@ -16,35 +20,6 @@ function json(datos, estado = 200, cabeceras = {}) {
   return new Response(JSON.stringify(datos, null, 2), {
     status: estado,
     headers: { ...JSON_HEADERS, ...cabeceras },
-  });
-}
-
-function cors(env) {
-  const origen = env.ORIGEN_PERMITIDO || "*";
-  return {
-    "access-control-allow-origin": origen,
-    "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "content-type, authorization",
-    "access-control-max-age": "86400",
-  };
-}
-
-/**
- * Añade CORS a lo que salga, sea acierto o error.
- *
- * Sin esto el navegador no puede leer el cuerpo de un 422 y el usuario ve un
- * error de CORS en lugar de qué campo le falta. Se aplica en la salida y no
- * en cada `return` para que no se pueda olvidar en uno.
- */
-function conCors(respuesta, env) {
-  const cabeceras = new Headers(respuesta.headers);
-  for (const [clave, valor] of Object.entries(cors(env))) {
-    cabeceras.set(clave, valor);
-  }
-  return new Response(respuesta.body, {
-    status: respuesta.status,
-    statusText: respuesta.statusText,
-    headers: cabeceras,
   });
 }
 
@@ -156,14 +131,15 @@ export default {
     const url = new URL(request.url);
     const ruta = url.pathname.replace(/\/+$/, "") || "/";
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: cors(env) });
-    }
+    // Lo que no sea API lo sirven los estáticos de la app. En la práctica solo
+    // llega aquí si un asset no existe, porque run_worker_first solo desvía
+    // /api/*; se delega igualmente para que la app enrute en el cliente.
+    if (!ruta.startsWith("/api")) return env.ASSETS.fetch(request);
 
     try {
-      return conCors(await enrutar(request, env, url, ruta), env);
+      return await enrutar(request, env, url, ruta);
     } catch (error) {
-      return conCors(json({ error: error.message }, 500), env);
+      return json({ error: error.message }, 500);
     }
   },
 };

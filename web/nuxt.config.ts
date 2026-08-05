@@ -13,8 +13,21 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      // La API vive en otro origen; se puede apuntar a la local con COFFEE_API.
-      apiBase: process.env.COFFEE_API || 'https://coffee.krahegwen.com',
+      // Vacío: la API vive en el mismo origen, servida por el mismo Worker.
+      // COFFEE_API solo hace falta para apuntar a otro sitio a propósito.
+      apiBase: process.env.COFFEE_API || '',
+    },
+  },
+
+  // En `nuxt dev` la app corre en :3000 y el Worker en :8787. El proxy hace
+  // que /api siga siendo del mismo origen también aquí, así que el código no
+  // se entera de la diferencia y CORS no hace falta ni en desarrollo.
+  nitro: {
+    devProxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8787/api',
+        changeOrigin: true,
+      },
     },
   },
 
@@ -50,9 +63,10 @@ export default defineNuxtConfig({
       globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
       // La API va por red primero: unos datos viejos en la bitácora confunden
       // más que un error. Pero si no hay cobertura, la caché responde.
+      navigateFallbackDenylist: [/^\/api\//],
       runtimeCaching: [
         {
-          urlPattern: /^https:\/\/coffee\.krahegwen\.com\/api\/.*/,
+          urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
           handler: 'NetworkFirst',
           options: {
             cacheName: 'api-cafe',

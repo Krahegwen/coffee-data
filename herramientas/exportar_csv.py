@@ -19,7 +19,7 @@ import urllib.request
 from pathlib import Path
 
 DATOS = Path(__file__).resolve().parent.parent / "datos"
-API = os.environ.get("COFFEE_API", "https://coffee.krahegwen.com")
+API = os.environ.get("COFFEE_API", "https://brew.krahegwen.com")
 
 # fichero -> (ruta de la API, columnas, clave de orden)
 EXPORTS = [

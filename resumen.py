@@ -12,7 +12,7 @@ import urllib.request
 from collections import defaultdict
 from datetime import date, datetime
 
-API = os.environ.get("COFFEE_API", "https://coffee.krahegwen.com")
+API = os.environ.get("COFFEE_API", "https://brew.krahegwen.com")
 
 # Cloudflare responde 403 al User-Agent por defecto de urllib, así que hay que
 # identificarse. El dominio propio pasa por el WAF de la zona; workers.dev no.
