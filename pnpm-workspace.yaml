@@ -1,0 +1,5 @@
+# workerd es el runtime de Workers y esbuild el empaquetador: sus scripts de
+# instalación tienen que ejecutarse o wrangler no arranca.
+allowBuilds:
+  esbuild: true
+  workerd: true

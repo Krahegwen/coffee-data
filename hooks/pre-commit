@@ -21,8 +21,22 @@ if ! "$PYTHON" -c "import pytest" >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "pre-commit: ejecutando los tests..."
+echo "pre-commit: ejecutando los tests de Python..."
 if ! "$PYTHON" -m pytest -q; then
-    echo "pre-commit: los tests fallan. Commit abortado." >&2
+    echo "pre-commit: los tests de Python fallan. Commit abortado." >&2
     exit 1
+fi
+
+# El Worker se prueba con el runner que trae Node, sin dependencias.
+if [ -d worker ]; then
+    if ! command -v node >/dev/null 2>&1; then
+        echo "pre-commit: hay worker/ pero no se encuentra Node. Commit abortado." >&2
+        exit 1
+    fi
+    echo "pre-commit: ejecutando los tests del Worker..."
+    if ! node --test worker/logica.test.js >/dev/null; then
+        echo "pre-commit: los tests del Worker fallan. Commit abortado." >&2
+        node --test --test-reporter=spec worker/logica.test.js >&2
+        exit 1
+    fi
 fi

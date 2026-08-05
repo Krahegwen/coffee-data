@@ -6,8 +6,34 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 > **En migración a D1.** Los datos se van a Cloudflare D1 y el alta pasará a
 > hacerse solo desde la app. Los CSV **siguen siendo la fuente de verdad hasta
 > el corte**: hasta entonces se registra como siempre, con `nueva.py`.
-> El esquema SQL ya está en `migrations/` y la semilla se genera desde los CSV
-> con `herramientas/csv_a_sql.py`.
+> El esquema, la semilla y la API ya están, y funcionan en local.
+
+## La API
+
+```bash
+pnpm install
+pnpm exec wrangler d1 execute coffee --local --file=migrations/0001_esquema.sql
+pnpm exec wrangler d1 execute coffee --local --file=migrations/0002_semilla.sql
+pnpm dev
+```
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /api/cafes` | Las bolsas |
+| `GET /api/recetas` | Recetas con sus pasos |
+| `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` ya derivados. `?cafe=gary` filtra |
+| `POST /api/extracciones` | Registra una extracción. Devuelve la fila y las sugerencias |
+
+El `POST` recibe **una extracción en JSON, nunca una operación de git ni SQL**.
+Ese contrato es lo que permite cambiar de método de autenticación sin tocar la
+app: solo se reescribe `autorizado()` en `worker/index.js`.
+
+Lo que calcula el servidor y no debes mandar: el `id`, el `reparto` (sale de
+escalar la receta al agua real, salvo que lo mandes explícito porque ese día te
+desviaste), y `ratio` y `dias_tueste`, que los deriva la vista.
+
+Escribir exige `Authorization: Bearer <TOKEN_ESCRITURA>`. En local va en
+`.dev.vars`; en producción, `wrangler secret put`.
 
 ## Ficheros
 

@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "coffee-api",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-05",
+  "observability": { "enabled": true },
+
+  // database_id se rellena tras crear la base:
+  //   pnpm exec wrangler d1 create coffee
+  // En local (--local, wrangler dev) el id da igual: usa un SQLite en .wrangler.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "coffee",
+      "database_id": "PENDIENTE-crear-con-wrangler-d1-create",
+      "migrations_dir": "migrations"
+    }
+  ]
+
+  // TOKEN_ESCRITURA no va aquí: es un secreto.
+  //   pnpm exec wrangler secret put TOKEN_ESCRITURA
+  // Para local, ponlo en .dev.vars (ignorado por git).
+}

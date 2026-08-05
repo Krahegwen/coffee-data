@@ -1,0 +1,316 @@
+/** Tests de la lógica pura del Worker. Uso: pnpm test */
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { escalarPasos, guion, repartoDe, vertidos } from "./recetas.js";
+import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "./sugerencias.js";
+import { fechaValida, validarExtraccion } from "./validacion.js";
+
+const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
+  receta_id: "kasuya-46-base", orden, t_inicio_s, accion, agua_g, notas: "",
+});
+
+const BASE = [
+  paso(1, "verter", 60, 0), paso(2, "verter", 60, 45),
+  paso(3, "verter", 90, 90), paso(4, "verter", 90, 135),
+  paso(5, "esperar", 0, 180), paso(6, "retirar", 0),
+];
+
+const CON_AGITACION = [
+  paso(1, "verter", 60, 0), paso(2, "agitar", 0, 30),
+  paso(3, "verter", 60, 45), paso(4, "remover", 0, 60),
+  paso(5, "verter", 180, 90),
+];
+
+const extraccion = (campos = {}) => ({
+  id: 1, cafe_id: "gary", dias_tueste: 20, temp_c: 94, clics: 28, dosis_g: 20,
+  agua_g: 300, reparto: "60-60-90-90", receta_id: "kasuya-46-base",
+  molinillo: "Comandante C40", dripper: "v60-02-plastico", drawdown_s: null,
+  defecto: "equilibrado", nota: 7, ...campos,
+});
+
+describe("escalado de recetas", () => {
+  it("no cambia nada con el agua de referencia", () => {
+    assert.equal(repartoDe(BASE, 300), "60-60-90-90");
+  });
+
+  it("reparte proporcionalmente", () => {
+    assert.equal(repartoDe(BASE, 270), "54-54-81-81");
+  });
+
+  it("los vertidos siempre suman el agua", () => {
+    for (const agua of [150, 175, 225, 260, 270, 300, 305, 333, 450, 500]) {
+      const suma = vertidos(escalarPasos(BASE, agua)).reduce((t, p) => t + p.agua_g, 0);
+      assert.equal(suma, agua, `con ${agua} g`);
+    }
+  });
+
+  it("los pasos sin agua no se tocan", () => {
+    const escalados = escalarPasos(BASE, 270);
+    assert.equal(escalados[4].agua_g, 0);
+    assert.equal(escalados[5].accion, "retirar");
+  });
+
+  it("los tiempos no se escalan", () => {
+    assert.deepEqual(
+      escalarPasos(BASE, 500).map((p) => p.t_inicio_s),
+      BASE.map((p) => p.t_inicio_s),
+    );
+  });
+
+  it("no muta los pasos originales", () => {
+    escalarPasos(BASE, 270);
+    assert.equal(BASE[0].agua_g, 60);
+  });
+
+  it("con agitación solo escala los vertidos", () => {
+    const escalados = escalarPasos(CON_AGITACION, 150);
+    assert.equal(vertidos(escalados).reduce((t, p) => t + p.agua_g, 0), 150);
+    assert.equal(escalados[1].agua_g, 0);
+  });
+
+  it("rechaza una receta sin vertidos", () => {
+    assert.throws(() => escalarPasos([paso(1, "esperar", 0)], 300), /ningún vertido/);
+  });
+
+  it("rechaza agua no positiva", () => {
+    assert.throws(() => escalarPasos(BASE, 0), /mayor que 0/);
+  });
+});
+
+describe("guion para el cronómetro", () => {
+  it("lleva el acumulado", () => {
+    assert.deepEqual(guion(BASE, 300).map((p) => p.acumulado_g), [60, 120, 210, 300, 300, 300]);
+  });
+
+  it("marca dónde no fiarse de la báscula", () => {
+    const porAccion = Object.fromEntries(
+      guion(CON_AGITACION, 300).map((p) => [p.accion, p.lectura_fiable]),
+    );
+    assert.equal(porAccion.verter, true);
+    assert.equal(porAccion.agitar, false);
+    assert.equal(porAccion.remover, false);
+  });
+
+  it("deja el tiempo a null cuando no lo hay", () => {
+    const pasos = guion(BASE, 300);
+    assert.equal(pasos[0].t_inicio_s, 0);
+    assert.equal(pasos[5].t_inicio_s, null);
+  });
+});
+
+describe("palancas por defecto", () => {
+  it("amargor propone moler más grueso primero", () => {
+    const [principal] = cambiosDe(extraccion({ defecto: "amargor" }));
+    assert.deepEqual([principal.variable, principal.cambio], ["clics", "+2"]);
+  });
+
+  it("plano propone moler más fino", () => {
+    const [principal] = cambiosDe(extraccion({ defecto: "plano" }));
+    assert.deepEqual([principal.variable, principal.cambio], ["clics", "-2"]);
+  });
+
+  it("agrio ataca primero la temperatura", () => {
+    const [principal] = cambiosDe(extraccion({ defecto: "agrio" }));
+    assert.deepEqual([principal.variable, principal.cambio], ["temp_c", "+3"]);
+  });
+
+  it("equilibrado no propone nada", () => {
+    assert.deepEqual(cambiosDe(extraccion()), []);
+  });
+
+  it("el goteo largo manda sobre el defecto", () => {
+    const [principal] = cambiosDe(extraccion({ defecto: "plano", drawdown_s: 95 }));
+    assert.equal(principal.cambio, "+2");
+    assert.match(principal.porque, /95/);
+  });
+
+  it("el goteo corto propone moler más fino", () => {
+    assert.equal(cambiosDe(extraccion({ drawdown_s: 15 }))[0].cambio, "-2");
+  });
+
+  it("el goteo normal no dice nada", () => {
+    assert.deepEqual(cambiosDe(extraccion({ drawdown_s: 50 })), []);
+  });
+
+  it("no repite la misma variable dos veces", () => {
+    const variables = cambiosDe(extraccion({ defecto: "amargor", drawdown_s: 95 })).map((c) => c.variable);
+    assert.equal(variables.length, new Set(variables).size);
+  });
+});
+
+describe("avisos", () => {
+  it("avisa de café pasado", () => {
+    assert.ok(avisosDe(extraccion({ dias_tueste: 77 })).some((a) => a.includes("77")));
+  });
+
+  it("no avisa con café fresco", () => {
+    assert.deepEqual(avisosDe(extraccion({ dias_tueste: 15 })), []);
+  });
+
+  it("dias_tueste nulo no revienta", () => {
+    assert.deepEqual(avisosDe(extraccion({ dias_tueste: null })), []);
+  });
+
+  it("avisa de la masa térmica de la cerámica", () => {
+    const avisos = avisosDe(extraccion({ dripper: "v60-02-ceramica" }));
+    assert.ok(avisos.some((a) => a.includes("masa térmica")));
+  });
+
+  it("avisa al cambiar de dripper", () => {
+    const previa = extraccion({ id: 1 });
+    const nueva = extraccion({ id: 2, dripper: "v60-02-ceramica" });
+    assert.ok(avisosDe(nueva, [previa, nueva]).some((a) => a.includes("cambiado de dripper")));
+  });
+
+  it("el dripper de otro café no cuenta como cambio", () => {
+    const otro = extraccion({ id: 1, cafe_id: "abbie", dripper: "v60-02-ceramica" });
+    const nueva = extraccion({ id: 2 });
+    assert.ok(!avisosDe(nueva, [otro, nueva]).some((a) => a.includes("cambiado de dripper")));
+  });
+});
+
+describe("deltas emparejados", () => {
+  it("empareja cuando cambia una sola variable", () => {
+    const historico = [extraccion({ id: 1, temp_c: 94, nota: 7 }), extraccion({ id: 2, temp_c: 91, nota: 8 })];
+    const [par] = pares(historico);
+    assert.deepEqual(
+      [par.variable, par.direccion, par.delta_nota],
+      ["temp_c", "bajar", 1],
+    );
+  });
+
+  it("no empareja si cambian dos variables", () => {
+    const historico = [extraccion({ id: 1, temp_c: 94, clics: 28 }), extraccion({ id: 2, temp_c: 91, clics: 26 })];
+    assert.deepEqual(pares(historico), []);
+  });
+
+  it("no empareja extracciones de cafés distintos", () => {
+    const historico = [extraccion({ id: 1, cafe_id: "gary" }), extraccion({ id: 2, cafe_id: "abbie", temp_c: 91 })];
+    assert.deepEqual(pares(historico), []);
+  });
+
+  it("un solo par no llega a tendencia", () => {
+    const historico = [extraccion({ id: 1, temp_c: 94, nota: 7 }), extraccion({ id: 2, temp_c: 91, nota: 8 })];
+    assert.deepEqual(efectos(historico), {});
+  });
+
+  it("dos pares ya promedian", () => {
+    const historico = [
+      extraccion({ id: 1, temp_c: 94, nota: 6 }),
+      extraccion({ id: 2, temp_c: 91, nota: 8 }),
+      extraccion({ id: 3, temp_c: 88, nota: 9 }),
+    ];
+    const efecto = efectos(historico)["temp_c|bajar"];
+    assert.equal(efecto.casos, 2);
+    assert.equal(efecto.media, 1.5);
+  });
+
+  it("cambiar de dripper cuenta como la variable del par", () => {
+    const historico = [
+      extraccion({ id: 1, nota: 7 }),
+      extraccion({ id: 2, dripper: "v60-02-ceramica", nota: 8 }),
+    ];
+    assert.equal(pares(historico)[0].variable, "dripper");
+  });
+});
+
+describe("cobertura", () => {
+  it("lista lo ya probado", () => {
+    const historico = [extraccion({ id: 1, temp_c: 94 }), extraccion({ id: 2, temp_c: 91 })];
+    const probado = cobertura("gary", historico);
+    assert.deepEqual(probado.temp_c, ["91", "94"]);
+    assert.deepEqual(probado.clics, ["28"]);
+  });
+
+  it("ignora los otros cafés", () => {
+    assert.deepEqual(cobertura("gary", [extraccion({ cafe_id: "abbie" })]).temp_c, []);
+  });
+});
+
+describe("resumen", () => {
+  it("es la palanca principal", () => {
+    assert.equal(textoCorto(sugerir(extraccion({ defecto: "amargor" }))), "clics +2");
+  });
+
+  it("cuando ya está bien, repetir", () => {
+    assert.equal(
+      textoCorto(sugerir(extraccion({ defecto: "equilibrado", nota: 9 }))),
+      "Repetir igual para confirmar",
+    );
+  });
+});
+
+describe("validación de fechas", () => {
+  it("acepta fechas reales", () => {
+    for (const f of ["2026-08-06", "2024-02-29"]) assert.ok(fechaValida(f), f);
+  });
+
+  it("rechaza formatos y días que no existen", () => {
+    for (const f of ["06-08-2026", "2026/08/06", "2026-8-6", "2026-13-01",
+                     "2026-02-30", "2026-02-29", "2026-04-31", "ayer", ""]) {
+      assert.ok(!fechaValida(f), f);
+    }
+  });
+});
+
+describe("validación de extracciones", () => {
+  const cuerpo = (campos = {}) => ({
+    cafe_id: "gary", temp_c: 91, clics: 28, tiempo_total: "3:30",
+    variable_cambiada: "91 °C", defecto: "equilibrado", nota: 8, ...campos,
+  });
+
+  it("aplica la receta base", () => {
+    const { valores, errores } = validarExtraccion(cuerpo());
+    assert.deepEqual(errores, []);
+    assert.equal(valores.dosis_g, 20);
+    assert.equal(valores.agua_g, 300);
+    assert.equal(valores.molinillo, "Comandante C40");
+    assert.equal(valores.receta_id, "kasuya-46-base");
+    assert.equal(valores.dripper, "v60-02-plastico");
+  });
+
+  it("pone la fecha de hoy si falta", () => {
+    const { valores } = validarExtraccion(cuerpo(), { ahora: new Date("2026-08-06T10:00:00Z") });
+    assert.equal(valores.fecha, "2026-08-06");
+  });
+
+  it("exige los obligatorios", () => {
+    const { errores } = validarExtraccion({ cafe_id: "gary" });
+    assert.ok(errores.some((e) => e.includes("obligatorios")));
+  });
+
+  it("rechaza notas fuera de rango", () => {
+    for (const nota of [0, 11, -3, 7.5, "ocho"]) {
+      assert.ok(validarExtraccion(cuerpo({ nota })).errores.length, `nota ${nota}`);
+    }
+  });
+
+  it("rechaza defecto y dripper inventados", () => {
+    assert.ok(validarExtraccion(cuerpo({ defecto: "quemado" })).errores.length);
+    assert.ok(validarExtraccion(cuerpo({ dripper: "chemex" })).errores.length);
+  });
+
+  it("normaliza mayúsculas", () => {
+    const { valores, errores } = validarExtraccion(cuerpo({ defecto: "AMARGOR", dripper: "V60-02-CERAMICA" }));
+    assert.deepEqual(errores, []);
+    assert.equal(valores.defecto, "amargor");
+    assert.equal(valores.dripper, "v60-02-ceramica");
+  });
+
+  it("rechaza campos que no existen", () => {
+    const { errores } = validarExtraccion(cuerpo({ inventado: "x" }));
+    assert.ok(errores.some((e) => e.includes("desconocidos")));
+  });
+
+  it("rechaza dosis cero y drawdown negativo", () => {
+    assert.ok(validarExtraccion(cuerpo({ dosis_g: 0 })).errores.length);
+    assert.ok(validarExtraccion(cuerpo({ drawdown_s: -5 })).errores.length);
+  });
+
+  it("admite coma decimal", () => {
+    const { valores, errores } = validarExtraccion(cuerpo({ dosis_g: "18,5" }));
+    assert.deepEqual(errores, []);
+    assert.equal(valores.dosis_g, 18.5);
+  });
+});

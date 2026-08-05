@@ -5,3 +5,9 @@ __pycache__/
 
 # pytest
 .pytest_cache/
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+dist/
+.dev.vars
