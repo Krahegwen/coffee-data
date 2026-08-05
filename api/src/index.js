@@ -9,8 +9,8 @@
  * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
  * es lo que permite cambiar de método de autenticación sin tocar la app.
  */
-import { autorizado } from "./auth.js";
-import { repartoDe } from "./recetas.js";
+import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
+import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
 import { CAMPOS, validarExtraccion } from "./validacion.js";
 
@@ -93,8 +93,54 @@ async function crearExtraccion(request, env) {
   );
 }
 
-async function enrutar(request, env, url, ruta) {
+/**
+ * Abre o cierra la sesión. El token viaja una sola vez, en el cuerpo, y a
+ * partir de ahí lo lleva una cookie HttpOnly que el JavaScript no puede leer.
+ */
+async function sesion(request, env, url) {
+  const seguro = url.protocol === "https:";
+
   if (request.method === "GET") {
+    return json({ activa: autorizado(request, env) });
+  }
+
+  if (request.method === "DELETE") {
+    return json({ activa: false }, 200, { "set-cookie": cabeceraDeCierre({ seguro }) });
+  }
+
+  let cuerpo;
+  try {
+    cuerpo = await request.json();
+  } catch {
+    return json({ error: "el cuerpo debe ser JSON" }, 400);
+  }
+
+  const token = String(cuerpo?.token || "").trim();
+  const esperado = String(env.TOKEN_ESCRITURA || "").trim();
+  if (!esperado || !coincide(token, esperado)) {
+    return json({ error: "token incorrecto" }, 401);
+  }
+
+  return json({ activa: true }, 200, { "set-cookie": cabeceraDeSesion(token, { seguro }) });
+}
+
+async function enrutar(request, env, url, ruta) {
+  if (ruta === "/api/sesion") return await sesion(request, env, url);
+
+  if (request.method === "GET") {
+    if (ruta === "/api/guion") {
+      const recetaId = url.searchParams.get("receta");
+      const agua = Number(url.searchParams.get("agua") || 300);
+      const pasos = await pasosDe(env, recetaId ?? "");
+      if (!pasos.length) {
+        return json({ error: `la receta ${recetaId} no tiene pasos` }, 404);
+      }
+      try {
+        return json(guion(pasos, agua));
+      } catch (error) {
+        return json({ error: error.message }, 422);
+      }
+    }
     if (ruta === "/api/cafes") {
       const { results } = await env.DB.prepare(
         "SELECT * FROM cafes ORDER BY estado, nombre",

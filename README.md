@@ -31,7 +31,9 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `GET /api/cafes` | Las bolsas |
 | `GET /api/recetas` | Recetas con sus pasos |
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` ya derivados. `?cafe=gary` filtra |
+| `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
 | `POST /api/extracciones` | Registra una extracción. Devuelve la fila y las sugerencias |
+| `GET/POST/DELETE /api/sesion` | Consulta, abre y cierra la sesión de escritura |
 
 El `POST` recibe **una extracción en JSON, nunca una operación de git ni SQL**.
 Ese contrato es lo que permite cambiar de método de autenticación sin tocar la
@@ -41,9 +43,16 @@ Lo que calcula el servidor y no debes mandar: el `id`, el `reparto` (sale de
 escalar la receta al agua real, salvo que lo mandes explícito porque ese día te
 desviaste), y `ratio` y `dias_tueste`, que los deriva la vista.
 
-Escribir exige `Authorization: Bearer <TOKEN_ESCRITURA>`. En local va en
-`.dev.vars`; en producción, `wrangler secret put`. Sin secreto configurado el
-Worker **falla cerrado**: no autoriza a nadie.
+Escribir exige el mismo secreto por una de dos vías: `Authorization: Bearer
+<TOKEN_ESCRITURA>` para curl y scripts, o la **cookie de sesión** para la app.
+En local el secreto va en `.dev.vars`; en producción, `wrangler secret put`.
+Sin secreto configurado el Worker **falla cerrado**: no autoriza a nadie.
+
+La app abre sesión con `POST /api/sesion`: el token viaja una vez y a cambio
+recibe una cookie `HttpOnly`, `SameSite=Strict`, `Path=/api`. El JavaScript no
+puede leerla, así que un XSS ya no se lleva el token, y otro sitio no puede
+provocar una escritura desde tu navegador. Antes vivía en `localStorage`; solo
+se pudo cambiar cuando la app y la API pasaron a compartir origen.
 
 El Worker no sirve por `workers.dev`, solo por el dominio propio. El subdominio
 `workers.dev` de una cuenta se genera a partir del correo y puede llevar el
@@ -75,12 +84,24 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
+Tres pantallas: el listado, el **cronómetro** y el alta.
+
+El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
+objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la
+báscula y mantiene la pantalla encendida. Al marcar «dejó de gotear» calcula el
+`drawdown_s` **solo** y salta al alta con tiempo, goteo, café y receta ya
+puestos. Ese dato es justo el que a mano no se registra bien.
+
 La app se despliega dentro del Worker, así que **hay que construirla antes**:
 
 ```bash
-pnpm --filter @coffee/web build
-pnpm deploy:api
+pnpm deploy      # construye la app y despliega el Worker, en ese orden
 ```
+
+Comprueba siempre que el despliegue subió **las dos cosas**. Ha pasado dos
+veces que wrangler suba solo los assets, o solo el script, y lo dé por bueno:
+si falta `Uploaded coffee-api` o `Uploaded N of N assets` en la salida, vuelve
+a desplegar y verifica una ruta nueva antes de cantar victoria.
 
 En desarrollo, `nuxt dev` proxea `/api` al Worker de `:8787`, así que también
 ahí es el mismo origen y el código no se entera de la diferencia.

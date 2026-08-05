@@ -2,7 +2,8 @@
 import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 const { cafes, recetas, crear } = useApi()
-const { token, guardar, configurado } = useToken()
+const { activa, comprobada, comprobar, abrir } = useSesion()
+const route = useRoute()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
@@ -12,29 +13,47 @@ const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 
 const DEFECTOS = ['equilibrado', 'amargor', 'astringente', 'plano', 'agrio', 'salado', 'carton']
 const DRIPPERS = ['v60-02-plastico', 'v60-02-ceramica']
 
-// La receta base del README. Lo que no se toque, entra así.
+const q = route.query
+const numero = (v: unknown, porDefecto: number) => (v === undefined ? porDefecto : Number(v))
+
+// La receta base del README, salvo lo que traiga el cronómetro en la URL.
 const form = reactive({
-  cafe_id: '',
-  dosis_g: 20,
-  agua_g: 300,
+  cafe_id: String(q.cafe ?? ''),
+  dosis_g: numero(q.dosis, 20),
+  agua_g: numero(q.agua, 300),
   temp_c: 92,
   clics: 28,
-  receta_id: 'kasuya-46-base',
+  receta_id: String(q.receta ?? 'kasuya-46-base'),
   dripper: 'v60-02-plastico',
-  tiempo_total: '',
-  drawdown_s: '' as number | '',
+  tiempo_total: String(q.tiempo ?? ''),
+  drawdown_s: (q.drawdown === undefined ? '' : Number(q.drawdown)) as number | '',
   variable_cambiada: '',
   defecto: 'equilibrado',
   notas_cata: '',
   nota: 7,
 })
 
+const desdeCrono = computed(() => q.tiempo !== undefined)
+
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const resultado = ref<Creada | null>(null)
 const tokenVisible = ref('')
+const errorSesion = ref('')
+
+onMounted(comprobar)
 
 watchEffect(() => { if (!form.cafe_id && abiertas.value.length) form.cafe_id = abiertas.value[0]!.id })
+
+async function iniciarSesion() {
+  errorSesion.value = ''
+  try {
+    await abrir(tokenVisible.value)
+    tokenVisible.value = ''
+  } catch {
+    errorSesion.value = 'Ese token no es'
+  }
+}
 
 const ratio = computed(() =>
   form.dosis_g > 0 ? (form.agua_g / form.dosis_g).toFixed(1) : '—',
@@ -61,7 +80,7 @@ async function enviar() {
     if (form.drawdown_s !== '') datos.drawdown_s = Number(form.drawdown_s)
     if (form.notas_cata.trim()) datos.notas_cata = form.notas_cata.trim()
 
-    resultado.value = await crear(datos, token.value)
+    resultado.value = await crear(datos)
     // Lo que no se repite entre extracciones se limpia; el resto se queda,
     // que lo normal es cambiar una cosa y volver a medir.
     form.tiempo_total = ''
@@ -79,17 +98,25 @@ async function enviar() {
 <template>
   <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
-  <section v-if="!configurado" class="tarjeta">
-    <h2>Token de escritura</h2>
+  <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
+
+  <section v-else-if="!activa" class="tarjeta">
+    <h2>Abrir sesión</h2>
     <p class="meta">
-      Hace falta una vez por dispositivo. Se guarda en este navegador.
+      Una vez por dispositivo. El token no se guarda aquí: se cambia por una
+      cookie que este código no puede leer.
     </p>
-    <input v-model="tokenVisible" type="password" placeholder="Bearer…" autocomplete="off">
-    <button :disabled="!tokenVisible.trim()" @click="guardar(tokenVisible)">Guardar</button>
+    <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
+    <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
+    <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
   </section>
 
   <form v-else @submit.prevent="enviar">
     <h2>Nueva extracción</h2>
+
+    <p v-if="desdeCrono" class="delcrono">
+      Tiempo y goteo vienen del cronómetro.
+    </p>
 
     <label>
       Café
@@ -240,6 +267,17 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tarjeta input { width: 100%; margin: 0.5rem 0; }
 
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
+.fallo { color: #c2410c; font-size: 0.85rem; margin: 0.35rem 0; }
+
+.delcrono {
+  background: var(--tarjeta);
+  border: 1px solid var(--acento);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  color: var(--acento);
+  margin: 0 0 0.25rem;
+}
 .errores { border-color: #c2410c; }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
 .exito { border-color: var(--acento); }

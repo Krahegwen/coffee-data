@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { autorizado, tokenDe } from "../src/auth.js";
+import {
+  autorizado, cabeceraDeCierre, cabeceraDeSesion, tokenDe, tokenDeCookie,
+} from "../src/auth.js";
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
 import { fechaValida, validarExtraccion } from "../src/validacion.js";
@@ -31,7 +33,10 @@ const extraccion = (campos = {}) => ({
 });
 
 describe("autorización", () => {
-  const peticion = (cabecera) => ({ headers: { get: () => cabecera } });
+  // Solo cabecera Authorization; la Cookie va vacía.
+  const peticion = (cabecera) => ({
+    headers: { get: (n) => (n.toLowerCase() === 'authorization' ? cabecera : null) },
+  })
 
   it("acepta el token correcto", () => {
     assert.equal(autorizado(peticion("Bearer secreto"), { TOKEN_ESCRITURA: "secreto" }), true);
@@ -61,6 +66,65 @@ describe("autorización", () => {
     assert.equal(tokenDe("Bearer abc"), "abc");
     assert.equal(tokenDe("bearer  abc "), "abc");
     assert.equal(tokenDe("abc"), "abc");
+  });
+});
+
+describe("sesión por cookie", () => {
+  const conCookie = (cookie) => ({
+    headers: { get: (n) => (n.toLowerCase() === "cookie" ? cookie : null) },
+  });
+
+  it("autoriza con la cookie de sesión", () => {
+    assert.equal(
+      autorizado(conCookie("coffee_sesion=secreto"), { TOKEN_ESCRITURA: "secreto" }),
+      true,
+    );
+  });
+
+  it("la encuentra entre otras cookies", () => {
+    const cookie = "otra=x; coffee_sesion=secreto; tercera=y";
+    assert.equal(autorizado(conCookie(cookie), { TOKEN_ESCRITURA: "secreto" }), true);
+  });
+
+  it("rechaza una cookie con otro valor", () => {
+    assert.equal(
+      autorizado(conCookie("coffee_sesion=otro"), { TOKEN_ESCRITURA: "secreto" }),
+      false,
+    );
+  });
+
+  it("no confunde una cookie de nombre parecido", () => {
+    assert.equal(
+      autorizado(conCookie("no_coffee_sesion=secreto"), { TOKEN_ESCRITURA: "secreto" }),
+      false,
+    );
+  });
+
+  it("descodifica el valor", () => {
+    assert.equal(tokenDeCookie("coffee_sesion=a%20b"), "a b");
+    assert.equal(tokenDeCookie("coffee_sesion=%E2%98%95"), "☕");
+  });
+
+  it("aguanta una cookie mal formada sin reventar", () => {
+    assert.equal(tokenDeCookie("coffee_sesion=%E0%A4%A"), "");
+    assert.equal(tokenDeCookie(""), "");
+    assert.equal(tokenDeCookie(null), "");
+  });
+
+  it("la cookie no la puede leer el JavaScript ni la manda otro sitio", () => {
+    const cabecera = cabeceraDeSesion("secreto", { seguro: true });
+    assert.match(cabecera, /HttpOnly/);
+    assert.match(cabecera, /SameSite=Strict/);
+    assert.match(cabecera, /Secure/);
+    assert.match(cabecera, /Path=\/api/);
+  });
+
+  it("sin HTTPS no marca Secure, o el navegador la tiraría", () => {
+    assert.doesNotMatch(cabeceraDeSesion("secreto", { seguro: false }), /Secure/);
+  });
+
+  it("cerrar sesión caduca la cookie", () => {
+    assert.match(cabeceraDeCierre({ seguro: true }), /Max-Age=0/);
   });
 });
 

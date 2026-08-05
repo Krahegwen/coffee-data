@@ -57,6 +57,18 @@ export interface Receta {
   pasos: Paso[]
 }
 
+/** Un paso listo para el cronómetro: agua escalada y acumulada. */
+export interface PasoGuion {
+  orden: number
+  t_inicio_s: number | null
+  accion: 'verter' | 'agitar' | 'remover' | 'esperar' | 'retirar'
+  agua_g: number
+  acumulado_g: number
+  /** Falso al agitar o remover: la cuchara pesa y el peso deja de valer. */
+  lectura_fiable: boolean
+  notas: string
+}
+
 export interface Cambio {
   variable: string
   cambio: string
@@ -106,19 +118,24 @@ export function useApi() {
       query: cafeId ? { cafe: cafeId } : undefined,
     })
 
+  /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
+  const guion = (recetaId: string, aguaG: number) =>
+    $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
+
   /**
    * Registra una extracción. Entera o ninguna: si el servidor rechaza algo,
    * no se escribe nada y devuelve la lista de errores.
+   *
+   * No lleva token: la sesión va en una cookie HttpOnly que manda el navegador.
    */
-  async function crear(datos: NuevaExtraccion, token: string): Promise<Creada> {
+  async function crear(datos: NuevaExtraccion): Promise<Creada> {
     return await $fetch<Creada>(`${base}/api/extracciones`, {
       method: 'POST',
-      headers: { authorization: `Bearer ${token}` },
       body: datos,
     })
   }
 
-  return { base, cafes, recetas, extracciones, crear }
+  return { base, cafes, recetas, extracciones, guion, crear }
 }
 
 /** Saca los mensajes legibles de lo que devuelva la API al fallar. */

@@ -85,7 +85,14 @@ exportados.
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
 - `web/` es la app. `ssr: false` a propósito. Todo el acceso a la API pasa por
-  `useApi()`: si añades una llamada, va ahí y con su tipo.
+  `useApi()`: si añades una llamada, va ahí y con su tipo. La sesión vive en
+  `useSesion()` y **no guarda el token en ninguna parte**: lo cambia por una
+  cookie `HttpOnly` que este código no puede leer.
+- La app **no reimplementa reglas del servidor**. El escalado de recetas lo da
+  `GET /api/guion`; si necesitas otra lógica de dominio, hazle un endpoint.
+- Al desplegar, comprueba que subieron **script y assets**. Ha pasado dos veces
+  que wrangler suba solo uno y lo dé por bueno: verifica una ruta nueva antes
+  de dar el despliegue por hecho.
 - Ejecuta **las dos suites** antes de commitear. El hook lo hace por ti; no uses
   `--no-verify`.
 - Tras desplegar, `python herramientas/exportar_csv.py` mantiene el respaldo al
