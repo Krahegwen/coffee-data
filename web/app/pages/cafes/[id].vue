@@ -274,8 +274,16 @@ dialog {
   background: var(--tarjeta);
   color: var(--tinta);
   padding: 1rem;
-  max-width: min(28rem, calc(100vw - 2rem));
+  /*
+   * Con % y no con 100vw: en el móvil vw no siempre mide lo que se ve —la
+   * barra de direcciones y el zoom lo mueven— y el modal se salía a lo
+   * ancho. El % sale del viewport contra el que se posiciona el modal.
+   */
+  max-width: min(28rem, calc(100% - 2rem));
   margin: auto;
+  /* El nombre de la bolsa lo escribe el usuario: si mete una palabra larga
+     sin espacios, que se parta en vez de empujar la caja. */
+  overflow-wrap: anywhere;
 }
 
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
