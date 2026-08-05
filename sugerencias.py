@@ -23,7 +23,14 @@ DIAS_TUESTE_VIEJO = 60
 MINIMO_PARES = 2
 
 # Variables que el protocolo considera "la variable cambiada".
-VARIABLES = ("temp_c", "clics", "dosis_g", "agua_g", "reparto", "receta_id", "molinillo")
+VARIABLES = (
+    "temp_c", "clics", "dosis_g", "agua_g", "reparto", "receta_id", "molinillo",
+    "dripper",
+)
+
+# Drippers con masa térmica: sin precalentar roban calor al lecho, así que el
+# mismo temp_c de hervidor no da la misma temperatura de extracción.
+DRIPPERS_CON_INERCIA = ("v60-02-ceramica",)
 
 # defecto -> palancas, la primera es la principal. En un Comandante los clics se
 # cuentan desde cerrado: más clics es moler más grueso.
@@ -64,9 +71,27 @@ def num(valor):
 
 # --- capa 1: reglas ----------------------------------------------------------
 
-def avisos_de(extraccion):
+def avisos_de(extraccion, historico=()):
     """Cosas que mirar antes de tocar la receta."""
     avisos = []
+
+    if extraccion.get("dripper") in DRIPPERS_CON_INERCIA:
+        avisos.append(
+            "dripper con masa térmica: si no lo precalentaste, la temperatura "
+            "real del lecho fue menor que los grados del hervidor"
+        )
+
+    anteriores = [
+        e for e in historico
+        if e.get("cafe_id") == extraccion.get("cafe_id")
+        and str(e.get("id")) != str(extraccion.get("id"))
+    ]
+    if anteriores and anteriores[-1].get("dripper") != extraccion.get("dripper"):
+        avisos.append(
+            f"has cambiado de dripper ({anteriores[-1].get('dripper')} -> "
+            f"{extraccion.get('dripper')}): esa es la variable de esta extracción, "
+            "no compares el resto"
+        )
 
     dias = num(extraccion.get("dias_tueste"))
     if dias is not None and dias > DIAS_TUESTE_VIEJO:
@@ -179,7 +204,7 @@ def sugerir(extraccion, historico=()):
     """Todo junto: avisos, palancas, efectos observados y cobertura."""
     historico = list(historico)
     return {
-        "avisos": avisos_de(extraccion),
+        "avisos": avisos_de(extraccion, historico),
         "cambios": cambios_de(extraccion),
         "efectos": efectos(historico),
         "cobertura": cobertura(extraccion.get("cafe_id"), historico),

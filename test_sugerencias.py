@@ -10,6 +10,7 @@ def extraccion(**campos):
         "id": "1", "cafe_id": "gary", "dias_tueste": "20", "temp_c": "94",
         "clics": "28", "dosis_g": "20", "agua_g": "300", "reparto": "60-60-90-90",
         "receta_id": "kasuya-46-base", "molinillo": "Comandante C40",
+        "dripper": "v60-02-plastico",
         "drawdown_s": "", "defecto": "equilibrado", "nota": "7",
     }
     base.update(campos)
@@ -82,6 +83,49 @@ def test_no_avisa_con_cafe_fresco():
 
 def test_dias_tueste_vacio_no_revienta():
     assert sugerencias.avisos_de(extraccion(dias_tueste="")) == []
+
+
+# --- avisos de dripper -------------------------------------------------------
+
+def test_avisa_de_la_masa_termica_de_la_ceramica():
+    avisos = sugerencias.avisos_de(extraccion(dripper="v60-02-ceramica"))
+    assert any("masa térmica" in aviso for aviso in avisos)
+
+
+def test_el_plastico_no_avisa():
+    assert sugerencias.avisos_de(extraccion(dripper="v60-02-plastico")) == []
+
+
+def test_avisa_al_cambiar_de_dripper():
+    anterior = extraccion(id="1", dripper="v60-02-plastico")
+    nueva = extraccion(id="2", dripper="v60-02-ceramica")
+    avisos = sugerencias.avisos_de(nueva, [anterior, nueva])
+    assert any("cambiado de dripper" in aviso for aviso in avisos)
+
+
+def test_no_avisa_de_cambio_si_repites_dripper():
+    anterior = extraccion(id="1", dripper="v60-02-plastico")
+    nueva = extraccion(id="2", dripper="v60-02-plastico")
+    avisos = sugerencias.avisos_de(nueva, [anterior, nueva])
+    assert not any("cambiado de dripper" in aviso for aviso in avisos)
+
+
+def test_el_dripper_de_otro_cafe_no_cuenta_como_cambio():
+    otro = extraccion(id="1", cafe_id="abbie", dripper="v60-02-ceramica")
+    nueva = extraccion(id="2", cafe_id="gary", dripper="v60-02-plastico")
+    avisos = sugerencias.avisos_de(nueva, [otro, nueva])
+    assert not any("cambiado de dripper" in aviso for aviso in avisos)
+
+
+def test_cambiar_de_dripper_cuenta_como_la_variable_del_par():
+    historico = [
+        extraccion(id="1", dripper="v60-02-plastico", nota="7"),
+        extraccion(id="2", dripper="v60-02-ceramica", nota="8"),
+    ]
+    par = sugerencias.pares(historico)
+    assert len(par) == 1
+    assert par[0]["variable"] == "dripper"
+    assert par[0]["direccion"] == "cambiar"
 
 
 # --- capa 2: deltas emparejados ----------------------------------------------

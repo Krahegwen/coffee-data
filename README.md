@@ -29,7 +29,12 @@ Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tie
 `id` · `fecha` · `cafe_id` · `dias_tueste` · `dosis_g` · `agua_g` · `ratio` ·
 `temp_c` · `molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` ·
 `variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
-`siguiente_ajuste` · `receta_id` · `drawdown_s`
+`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper`
+
+`dripper`: `v60-02-plastico` | `v60-02-ceramica`. Lista cerrada porque entra en
+la detección de pares, y una errata parecería un cambio de variable. La
+cerámica tiene masa térmica: sin precalentar, el mismo `temp_c` de hervidor da
+una temperatura de extracción más baja.
 
 `drawdown_s`: segundos entre el final del último vertido y el fin del goteo. Va
 en segundos enteros, no en `m:ss`, porque es el valor con el que se decide si
@@ -56,6 +61,11 @@ En ninguno de los tres se reordenan ni se reescriben filas del pasado.
 
 `reparto`: gramos de cada vertido separados por guiones. `60-60-90-90` son dos
 vertidos de fase 1 y dos de fase 2.
+
+## Equipo
+
+Hario V60 02 de plástico (el de diario) y V60 02 de cerámica. Comandante C40.
+Báscula con temporizador y tara.
 
 ## Método base
 

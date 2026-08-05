@@ -26,17 +26,22 @@ from sugerencias import formatear, sugerir, texto_corto
 
 DEFECTOS = ["equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton"]
 
+# Lista cerrada a propósito: el dripper entra en la detección de pares, y una
+# errata ("plastico" por "plastico ") parecería un cambio de variable.
+DRIPPERS = ["v60-02-plastico", "v60-02-ceramica"]
+
 # Receta base del README: valores por defecto de las preguntas y de los flags.
 DOSIS_BASE = "20"
 AGUA_BASE = "300"
 MOLINILLO_BASE = "Comandante C40"
 METODO_BASE = "V60 4:6 Kasuya"
 RECETA_BASE = "kasuya-46-base"
+DRIPPER_BASE = "v60-02-plastico"
 
 CAMPOS_CLI = (
     "fecha", "cafe", "dosis", "agua", "temp", "molinillo", "clics", "metodo",
-    "receta", "reparto", "tiempo", "drawdown", "variable", "defecto", "notas",
-    "nota", "siguiente",
+    "receta", "reparto", "dripper", "tiempo", "drawdown", "variable", "defecto",
+    "notas", "nota", "siguiente",
 )
 OBLIGATORIOS_CLI = ("cafe", "temp", "clics", "tiempo", "variable", "defecto", "nota")
 
@@ -100,6 +105,11 @@ def validar_defecto(valor):
     return validar_opcion(valor, DEFECTOS, "defecto")
 
 
+def validar_dripper(valor):
+    """El dripper debe ser uno de los que hay en casa."""
+    return validar_opcion(valor, DRIPPERS, "dripper")
+
+
 def validar_drawdown(valor):
     """Drawdown en segundos enteros: desde el último vertido hasta que deja de gotear."""
     try:
@@ -147,6 +157,7 @@ def construir_fila(args, cafes, recetas, extracciones, hoy):
         "siguiente_ajuste": args.siguiente or "",
         "receta_id": receta_id,
         "drawdown_s": "" if args.drawdown is None else validar_drawdown(args.drawdown),
+        "dripper": validar_dripper(args.dripper or DRIPPER_BASE),
     }
 
 
@@ -185,6 +196,9 @@ def preguntar_fila(cafes, recetas, extracciones, hoy):
     fila["reparto"] = preguntar(
         "reparto", reparto_de(recetas[fila["receta_id"]], fila["agua_g"])
     )
+    fila["dripper"] = preguntar(
+        f"dripper ({', '.join(DRIPPERS)})", DRIPPER_BASE, validar_dripper
+    )
     fila["tiempo_total"] = preguntar("tiempo_total (m:ss)")
     fila["drawdown_s"] = preguntar(
         "drawdown_s (segundos, opcional)", validador=validar_drawdown, obligatorio=False
@@ -220,6 +234,7 @@ def parsear_argumentos(argv=None):
     parser.add_argument("--metodo", help=f"por defecto, {METODO_BASE}")
     parser.add_argument("--receta", help=f"receta_id (por defecto, {RECETA_BASE})")
     parser.add_argument("--reparto", help="por defecto, las fases de la receta escaladas al agua")
+    parser.add_argument("--dripper", help=f"{', '.join(DRIPPERS)} (por defecto, {DRIPPER_BASE})")
     parser.add_argument("--tiempo", help="tiempo total, m:ss")
     parser.add_argument("--drawdown", help="segundos desde el último vertido hasta que deja de gotear")
     parser.add_argument("--variable", help="qué has cambiado respecto a la extracción anterior")

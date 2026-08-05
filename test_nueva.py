@@ -121,6 +121,7 @@ def test_fila_desde_flags_aplica_la_receta_base():
     assert fila["notas_cata"] == ""
     assert fila["receta_id"] == "kasuya-46-base"
     assert fila["drawdown_s"] == ""
+    assert fila["dripper"] == "v60-02-plastico"
 
 
 def test_fila_desde_flags_tiene_las_columnas_del_csv_real():
@@ -170,6 +171,13 @@ def test_el_reparto_explicito_manda_sobre_la_receta():
     assert fila["reparto"] == "70-50-90-90"
 
 
+def test_el_dripper_de_ceramica_se_admite():
+    fila = nueva.construir_fila(
+        argumentos("--dripper", "V60-02-CERAMICA"), CAFES, CATALOGO, EXTRACCIONES, HOY
+    )
+    assert fila["dripper"] == "v60-02-ceramica"
+
+
 def test_drawdown_se_guarda_como_entero():
     fila = nueva.construir_fila(
         argumentos("--drawdown", "42"), CAFES, CATALOGO, EXTRACCIONES, HOY
@@ -192,6 +200,7 @@ def test_drawdown_invalido(valor):
         ("--temp", "caliente"),
         ("--receta", "chemex"),
         ("--drawdown", "-5"),
+        ("--dripper", "chemex"),
     ],
 )
 def test_fila_desde_flags_propaga_las_validaciones(extra):

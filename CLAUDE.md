@@ -27,7 +27,10 @@ fila y saber qué se cambió y cuándo.
 - **Fechas siempre en `AAAA-MM-DD`.**
 - **Una sola variable por extracción.** Si el usuario cambió dos cosas a la vez,
   díselo: el dato no sirve para comparar. Regístralo igual si insiste, pero que
-  `variable_cambiada` lo refleje.
+  `variable_cambiada` lo refleje. Ojo: **cambiar de dripper cuenta como
+  variable**. El de cerámica tiene masa térmica y baja la temperatura real del
+  lecho si no se precalienta, así que no se cambia de dripper y de `temp_c` en
+  la misma extracción.
 - **Solo librería estándar** en el código. `pytest` es dependencia de desarrollo
   y nada más. No añadas paquetes.
 - **Nada de GitHub Actions**, aunque el repo sea público. La verificación vive en
