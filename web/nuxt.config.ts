@@ -38,6 +38,15 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         { name: 'theme-color', content: '#3b2314' },
       ],
+      // El enlace al manifiesto va a mano: con `ssr: false` el módulo genera
+      // el fichero pero no lo enlaza en el HTML, y sin ese enlace el
+      // navegador no ofrece instalar la app por mucho service worker que
+      // haya. Los iconos existen en public/ pero tampoco se referenciaban.
+      link: [
+        { rel: 'manifest', href: '/manifest.webmanifest' },
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+      ],
     },
   },
 
