@@ -1,29 +1,41 @@
 #!/usr/bin/env python3
-"""Añade una extracción a extracciones.csv. Uso: python nueva.py"""
-import csv
+"""Añade una extracción a extracciones.csv.
+
+Interactivo:  python nueva.py
+Un comando:   python nueva.py --cafe gary --temp 91 --clics 28 --tiempo 3:30 \
+                  --variable "91 °C" --defecto equilibrado --nota 8
+"""
+import argparse
 import sys
 from datetime import date, datetime
-from pathlib import Path
 
-BASE = Path(__file__).parent
-CAFES = BASE / "cafes.csv"
-EXTRACCIONES = BASE / "extracciones.csv"
+from comun import (
+    CAFES,
+    EXTRACCIONES,
+    agregar_fila,
+    confirmar,
+    leer_csv,
+    mostrar_resumen,
+    preguntar,
+    validar_fecha,
+    validar_numero,
+    validar_opcion,
+)
 
 DEFECTOS = ["equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton"]
 
-# Receta base del README, se ofrecen como valor por defecto en las preguntas.
+# Receta base del README: valores por defecto de las preguntas y de los flags.
 DOSIS_BASE = "20"
 AGUA_BASE = "300"
 MOLINILLO_BASE = "Comandante C40"
 METODO_BASE = "V60 4:6 Kasuya"
 REPARTO_BASE = "60-60-90-90"
 
-
-def leer_csv(ruta):
-    """Devuelve (cabecera, filas) de un CSV."""
-    with open(ruta, encoding="utf-8", newline="") as f:
-        lector = csv.DictReader(f)
-        return lector.fieldnames, list(lector)
+CAMPOS_CLI = (
+    "fecha", "cafe", "dosis", "agua", "temp", "molinillo", "clics", "metodo",
+    "reparto", "tiempo", "variable", "defecto", "notas", "nota", "siguiente",
+)
+OBLIGATORIOS_CLI = ("cafe", "temp", "clics", "tiempo", "variable", "defecto", "nota")
 
 
 def cargar_cafes(ruta=CAFES):
@@ -57,7 +69,7 @@ def calcular_ratio(dosis_g, agua_g):
     return f"{float(str(agua_g).replace(',', '.')) / dosis:.1f}"
 
 
-# --- validaciones ------------------------------------------------------------
+# --- validaciones propias de una extracción ----------------------------------
 
 def validar_cafe_id(valor, cafes):
     """El cafe_id debe existir en cafes.csv."""
@@ -82,87 +94,45 @@ def validar_nota(valor):
 
 def validar_defecto(valor):
     """El defecto debe ser uno de los valores permitidos."""
-    defecto = str(valor).strip().lower()
-    if defecto not in DEFECTOS:
-        raise ValueError(
-            f"defecto no permitido: {valor!r}. Válidos: {', '.join(DEFECTOS)}"
-        )
-    return defecto
+    return validar_opcion(valor, DEFECTOS, "defecto")
 
 
-def validar_fecha(valor):
-    """Fecha en formato AAAA-MM-DD."""
-    fecha = str(valor).strip()
-    try:
-        datetime.strptime(fecha, "%Y-%m-%d")
-    except ValueError:
-        raise ValueError(f"La fecha debe ir en formato AAAA-MM-DD: {valor!r}") from None
-    return fecha
+# --- construcción de la fila -------------------------------------------------
 
-
-def validar_numero(valor):
-    """Número, guardado tal cual pero con punto decimal."""
-    numero = str(valor).strip().replace(",", ".")
-    try:
-        float(numero)
-    except ValueError:
-        raise ValueError(f"Se esperaba un número: {valor!r}") from None
-    return numero
-
-
-# --- escritura ---------------------------------------------------------------
-
-def agregar_fila(fila, ruta=EXTRACCIONES):
-    """Añade una fila al final del CSV, en el orden de columnas de la cabecera."""
-    columnas, _ = leer_csv(ruta)
-    faltan = [c for c in columnas if c not in fila]
+def construir_fila(args, cafes, extracciones, hoy):
+    """Fila completa a partir de los argumentos de línea de comandos."""
+    faltan = [f"--{c}" for c in OBLIGATORIOS_CLI if getattr(args, c) is None]
     if faltan:
-        raise ValueError(f"Faltan columnas: {', '.join(faltan)}")
-    sobran = [c for c in fila if c not in columnas]
-    if sobran:
-        raise ValueError(f"Columnas desconocidas: {', '.join(sobran)}")
+        raise ValueError(f"faltan argumentos obligatorios: {', '.join(faltan)}")
 
-    # Sin salto de línea final la nueva fila se pegaría a la última existente.
-    datos = Path(ruta).read_bytes()
-    if datos and not datos.endswith(b"\n"):
-        with open(ruta, "ab") as f:
-            f.write(b"\n")
+    cafe_id = validar_cafe_id(args.cafe, cafes)
+    dosis = validar_numero(DOSIS_BASE if args.dosis is None else args.dosis)
+    agua = validar_numero(AGUA_BASE if args.agua is None else args.agua)
 
-    with open(ruta, "a", encoding="utf-8", newline="") as f:
-        csv.writer(f, lineterminator="\n").writerow([fila[c] for c in columnas])
-
-
-# --- interfaz interactiva ----------------------------------------------------
-
-def preguntar(etiqueta, defecto="", validador=None, obligatorio=True):
-    """Pregunta un campo y lo repite hasta que sea válido."""
-    sufijo = f" [{defecto}]" if defecto != "" else ""
-    while True:
-        try:
-            respuesta = input(f"  {etiqueta}{sufijo}: ").strip()
-        except EOFError:
-            print("\nCancelado.")
-            sys.exit(1)
-        if not respuesta:
-            respuesta = str(defecto)
-        if not respuesta:
-            if not obligatorio:
-                return ""
-            print("    Campo obligatorio.")
-            continue
-        if validador is None:
-            return respuesta
-        try:
-            return validador(respuesta)
-        except ValueError as error:
-            print(f"    {error}")
+    return {
+        "id": siguiente_id(extracciones),
+        "fecha": validar_fecha(args.fecha) if args.fecha else hoy.isoformat(),
+        "cafe_id": cafe_id,
+        "dias_tueste": calcular_dias_tueste(cafes[cafe_id].get("fecha_tueste", ""), hoy),
+        "dosis_g": dosis,
+        "agua_g": agua,
+        "ratio": calcular_ratio(dosis, agua),
+        "temp_c": validar_numero(args.temp),
+        "molinillo": args.molinillo or MOLINILLO_BASE,
+        "clics": validar_numero(args.clics),
+        "metodo": args.metodo or METODO_BASE,
+        "reparto": args.reparto or REPARTO_BASE,
+        "tiempo_total": args.tiempo,
+        "variable_cambiada": args.variable,
+        "defecto": validar_defecto(args.defecto),
+        "notas_cata": args.notas or "",
+        "nota": validar_nota(args.nota),
+        "siguiente_ajuste": args.siguiente or "",
+    }
 
 
-def main():
-    cafes = cargar_cafes()
-    columnas, extracciones = leer_csv(EXTRACCIONES)
-    hoy = date.today()
-
+def preguntar_fila(cafes, extracciones, hoy):
+    """Fila completa preguntando campo a campo."""
     fila = {"id": siguiente_id(extracciones)}
     print(f"\nNueva extracción #{fila['id']}\n")
 
@@ -197,20 +167,68 @@ def main():
     fila["notas_cata"] = preguntar("notas_cata", obligatorio=False)
     fila["nota"] = preguntar("nota (1-10)", validador=validar_nota)
     fila["siguiente_ajuste"] = preguntar("siguiente_ajuste", obligatorio=False)
+    return fila
 
-    print("\nResumen:")
-    for columna in columnas:
-        print(f"  {columna:<18} {fila[columna]}")
 
-    if input("\n¿Guardar? [s/N]: ").strip().lower() not in ("s", "si", "sí"):
+# --- línea de comandos -------------------------------------------------------
+
+def parsear_argumentos(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="nueva.py",
+        description="Añade una extracción a extracciones.csv.",
+        epilog="Sin argumentos, pregunta campo a campo. Con argumentos, añade la fila "
+               "en un solo paso: o entra entera o no entra ninguna.",
+    )
+    parser.add_argument("--fecha", help="AAAA-MM-DD (por defecto, hoy)")
+    parser.add_argument("--cafe", help="cafe_id, tiene que existir en cafes.csv")
+    parser.add_argument("--dosis", help=f"gramos de café (por defecto, {DOSIS_BASE})")
+    parser.add_argument("--agua", help=f"gramos de agua (por defecto, {AGUA_BASE})")
+    parser.add_argument("--temp", help="temperatura del agua en °C")
+    parser.add_argument("--molinillo", help=f"por defecto, {MOLINILLO_BASE}")
+    parser.add_argument("--clics", help="clics del molinillo")
+    parser.add_argument("--metodo", help=f"por defecto, {METODO_BASE}")
+    parser.add_argument("--reparto", help=f"por defecto, {REPARTO_BASE}")
+    parser.add_argument("--tiempo", help="tiempo total, m:ss")
+    parser.add_argument("--variable", help="qué has cambiado respecto a la extracción anterior")
+    parser.add_argument("--defecto", help=", ".join(DEFECTOS))
+    parser.add_argument("--notas", help="notas de cata")
+    parser.add_argument("--nota", help="de 1 a 10")
+    parser.add_argument("--siguiente", help="siguiente ajuste a probar")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="muestra la fila sin escribirla"
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parsear_argumentos(argv)
+    cafes = cargar_cafes()
+    columnas, extracciones = leer_csv(EXTRACCIONES)
+    hoy = date.today()
+
+    interactivo = all(getattr(args, campo) is None for campo in CAMPOS_CLI)
+    if interactivo:
+        fila = preguntar_fila(cafes, extracciones, hoy)
+    else:
+        try:
+            fila = construir_fila(args, cafes, extracciones, hoy)
+        except ValueError as error:
+            print(f"nueva.py: {error}", file=sys.stderr)
+            return 2
+
+    mostrar_resumen(fila, columnas)
+
+    if args.dry_run:
+        print("\n--dry-run: no se ha escrito nada.")
+        return 0
+    if interactivo and not confirmar():
         print("No se ha guardado nada.")
         return 1
 
     agregar_fila(fila, EXTRACCIONES)
     print(f"\nExtracción #{fila['id']} añadida a extracciones.csv")
-    nombre = cafe["nombre"] or fila["cafe_id"]
-    mensaje = f"#{fila['id']} {nombre}: {fila['variable_cambiada']}"
-    print(f'Commit:  git commit -am "{mensaje}"')
+    nombre = cafes[fila["cafe_id"]]["nombre"] or fila["cafe_id"]
+    print(f'Commit:  git commit -am "#{fila["id"]} {nombre}: {fila["variable_cambiada"]}"')
     return 0
 
 

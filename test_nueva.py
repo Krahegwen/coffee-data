@@ -5,24 +5,37 @@ import pytest
 
 import nueva
 
+HOY = date(2026, 8, 5)
+
 CAFES = {
     "gary": {"id": "gary", "nombre": "Gary", "fecha_tueste": "2026-05-20"},
     "descafeinado": {"id": "descafeinado", "nombre": "Descafeinado", "fecha_tueste": ""},
 }
 
+EXTRACCIONES = [{"id": "1"}]
+
+
+def argumentos(*extra):
+    """Los flags obligatorios, más lo que se le añada (lo último gana)."""
+    base = [
+        "--cafe", "gary", "--temp", "91", "--clics", "28", "--tiempo", "3:30",
+        "--variable", "91 °C", "--defecto", "equilibrado", "--nota", "8",
+    ]
+    return nueva.parsear_argumentos(base + list(extra))
+
 
 # --- cálculo de días ---------------------------------------------------------
 
 def test_dias_tueste_cuenta_desde_la_fecha_de_tueste():
-    assert nueva.calcular_dias_tueste("2026-05-20", date(2026, 8, 5)) == 77
+    assert nueva.calcular_dias_tueste("2026-05-20", HOY) == 77
 
 
 def test_dias_tueste_es_cero_el_mismo_dia_del_tueste():
-    assert nueva.calcular_dias_tueste("2026-08-05", date(2026, 8, 5)) == 0
+    assert nueva.calcular_dias_tueste("2026-08-05", HOY) == 0
 
 
 def test_dias_tueste_vacio_si_el_cafe_no_tiene_fecha():
-    assert nueva.calcular_dias_tueste("", date(2026, 8, 5)) == ""
+    assert nueva.calcular_dias_tueste("", HOY) == ""
 
 
 # --- cálculo del ratio -------------------------------------------------------
@@ -76,17 +89,67 @@ def test_defecto_no_permitido():
         nueva.validar_defecto("quemado")
 
 
-# --- escritura ---------------------------------------------------------------
+# --- id autoincremental ------------------------------------------------------
 
 def test_siguiente_id_continua_la_serie():
     assert nueva.siguiente_id([{"id": "1"}, {"id": "2"}]) == 3
     assert nueva.siguiente_id([]) == 1
 
 
-def test_agregar_fila_respeta_el_orden_de_columnas(tmp_path):
-    ruta = tmp_path / "extracciones.csv"
-    ruta.write_text("id,fecha,nota\n1,2026-08-05,7\n", encoding="utf-8", newline="")
+# --- modo no interactivo -----------------------------------------------------
 
-    nueva.agregar_fila({"nota": 8, "id": 2, "fecha": "2026-08-06"}, ruta)
+def test_fila_desde_flags_calcula_los_tres_campos():
+    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    assert fila["id"] == 2
+    assert fila["dias_tueste"] == 77
+    assert fila["ratio"] == "15.0"
 
-    assert ruta.read_bytes() == b"id,fecha,nota\n1,2026-08-05,7\n2,2026-08-06,8\n"
+
+def test_fila_desde_flags_aplica_la_receta_base():
+    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    assert fila["fecha"] == "2026-08-05"
+    assert fila["dosis_g"] == "20"
+    assert fila["agua_g"] == "300"
+    assert fila["molinillo"] == "Comandante C40"
+    assert fila["metodo"] == "V60 4:6 Kasuya"
+    assert fila["reparto"] == "60-60-90-90"
+    assert fila["notas_cata"] == ""
+
+
+def test_fila_desde_flags_tiene_las_columnas_del_csv_real():
+    columnas, _ = nueva.leer_csv(nueva.EXTRACCIONES)
+    fila = nueva.construir_fila(argumentos(), CAFES, EXTRACCIONES, HOY)
+    assert sorted(fila) == sorted(columnas)
+
+
+def test_fila_desde_flags_admite_sobrescribir_los_defectos():
+    fila = nueva.construir_fila(
+        argumentos("--dosis", "18", "--reparto", "50-70-90-90", "--fecha", "2026-08-04"),
+        CAFES, EXTRACCIONES, HOY,
+    )
+    assert fila["dosis_g"] == "18"
+    assert fila["ratio"] == "16.7"
+    assert fila["reparto"] == "50-70-90-90"
+    assert fila["fecha"] == "2026-08-04"
+    # dias_tueste se cuenta siempre desde hoy, no desde --fecha
+    assert fila["dias_tueste"] == 77
+
+
+def test_fila_desde_flags_exige_los_obligatorios():
+    args = nueva.parsear_argumentos(["--cafe", "gary"])
+    with pytest.raises(ValueError, match="obligatorios"):
+        nueva.construir_fila(args, CAFES, EXTRACCIONES, HOY)
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("--cafe", "etiopia"),
+        ("--nota", "12"),
+        ("--defecto", "quemado"),
+        ("--temp", "caliente"),
+    ],
+)
+def test_fila_desde_flags_propaga_las_validaciones(extra):
+    with pytest.raises(ValueError):
+        nueva.construir_fila(argumentos(*extra), CAFES, EXTRACCIONES, HOY)
