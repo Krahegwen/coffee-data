@@ -14,6 +14,7 @@ import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
 import {
   CAMPOS, CAMPOS_CAFE, validarCafe, validarCambiosExtraccion, validarExtraccion,
+  validarReceta,
 } from "./validacion.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -248,8 +249,65 @@ async function restaurarExtraccion(env, id) {
   return json({ extraccion: devuelta });
 }
 
+/**
+ * Guarda una receta con sus pasos. Los pasos se reemplazan enteros, no se
+ * parchean uno a uno: es como se editan en la app, viendo la lista completa.
+ *
+ * Todo en un batch: si un paso falla, no queda una receta a medias.
+ */
+async function guardarReceta(request, env, { id, nuevo }) {
+  let cuerpo;
+  try {
+    cuerpo = await request.json();
+  } catch {
+    return json({ error: "el cuerpo debe ser JSON" }, 400);
+  }
+
+  const { receta, pasos, errores } = validarReceta(cuerpo, { nuevo });
+  if (errores.length) return json({ errores }, 422);
+
+  const recetaId = nuevo ? receta.id : id;
+  const existe = await env.DB.prepare("SELECT id FROM recetas WHERE id = ?").bind(recetaId).first();
+  if (nuevo && existe) return json({ errores: [`ya existe una receta con id '${recetaId}'`] }, 409);
+  if (!nuevo && !existe) return json({ errores: [`no existe la receta '${recetaId}'`] }, 404);
+
+  const sentencias = [
+    nuevo
+      ? env.DB.prepare("INSERT INTO recetas (id, nombre, ratio, notas) VALUES (?, ?, ?, ?)")
+          .bind(recetaId, receta.nombre, receta.ratio, receta.notas)
+      : env.DB.prepare("UPDATE recetas SET nombre = ?, ratio = ?, notas = ? WHERE id = ?")
+          .bind(receta.nombre, receta.ratio, receta.notas, recetaId),
+    env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(recetaId),
+    ...pasos.map((p) =>
+      env.DB.prepare(
+        "INSERT INTO pasos (receta_id, orden, t_inicio_s, accion, agua_g, notas) VALUES (?, ?, ?, ?, ?, ?)",
+      ).bind(recetaId, p.orden, p.t_inicio_s, p.accion, p.agua_g, p.notas),
+    ),
+  ];
+
+  try {
+    await env.DB.batch(sentencias);
+  } catch (error) {
+    return json({ errores: [`la base rechazó la receta: ${error.message}`] }, 422);
+  }
+
+  const guardada = await env.DB.prepare("SELECT * FROM recetas WHERE id = ?").bind(recetaId).first();
+  return json({ receta: { ...guardada, pasos: await pasosDe(env, recetaId) } }, nuevo ? 201 : 200);
+}
+
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
+
+  if (ruta === "/api/recetas" && request.method === "POST") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    return await guardarReceta(request, env, { nuevo: true });
+  }
+
+  if (ruta.startsWith("/api/recetas/") && request.method === "PUT") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    const id = decodeURIComponent(ruta.slice("/api/recetas/".length));
+    return await guardarReceta(request, env, { id, nuevo: false });
+  }
 
   if (ruta.startsWith("/api/extracciones/")) {
     const resto = ruta.slice("/api/extracciones/".length);

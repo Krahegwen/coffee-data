@@ -32,6 +32,7 @@ function restante(cafeId: string, pesoG: number | null) {
     <div class="pareja">
       <NuxtLink to="/nueva" class="registrar secundario">Registrar a mano</NuxtLink>
       <NuxtLink to="/cafes" class="registrar secundario">Bolsas</NuxtLink>
+      <NuxtLink to="/recetas" class="registrar secundario">Recetas</NuxtLink>
     </div>
   </div>
 
@@ -131,7 +132,7 @@ h2 {
 .dias.pasado { color: #c2410c; }
 
 .acciones { display: grid; gap: 0.5rem; }
-.acciones .pareja { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.acciones .pareja { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
 
 .registrar {
   display: block;

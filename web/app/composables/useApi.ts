@@ -150,6 +150,17 @@ export function useApi() {
   const retiradas = () =>
     $fetch<Extraccion[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } })
 
+  /** Crea una receta con sus pasos. */
+  const crearReceta = (datos: Record<string, unknown>) =>
+    $fetch<{ receta: Receta }>(`${base}/api/recetas`, { method: 'POST', body: datos })
+
+  /** Guarda una receta: los pasos reemplazan a los que hubiera. */
+  const guardarReceta = (id: string, datos: Record<string, unknown>) =>
+    $fetch<{ receta: Receta }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: datos,
+    })
+
   /** Da de alta una bolsa. */
   const crearCafe = (datos: Record<string, unknown>) =>
     $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
@@ -181,6 +192,7 @@ export function useApi() {
   return {
     base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
+    crearReceta, guardarReceta,
   }
 }
 

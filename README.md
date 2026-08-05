@@ -32,6 +32,8 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` derivados. `?cafe=gary` filtra, `?retiradas=1` es la papelera |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
 | `POST /api/cafes` | Da de alta una bolsa |
+| `POST /api/recetas` | Crea una receta con sus pasos |
+| `PUT /api/recetas/:id` | Guarda una receta. Los pasos **reemplazan** a los que había |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
 | `PATCH /api/extracciones/:id` | Corrige una extracción |
 | `DELETE /api/extracciones/:id` | La retira. **Borrado lógico**: la fila se queda |
@@ -88,8 +90,8 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
-Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`) y corrección de
-extracciones (`/extracciones/<id>`).
+Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`), recetas
+(`/recetas`) y corrección de extracciones (`/extracciones/<id>`).
 
 El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
 objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la
@@ -289,3 +291,17 @@ Y la advertencia que sale también en el modal de la app: **retira solo errores
 de registro**. Si quitas las extracciones que salieron mal, las medias suben
 solas y los deltas emparejados dejan de significar nada — te estarías mintiendo
 con tus propios datos.
+
+## Editar recetas
+
+Los pasos se mandan enteros y **reemplazan** a los que hubiera: es como se
+piensa una receta y como se edita en la app, viendo la lista. El orden lo da la
+posición, y el servidor renumera.
+
+Comprobaciones que hace: solo `verter` lleva gramos, los tiempos van en
+aumento, y toda receta necesita al menos un vertido — sin él el cronómetro no
+sabría qué guiar.
+
+Editar una receta **no toca las extracciones ya registradas**: cada una guardó
+su propio `reparto` cuando se registró. La receta es la intención; el reparto
+es lo que echaste.

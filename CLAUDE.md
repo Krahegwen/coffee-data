@@ -77,15 +77,22 @@ del usuario no son un banco de pruebas**: para verificar, usa la base local
 
 ## Recetas
 
-Todavía sin endpoint: se hacen por SQL directo.
+Tienen endpoints y pantallas: `/recetas`, `/recetas/nueva`, `/recetas/<id>`.
+Los pasos se mandan **enteros y reemplazan** a los que hubiera; el orden lo da
+la posición en la lista.
 
 ```bash
-pnpm exec wrangler d1 execute coffee --remote --command "SELECT * FROM recetas"
+curl -X POST https://brew.krahegwen.com/api/recetas -H "Authorization: Bearer $COFFEE_TOKEN"   -H 'content-type: application/json' -d '{"id":"kasuya-46-agitado","nombre":"4:6 con agitado",
+  "ratio":15,"pasos":[{"accion":"verter","agua_g":60,"t_inicio_s":0},
+  {"accion":"agitar","t_inicio_s":20},{"accion":"verter","agua_g":240,"t_inicio_s":45}]}'
 ```
 
-Al añadir una receta hacen falta su fila en `recetas` y sus pasos en `pasos`.
-Solo `verter` lleva gramos; `agitar`, `remover`, `esperar` y `retirar` van a 0,
-y la base lo comprueba. La suma de los vertidos es el agua de referencia.
+Solo `verter` lleva gramos; el resto van a 0. La suma de los vertidos es el
+agua de referencia. Los tiempos tienen que ir en aumento, y toda receta
+necesita al menos un vertido o el cronómetro no sabría qué guiar.
+
+Editar una receta **no cambia las extracciones ya registradas**: cada una
+guardó su propio `reparto`.
 
 ## Estructura
 
@@ -138,6 +145,6 @@ para errores de registro.
 
 ## Tras desplegar, espera antes de verificar
 
-La propagación tarda. Verificar a los 5 segundos ha dado tres falsos negativos
-—404 en rutas que existían— y llevó a diagnosticar bugs inexistentes. Espera
-15-20 s, y si algo falla, repítelo antes de concluir nada.
+La propagación tarda **hasta un minuto**. Verificar antes ha dado cuatro falsos
+negativos —404 en rutas que existían— y llevó a diagnosticar bugs inexistentes.
+Espera 45-60 s, y si algo falla, repítelo un par de veces antes de concluir nada.

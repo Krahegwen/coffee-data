@@ -9,6 +9,7 @@ import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
 import {
   fechaValida, validarCafe, validarCambiosExtraccion, validarExtraccion,
+  validarReceta,
 } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
@@ -537,5 +538,90 @@ describe("corrección de extracciones", () => {
 
   it("rechaza campos inventados", () => {
     assert.ok(validarCambiosExtraccion({ inventado: 1 }).errores.some((e) => e.includes("desconocidos")));
+  });
+});
+
+describe("recetas", () => {
+  const receta = (campos = {}) => ({
+    id: "kasuya-46-fuerte",
+    nombre: "4:6 con más cuerpo",
+    ratio: 15,
+    pasos: [
+      { accion: "verter", agua_g: 60, t_inicio_s: 0 },
+      { accion: "verter", agua_g: 60, t_inicio_s: 45 },
+      { accion: "verter", agua_g: 180, t_inicio_s: 90 },
+      { accion: "esperar", t_inicio_s: 180 },
+      { accion: "retirar" },
+    ],
+    ...campos,
+  });
+
+  it("numera los pasos por su posición", () => {
+    const { pasos, errores } = validarReceta(receta(), { nuevo: true });
+    assert.deepEqual(errores, []);
+    assert.deepEqual(pasos.map((p) => p.orden), [1, 2, 3, 4, 5]);
+  });
+
+  it("los pasos sin agua quedan a cero", () => {
+    const { pasos } = validarReceta(receta(), { nuevo: true });
+    assert.equal(pasos[3].agua_g, 0);
+    assert.equal(pasos[4].t_inicio_s, null);
+  });
+
+  it("solo verter lleva gramos", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [{ accion: "verter", agua_g: 300, t_inicio_s: 0 }, { accion: "agitar", agua_g: 30, t_inicio_s: 30 }] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("solo 'verter'")));
+  });
+
+  it("un vertido sin gramos no cuela", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [{ accion: "verter", agua_g: 0, t_inicio_s: 0 }] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("necesita gramos")));
+  });
+
+  it("una receta sin vertidos no sirve para guiar nada", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [{ accion: "esperar", t_inicio_s: 0 }] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("ningún vertido")));
+  });
+
+  it("exige al menos un paso", () => {
+    assert.ok(validarReceta(receta({ pasos: [] }), { nuevo: true }).errores.length);
+  });
+
+  it("los tiempos tienen que ir hacia delante", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [
+        { accion: "verter", agua_g: 60, t_inicio_s: 45 },
+        { accion: "verter", agua_g: 60, t_inicio_s: 30 },
+      ] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("en aumento")));
+  });
+
+  it("rechaza acciones inventadas", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [{ accion: "bailar", t_inicio_s: 0 }] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("acción no permitida")));
+  });
+
+  it("exige id con formato y nombre", () => {
+    assert.ok(validarReceta(receta({ id: "Con Mayúsculas" }), { nuevo: true }).errores.length);
+    assert.ok(validarReceta(receta({ nombre: " " }), { nuevo: true }).errores.length);
+  });
+
+  it("al editar, el id no se toca", () => {
+    const { errores } = validarReceta(receta(), { nuevo: false });
+    assert.ok(errores.some((e) => e.includes("no se puede cambiar")));
   });
 });

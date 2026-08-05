@@ -355,3 +355,102 @@ export function validarCambiosExtraccion(cuerpo) {
 
   return { valores, errores };
 }
+
+export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];
+
+/**
+ * Valida una receta con sus pasos.
+ *
+ * Los pasos se mandan enteros y reemplazan a los que hubiera: es más simple
+ * que parchear paso a paso, y es como se edita en la app, viendo la lista.
+ *
+ * Las reglas duras las repite la base con sus CHECK; esto está para dar
+ * errores que se entiendan.
+ */
+export function validarReceta(cuerpo, { nuevo }) {
+  const errores = [];
+  const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
+  const permitidos = ["id", "nombre", "ratio", "notas", "pasos"];
+  const receta = {};
+
+  const desconocidos = Object.keys(entrada).filter((c) => !permitidos.includes(c));
+  if (desconocidos.length) errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+
+  if (nuevo) {
+    const id = String(entrada.id ?? "").trim();
+    if (!ID.test(id)) {
+      errores.push(`id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo`);
+    }
+    receta.id = id;
+  } else if (entrada.id !== undefined) {
+    errores.push("el id no se puede cambiar: es la clave a la que apuntan las extracciones");
+  }
+
+  const nombre = String(entrada.nombre ?? "").trim();
+  if (!nombre) errores.push("el nombre no puede estar vacío");
+  receta.nombre = nombre;
+
+  if (vacio(entrada.ratio)) {
+    receta.ratio = null;
+  } else {
+    const n = numero(entrada.ratio);
+    if (n === null || n <= 0) errores.push("ratio debe ser un número mayor que 0");
+    receta.ratio = n;
+  }
+
+  receta.notas = vacio(entrada.notas) ? null : String(entrada.notas).trim();
+
+  const pasos = [];
+  const entrantes = Array.isArray(entrada.pasos) ? entrada.pasos : [];
+  if (!entrantes.length) {
+    errores.push("una receta necesita al menos un paso");
+  }
+
+  entrantes.forEach((crudo, i) => {
+    const n = i + 1;
+    const paso = { orden: n };
+    const accion = String(crudo?.accion ?? "").trim().toLowerCase();
+    if (!ACCIONES.includes(accion)) {
+      errores.push(`paso ${n}: acción no permitida ${JSON.stringify(crudo?.accion)}. Válidas: ${ACCIONES.join(", ")}`);
+    }
+    paso.accion = accion;
+
+    const agua = vacio(crudo?.agua_g) ? 0 : numero(crudo.agua_g);
+    if (agua === null) {
+      errores.push(`paso ${n}: agua_g debe ser un número`);
+    } else if (accion === "verter" && agua <= 0) {
+      errores.push(`paso ${n}: un vertido necesita gramos`);
+    } else if (accion !== "verter" && agua !== 0) {
+      errores.push(`paso ${n}: solo 'verter' lleva gramos`);
+    }
+    paso.agua_g = agua ?? 0;
+
+    if (vacio(crudo?.t_inicio_s)) {
+      paso.t_inicio_s = null;
+    } else {
+      const t = numero(crudo.t_inicio_s);
+      if (t === null || !Number.isInteger(t) || t < 0) {
+        errores.push(`paso ${n}: t_inicio_s debe ser un entero de segundos, cero o más`);
+      }
+      paso.t_inicio_s = t;
+    }
+
+    paso.notas = vacio(crudo?.notas) ? null : String(crudo.notas).trim();
+    pasos.push(paso);
+  });
+
+  if (entrantes.length && !pasos.some((p) => p.accion === "verter")) {
+    errores.push("la receta no tiene ningún vertido: el cronómetro no sabría qué guiar");
+  }
+
+  // Los tiempos deben ir hacia delante, o el cronómetro saltaría hacia atrás.
+  const tiempos = pasos.map((p) => p.t_inicio_s).filter((t) => t !== null);
+  for (let i = 1; i < tiempos.length; i += 1) {
+    if (tiempos[i] <= tiempos[i - 1]) {
+      errores.push(`los tiempos deben ir en aumento: ${tiempos[i - 1]}s va antes que ${tiempos[i]}s`);
+      break;
+    }
+  }
+
+  return { receta, pasos, errores };
+}
