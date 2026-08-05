@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  api:
     devDependencies:
       wrangler:
         specifier: ^4.0.0

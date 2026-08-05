@@ -2,10 +2,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { autorizado, tokenDe } from "./auth.js";
-import { escalarPasos, guion, repartoDe, vertidos } from "./recetas.js";
-import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "./sugerencias.js";
-import { fechaValida, validarExtraccion } from "./validacion.js";
+import { autorizado, tokenDe } from "../src/auth.js";
+import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
+import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
+import { fechaValida, validarExtraccion } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
   receta_id: "kasuya-46-base", orden, t_inicio_s, accion, agua_g, notas: "",

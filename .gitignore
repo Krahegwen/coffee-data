@@ -11,3 +11,8 @@ node_modules/
 .wrangler/
 dist/
 .dev.vars
+
+# Nuxt
+.nuxt/
+.output/
+.data/

@@ -27,16 +27,16 @@ if ! "$PYTHON" -m pytest -q; then
     exit 1
 fi
 
-# El Worker se prueba con el runner que trae Node, sin dependencias.
-if [ -d worker ]; then
+# La API se prueba con el runner que trae Node, sin dependencias.
+if [ -f api/test/logica.test.js ]; then
     if ! command -v node >/dev/null 2>&1; then
-        echo "pre-commit: hay worker/ pero no se encuentra Node. Commit abortado." >&2
+        echo "pre-commit: hay api/ pero no se encuentra Node. Commit abortado." >&2
         exit 1
     fi
-    echo "pre-commit: ejecutando los tests del Worker..."
-    if ! node --test worker/logica.test.js >/dev/null; then
-        echo "pre-commit: los tests del Worker fallan. Commit abortado." >&2
-        node --test --test-reporter=spec worker/logica.test.js >&2
+    echo "pre-commit: ejecutando los tests de la API..."
+    if ! node --test api/test/logica.test.js >/dev/null; then
+        echo "pre-commit: los tests de la API fallan. Commit abortado." >&2
+        node --test --test-reporter=spec api/test/logica.test.js >&2
         exit 1
     fi
 fi

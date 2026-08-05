@@ -1,18 +1,15 @@
 {
-  "name": "coffee-api",
+  "name": "coffee-data",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "API de la bitácora de café sobre Cloudflare D1",
+  "description": "Bitácora de extracciones de café: API en Workers y app instalable",
   "scripts": {
-    "test": "node --test --test-reporter=spec worker/logica.test.js",
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "db:local": "wrangler d1 execute coffee --local --file=migrations/0001_esquema.sql && wrangler d1 execute coffee --local --file=migrations/0002_semilla.sql",
-    "db:remoto": "wrangler d1 migrations apply coffee --remote"
-  },
-  "devDependencies": {
-    "wrangler": "^4.0.0"
-  },
-  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"
+    "test": "pnpm -r test",
+    "dev:api": "pnpm --filter @coffee/api dev",
+    "dev:web": "pnpm --filter @coffee/web dev",
+    "deploy:api": "pnpm --filter @coffee/api deploy",
+    "db:local": "pnpm --filter @coffee/api db:local",
+    "db:remoto": "pnpm --filter @coffee/api db:remoto"
+  }
 }

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 BASE = Path(__file__).parent
-MIGRACIONES = sorted((BASE / "migrations").glob("*.sql"))
+MIGRACIONES = sorted((BASE / "api" / "migrations").glob("*.sql"))
 
 EXTRACCION = {
     "fecha": "'2026-08-06'", "cafe_id": "'gary'", "dosis_g": "20", "agua_g": "300",

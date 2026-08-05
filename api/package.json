@@ -1,0 +1,17 @@
+{
+  "name": "@coffee/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API de la bitácora sobre Cloudflare Workers y D1",
+  "scripts": {
+    "test": "node --test --test-reporter=spec test/logica.test.js",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 migrations apply coffee --local",
+    "db:remoto": "wrangler d1 migrations apply coffee --remote"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

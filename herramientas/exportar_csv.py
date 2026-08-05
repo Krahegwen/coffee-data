@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-BASE = Path(__file__).resolve().parent.parent
+DATOS = Path(__file__).resolve().parent.parent / "datos"
 API = os.environ.get("COFFEE_API", "https://coffee.krahegwen.com")
 
 # fichero -> (ruta de la API, columnas, clave de orden)
@@ -100,7 +100,7 @@ def main():
 
     cambiados = 0
     for fichero, contenido in pendientes:
-        destino = BASE / fichero
+        destino = DATOS / fichero
         anterior = destino.read_bytes() if destino.exists() else b""
         nuevo = contenido.encode("utf-8")
         if anterior == nuevo:
