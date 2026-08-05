@@ -70,14 +70,22 @@ Al añadir una receta hacen falta su fila en `recetas` y sus pasos en `pasos`.
 Solo `verter` lleva gramos; `agitar`, `remover`, `esperar` y `retirar` van a 0,
 y la base lo comprueba. La suma de los vertidos es el agua de referencia.
 
+## Estructura
+
+Workspace de pnpm con dos paquetes: `api/` (el Worker) y `web/` (Nuxt). En la
+raíz, documentación, el hook y las herramientas de Python. `datos/` son los CSV
+exportados.
+
 ## Si tocas el código
 
-- `worker/` es la API. Lógica pura en `recetas.js`, `sugerencias.js`,
+- `api/src/` es la API. Lógica pura en `recetas.js`, `sugerencias.js`,
   `validacion.js` y `auth.js`, probada con `pnpm test` (el runner de Node, sin
   dependencias). `index.js` solo enruta y habla con D1.
-- `migrations/` es la definición de los datos. Un cambio de esquema es una
+- `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
+- `web/` es la app. `ssr: false` a propósito. Todo el acceso a la API pasa por
+  `useApi()`: si añades una llamada, va ahí y con su tipo.
 - Ejecuta **las dos suites** antes de commitear. El hook lo hace por ti; no uses
   `--no-verify`.
 - Tras desplegar, `python herramientas/exportar_csv.py` mantiene el respaldo al

@@ -47,14 +47,32 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 
 | Fichero | Qué es |
 |---|---|
-| `migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
-| `worker/` | La API: rutas, validación, escalado de recetas y sugerencias. |
+| `api/migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
+| `api/src/` | La API: rutas, validación, escalado de recetas y sugerencias. |
+| `web/` | La app: Nuxt estático, instalable en el móvil. |
+| `datos/` | Exportación legible de lo que hay en D1. **No es la fuente.** |
 | `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |
 | `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
 | `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
-| `*.csv` | Exportación legible de lo que hay en D1. **No son la fuente.** |
 
 Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
+
+## La app
+
+Nuxt 4 con `ssr: false`: los datos son personales y viven tras la API, así que
+no hay nada que renderizar en servidor y `nuxt generate` produce ficheros
+estáticos. El día que haya páginas públicas indexables —recetas, una landing—
+se activa el prerender **solo para esas rutas** y el resto sigue siendo cliente.
+Esa puerta abierta es la razón de elegir Nuxt y no Vue pelado.
+
+```bash
+pnpm dev:web     # con la API de producción
+COFFEE_API=http://127.0.0.1:8787 pnpm dev:web   # contra la API local
+```
+
+Instalable como PWA, con la API cacheada en modo *network first*: unos datos
+viejos en la bitácora confunden más que un error, pero sin cobertura responde
+la caché.
 
 ## Esquema · `cafes.csv`
 
