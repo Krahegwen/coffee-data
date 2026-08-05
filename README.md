@@ -3,6 +3,12 @@
 Bitácora de extracciones en V60 con el método 4:6 de Tetsu Kasuya.
 Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tiene.
 
+> **En migración a D1.** Los datos se van a Cloudflare D1 y el alta pasará a
+> hacerse solo desde la app. Los CSV **siguen siendo la fuente de verdad hasta
+> el corte**: hasta entonces se registra como siempre, con `nueva.py`.
+> El esquema SQL ya está en `migrations/` y la semilla se genera desde los CSV
+> con `herramientas/csv_a_sql.py`.
+
 ## Ficheros
 
 | Fichero | Qué es |
