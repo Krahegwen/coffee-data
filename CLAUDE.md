@@ -1,122 +1,90 @@
 # Instrucciones para Claude
 
-Bitácora de extracciones de café en V60 con el método 4:6 de Tetsu Kasuya. El
-valor del repo está en el histórico: hay que poder mirar el `git blame` de una
-fila y saber qué se cambió y cuándo.
+Bitácora de extracciones de café en V60 con el método 4:6 de Tetsu Kasuya.
+Los datos viven en **Cloudflare D1** y se registran por la **API**
+(`https://coffee.krahegwen.com`). Los CSV del repo son una exportación.
 
 ## Reglas que no se rompen
 
-- **Nunca añadas filas a mano ni con Write/Edit.** Usa `nueva.py` y `cafe.py`:
-  son los que calculan los campos derivados y validan. Una fila escrita a mano
-  se salta las validaciones.
-- **Los dos ficheros no tienen la misma regla**, porque no son la misma clase de
-  dato:
-
-  | Fichero | Qué es | Regla |
-  |---|---|---|
-  | `extracciones.csv` | Log de eventos | **Append-only estricto.** Una fila registra algo que pasó. No se edita jamás. |
-  | `cafes.csv` | Estado de entidades | Filas **mutables**: `estado` pasa a `terminado`, una ficha se completa cuando llegan los datos. |
-  | `recetas.csv`, `pasos.csv` | Catálogo | Como `cafes.csv`. |
-
-- **Nunca reordenes ni reescribas el pasado**, en ningún fichero. Eso es lo que
-  rompe el `git blame`, que es la razón de ser del repo. Cambiar el `estado` de
-  una bolsa es legítimo; reordenar filas o reformatear las que ya están, no.
-- **Los CSV van en UTF-8 y LF.** Si editas uno con una herramienta de Windows,
-  comprueba que no lo ha dejado en CRLF: `.gitattributes` protege el repo, pero
-  no el fichero de trabajo, y los scripts añaden con `\n`.
-- **Fechas siempre en `AAAA-MM-DD`.**
+- **Los CSV no son la fuente.** Editarlos no cambia nada: se regeneran desde D1
+  con `python herramientas/exportar_csv.py`. Si alguien pide «añade una fila al
+  CSV», lo que quiere es un `POST` a la API.
 - **Una sola variable por extracción.** Si el usuario cambió dos cosas a la vez,
   díselo: el dato no sirve para comparar. Regístralo igual si insiste, pero que
   `variable_cambiada` lo refleje. Ojo: **cambiar de dripper cuenta como
   variable**. El de cerámica tiene masa térmica y baja la temperatura real del
   lecho si no se precalienta, así que no se cambia de dripper y de `temp_c` en
   la misma extracción.
-- **Solo librería estándar** en el código. `pytest` es dependencia de desarrollo
-  y nada más. No añadas paquetes.
-- **Nada de GitHub Actions**, aunque el repo sea público. La verificación vive en
-  el hook de `pre-commit`.
+- **La PWA nunca hablará con la base ni mandará SQL.** Manda una extracción en
+  JSON al endpoint. Ese contrato es lo que permite cambiar de autenticación sin
+  tocar la app, y toda la decisión de auth vive en `worker/auth.js`.
+- **Nada de GitHub Actions.** La verificación vive en el hook de `pre-commit`,
+  que ejecuta pytest y los tests del Worker.
 - **Repo público**: ni datos personales ni credenciales en el código, en los
-  mensajes de commit o en la configuración.
+  mensajes de commit o en la configuración. Y ojo con las URL: el subdominio
+  `workers.dev` de la cuenta lleva el nombre real dentro, por eso el Worker
+  sirve solo por `coffee.krahegwen.com`.
+- **Solo librería estándar** en los scripts de Python. En el Worker, cero
+  dependencias de runtime.
 
-## Añadir una extracción
+## Registrar una extracción
 
 El usuario lo contará en lenguaje normal («un Gary a 91 grados, 28 clics, 3:30,
-equilibrado, un 8»). Tradúcelo a un comando, no a una edición del CSV:
+equilibrado, un 8»). Tradúcelo a un `POST`:
 
 ```bash
-python nueva.py --dry-run --cafe gary --temp 91 --clics 28 --tiempo 3:30 \
-    --drawdown 40 --variable "91 °C" --defecto equilibrado --nota 8 --notas "..."
+curl -X POST https://coffee.krahegwen.com/api/extracciones \
+  -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"cafe_id":"gary","temp_c":91,"clics":28,"tiempo_total":"3:30",
+       "drawdown_s":45,"variable_cambiada":"91 °C","defecto":"equilibrado","nota":8}'
 ```
 
-Enseña la fila del `--dry-run`, y cuando la confirme repite sin `--dry-run`.
-`id`, `dias_tueste`, `ratio` y `reparto` los calcula el script: no los pases.
-El `reparto` sale de escalar las fases de la receta al agua real, así que solo
-pasa `--reparto` si ese día se desvió de la receta.
+El token está en la variable de entorno `COFFEE_TOKEN` del usuario. Si el shell
+no la ve, se lee del registro de Windows sin imprimirla:
+`(Get-ItemProperty HKCU:\Environment -Name COFFEE_TOKEN).COFFEE_TOKEN`.
 
-`--drawdown` va en segundos y es lo que mide el tiempo entre el final del último
-vertido y el fin del goteo. Es el dato del que depende la sugerencia de
-molienda: pídelo aunque sea opcional.
+No mandes `id`, `ratio`, `dias_tueste` ni `reparto`: los calcula el servidor.
+El `reparto` sale de escalar la receta al agua real, así que solo se manda si
+ese día te desviaste de la receta.
 
-Si falta algún dato obligatorio (`--cafe`, `--temp`, `--clics`, `--tiempo`,
-`--variable`, `--defecto`, `--nota`), pregúntaselo antes de ejecutar en vez de
-inventarlo. Lo que no se diga toma el valor de la receta base.
+Si falta algún obligatorio (`cafe_id`, `temp_c`, `clics`, `tiempo_total`,
+`variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
 
-Un commit por extracción, con el formato que imprime el propio script:
+`--drawdown_s` va en segundos, del final del último vertido al fin del goteo.
+Es el dato del que depende la sugerencia de molienda: pídelo aunque sea
+opcional.
 
-```
-#N café: variable cambiada
-```
+**La respuesta trae un bloque `sugerencias`. Reléeselo al usuario**: es la mitad
+del valor de registrar. Solo se aplica la primera.
 
-Por ejemplo `#2 Gary: 91 °C`. El hook de `pre-commit` pasa los tests antes de
-dejar entrar el commit; si fallan, arréglalos, no uses `--no-verify`.
+## Cafés y recetas
 
-Tras guardar, el script imprime un bloque `SUGERENCIAS` con qué mover en la
-siguiente. Reléeselo al usuario: es la mitad del valor de registrar. Recuerda
-que solo se aplica **la primera**.
-
-## Corregir la ficha de una bolsa
-
-`cafes.csv` es estado, así que sus filas se corrigen. Nunca a mano:
+No hay endpoint de alta todavía. Mientras tanto se hace por SQL directo:
 
 ```bash
-python cafe.py --editar abbie --estado terminado
-python cafe.py --editar gary --conservacion "Fellow Atmos 1.2 L"
+pnpm exec wrangler d1 execute coffee --remote --command "UPDATE cafes SET estado='terminado' WHERE id='abbie'"
 ```
 
-Solo cambia los campos que pases. El `id` no se puede tocar: es la clave a la
-que apuntan las extracciones.
-
-## Dar de alta una bolsa
-
-```bash
-python cafe.py --id etiopia --nombre "Etiopía Guji" --tueste 2026-08-01
-```
-
-Solo `--id` y `--nombre` son obligatorios. El `id` va en minúsculas, sin espacios
-ni acentos, porque se usa como `--cafe` y aparece en cada fila de extracciones.
-Commit: `Nuevo café: <nombre>`.
-
-## Añadir una receta
-
-Una receta son dos cosas: su fila en `recetas.csv` y sus pasos en `pasos.csv`.
-No hay CLI todavía, así que se editan a mano, con cuidado:
-
-- Solo `verter` lleva gramos. `agitar`, `remover`, `esperar` y `retirar` van a 0.
-- La **suma de los vertidos es el agua de referencia**; el escalado la reparte
-  al agua real. No hace falta que sume 300, pero sé consciente de qué sumas.
-- `t_inicio_s` es el segundo en que empieza el paso, vacío si depende del goteo.
-- Toda receta necesita al menos un `verter` y sus pasos, o `nueva.py` la rechaza.
-  Hay un test que comprueba que el catálogo cuadra.
-
-## Interpretar los resultados
-
-`python resumen.py` da ranking, histórico y frescura. Las palancas de ajuste
-(qué mover ante cada síntoma) están en la tabla del README; úsala para sugerir
-el `siguiente_ajuste`, y recuerda mover una sola cosa.
+Al añadir una receta hacen falta su fila en `recetas` y sus pasos en `pasos`.
+Solo `verter` lleva gramos; `agitar`, `remover`, `esperar` y `retirar` van a 0,
+y la base lo comprueba. La suma de los vertidos es el agua de referencia.
 
 ## Si tocas el código
 
-Los tests están en `test_nueva.py`, `test_cafe.py` y `test_comun.py`. Ejecuta
-`python -m pytest` antes de commitear. La lógica compartida (append, validaciones
-genéricas, preguntas) vive en `comun.py`: si añades una validación que sirva a
-los dos scripts, va ahí.
+- `worker/` es la API. Lógica pura en `recetas.js`, `sugerencias.js`,
+  `validacion.js` y `auth.js`, probada con `pnpm test` (el runner de Node, sin
+  dependencias). `index.js` solo enruta y habla con D1.
+- `migrations/` es la definición de los datos. Un cambio de esquema es una
+  migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
+  en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
+- Ejecuta **las dos suites** antes de commitear. El hook lo hace por ti; no uses
+  `--no-verify`.
+- Tras desplegar, `python herramientas/exportar_csv.py` mantiene el respaldo al
+  día.
+
+## Interpretar los resultados
+
+`python resumen.py` da ranking, histórico y frescura leyendo de la API. Las
+palancas de ajuste están en la tabla del README; úsala para sugerir el
+`siguiente_ajuste`, y recuerda mover una sola cosa.

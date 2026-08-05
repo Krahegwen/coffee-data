@@ -5,12 +5,6 @@ kasuya-46-base,3,90,verter,90,Fase 2
 kasuya-46-base,4,135,verter,90,Fase 2
 kasuya-46-base,5,180,esperar,0,Hasta que deje de gotear
 kasuya-46-base,6,,retirar,0,Retirar el dripper
-kasuya-46-dulzor,1,0,verter,50,Fase 1 desigual
-kasuya-46-dulzor,2,45,verter,70,Fase 1 desigual
-kasuya-46-dulzor,3,90,verter,90,Fase 2
-kasuya-46-dulzor,4,135,verter,90,Fase 2
-kasuya-46-dulzor,5,180,esperar,0,Hasta que deje de gotear
-kasuya-46-dulzor,6,,retirar,0,Retirar el dripper
 kasuya-46-claridad,1,0,verter,60,Fase 1
 kasuya-46-claridad,2,45,verter,60,Fase 1
 kasuya-46-claridad,3,90,verter,60,Fase 2
@@ -18,3 +12,9 @@ kasuya-46-claridad,4,135,verter,60,Fase 2
 kasuya-46-claridad,5,180,verter,60,Fase 2
 kasuya-46-claridad,6,225,esperar,0,Hasta que deje de gotear
 kasuya-46-claridad,7,,retirar,0,Retirar el dripper
+kasuya-46-dulzor,1,0,verter,50,Fase 1 desigual
+kasuya-46-dulzor,2,45,verter,70,Fase 1 desigual
+kasuya-46-dulzor,3,90,verter,90,Fase 2
+kasuya-46-dulzor,4,135,verter,90,Fase 2
+kasuya-46-dulzor,5,180,esperar,0,Hasta que deje de gotear
+kasuya-46-dulzor,6,,retirar,0,Retirar el dripper

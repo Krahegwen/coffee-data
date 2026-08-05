@@ -3,10 +3,9 @@
 Bitácora de extracciones en V60 con el método 4:6 de Tetsu Kasuya.
 Objetivo: cambiar **una sola variable** entre extracciones y ver qué efecto tiene.
 
-> **En migración a D1.** Los datos se van a Cloudflare D1 y el alta pasará a
-> hacerse solo desde la app. Los CSV **siguen siendo la fuente de verdad hasta
-> el corte**: hasta entonces se registra como siempre, con `nueva.py`.
-> El esquema, la semilla y la API ya están, y funcionan en local.
+Los datos viven en **Cloudflare D1** y se registran por la **API**. Los CSV de
+este repo son una **exportación**, no el original: se regeneran con
+`python herramientas/exportar_csv.py` y editarlos a mano no cambia nada.
 
 ## La API
 
@@ -30,7 +29,7 @@ pnpm dev
 
 El `POST` recibe **una extracción en JSON, nunca una operación de git ni SQL**.
 Ese contrato es lo que permite cambiar de método de autenticación sin tocar la
-app: solo se reescribe `autorizado()` en `worker/index.js`.
+app: solo se reescribe `autorizado()` en `worker/auth.js`.
 
 Lo que calcula el servidor y no debes mandar: el `id`, el `reparto` (sale de
 escalar la receta al agua real, salvo que lo mandes explícito porque ese día te
@@ -48,16 +47,14 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 
 | Fichero | Qué es |
 |---|---|
-| `cafes.csv` | Una fila por bolsa: origen, variedad, proceso, fecha de tueste, etc. |
-| `extracciones.csv` | Una fila por preparación. `cafe_id` apunta a `cafes.csv`. |
-| `recetas.csv` | Catálogo de recetas. |
-| `pasos.csv` | Los pasos de cada receta: vertidos, agitados, esperas. |
-| `nueva.py` | Añade una extracción. `python nueva.py` |
-| `cafe.py` | Da de alta una bolsa. `python cafe.py` |
-| `resumen.py` | Ranking, histórico y aviso de frescura. `python resumen.py` |
-| `comun.py` | Lectura, escritura y validaciones que comparten los scripts. |
-| `recetas.py` | Carga del catálogo y escalado de vertidos al agua real. |
-| `sugerencias.py` | Qué cambiar en la próxima extracción. |
+| `migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
+| `worker/` | La API: rutas, validación, escalado de recetas y sugerencias. |
+| `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |
+| `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
+| `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
+| `*.csv` | Exportación legible de lo que hay en D1. **No son la fuente.** |
+
+Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
 
 ## Esquema · `cafes.csv`
 
@@ -112,17 +109,19 @@ se rompería:
 | `esperar` | Meseta | La meseta **es** el fin del goteo: de ahí sale `drawdown_s` |
 | `retirar` | **Cae de golpe** | La caída marca el fin de la extracción |
 
-`recetas.guion(pasos, agua)` devuelve todo eso ya resuelto: agua escalada,
-acumulado y si la lectura es fiable en cada paso.
+`guion(pasos, agua)` en `worker/recetas.js` devuelve todo eso ya resuelto: agua
+escalada, acumulado y si la lectura es fiable en cada paso.
 
-## Las dos reglas de edición
+## Qué garantiza la base
 
-`extracciones.csv` es un **log de eventos**: append-only estricto, una fila no
-se edita nunca. `cafes.csv`, `recetas.csv` y `pasos.csv` son **catálogo y
-estado**: sus filas se pueden corregir, y `estado` tiene que poder pasar a
-`terminado`.
+Las reglas ya no dependen de que un script se acuerde: están en los `CHECK` del
+esquema y las aplica D1 aunque el que escriba sea otro.
 
-En ninguno se reordenan ni se reescriben filas del pasado.
+- `nota` de 1 a 10, y listas cerradas para `defecto`, `dripper`, `estado` y `accion`
+- **Solo `verter` lleva gramos**; el resto de acciones van a 0
+- Claves foráneas: no hay extracción sin café, ni paso sin receta
+- Fechas en AAAA-MM-DD **que existan de verdad**: el 30 de febrero se rechaza
+- `ratio` y `dias_tueste` no se guardan, los deriva la vista `v_extracciones`
 
 `defecto`: `equilibrado` | `amargor` | `astringente` | `plano` | `agrio` | `salado` | `carton`
 
@@ -156,8 +155,8 @@ Una variable por extracción. Si mueves dos, el dato no sirve.
 
 ## Sugerencias
 
-`nueva.py` propone qué mover en la siguiente, y lo usa como valor por defecto
-de `siguiente_ajuste`. No hay ningún modelo detrás, y es deliberado:
+Cada `POST /api/extracciones` devuelve, junto a la fila creada, qué mover en la
+siguiente. No hay ningún modelo detrás, y es deliberado:
 
 - **Reglas fijas.** La tabla de arriba más el goteo. El `drawdown_s` manda sobre
   el sabor: es una señal mecánica y no depende de cómo tengas el paladar ese día.
@@ -170,55 +169,55 @@ de `siguiente_ajuste`. No hay ningún modelo detrás, y es deliberado:
   darte cuenta.
 
 Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
-`sugerencias.py` y son puntos de partida, no verdades: cámbialos cuando tengas
-extracciones suficientes para saber cuáles son los tuyos.
+`worker/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
+tengas extracciones suficientes para saber cuáles son los tuyos.
 
-## Convención
+## Registrar una extracción
 
-Los CSV se editan añadiendo filas al final, nunca reordenando. Un commit por
-extracción, con el mensaje `#N café: variable cambiada` (ej. `#2 Gary: 91 °C`).
+```bash
+curl -X POST https://coffee.krahegwen.com/api/extracciones \
+  -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"cafe_id":"gary","temp_c":91,"clics":28,"tiempo_total":"3:30",
+       "drawdown_s":45,"variable_cambiada":"91 °C","defecto":"equilibrado",
+       "nota":8,"notas_cata":"Más dulzor"}'
+```
+
+Obligatorios: `cafe_id`, `temp_c`, `clics`, `tiempo_total`, `variable_cambiada`,
+`defecto` y `nota`. Lo que no mandes toma la receta base: `dosis_g` 20, `agua_g`
+300, molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la
+fecha de hoy. La fila entra entera o no entra: si algo no valida, **422** con la
+lista de errores y no se escribe nada.
 
 ## Puesta en marcha
-
-Requiere Python 3.11 o superior. Los scripts solo usan la librería estándar;
-pytest hace falta únicamente para desarrollar.
 
 ```bash
 git clone https://github.com/Krahegwen/coffee-data.git
 cd coffee-data
 git config core.hooksPath hooks
+pnpm install
 python -m pip install pytest
 ```
 
 `git config core.hooksPath hooks` activa el hook de `pre-commit`, que ejecuta
-los tests antes de cada commit y lo aborta si fallan. Hay que ejecutarlo una
-vez por clon: git no activa los hooks solo.
+**las dos suites** —pytest para el esquema y el runner de Node para el Worker—
+y aborta el commit si fallan. Hay que ejecutarlo una vez por clon: git no
+activa los hooks solo.
 
 | Comando | Qué hace |
 |---|---|
-| `python nueva.py` | Añade una extracción preguntando campo a campo. Calcula `id`, `dias_tueste` y `ratio`. |
-| `python cafe.py` | Da de alta una bolsa nueva en `cafes.csv`. |
-| `python resumen.py` | Ranking, histórico y aviso de frescura. |
-| `python -m pytest` | Tests. |
+| `python resumen.py` | Ranking, histórico y frescura, desde la API |
+| `python herramientas/exportar_csv.py` | Vuelca D1 a los CSV del repo |
+| `python -m pytest` | Tests del esquema SQL |
+| `pnpm test` | Tests del Worker |
+| `pnpm dev` | La API en local, contra una D1 local |
+| `pnpm exec wrangler deploy` | A producción |
 
-## En un solo comando
+Apunta a otra API con `COFFEE_API`, por ejemplo `COFFEE_API=http://127.0.0.1:8787`.
 
-Los dos scripts aceptan también los campos como argumentos, para no depender de
-las preguntas. La fila entra entera o no entra: si algo no valida, no se
-escribe nada y el script sale con código 2.
+## Respaldo
 
-```bash
-python nueva.py --cafe gary --temp 91 --clics 28 --tiempo 3:30 \
-    --variable "91 °C" --defecto equilibrado --nota 8 \
-    --notas "Más dulzor, menos amargor" --siguiente "Probar 26 clics"
-
-python cafe.py --id etiopia --nombre "Etiopía Guji" --tostador "Manea Coffee" \
-    --tueste 2026-08-01 --proceso Natural --sca 87
-```
-
-Lo que no pases toma el valor de la receta base: `--dosis 20`, `--agua 300`,
-`--molinillo "Comandante C40"`, `--metodo "V60 4:6 Kasuya"`,
-`--reparto 60-60-90-90` y `--fecha` de hoy. En `cafe.py` solo `--id` y
-`--nombre` son obligatorios; lo que no sepas se queda vacío.
-
-Añade `--dry-run` para ver la fila sin escribirla. `--help` lista todo.
+Al dejar de llevar los datos en git, **D1 pasó a ser la única copia**.
+`herramientas/exportar_csv.py` vuelca la base a los CSV del repo; commitearlos
+de vez en cuando es el respaldo, y de paso devuelve un diff mirable de lo que
+cambió.
