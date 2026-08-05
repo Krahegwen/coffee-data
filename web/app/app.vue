@@ -62,4 +62,19 @@ header h1 {
   color: var(--suave);
   font-size: 0.85rem;
 }
+
+/*
+ * El «‹ Volver» de cada pantalla. Es un enlace de texto, así que de alto
+ * daba 21 px: la mitad de los 44 que pide un dedo. Crece por dentro con la
+ * caja, no con la tipografía, y el párrafo cede su margen para que la
+ * cabecera no se separe.
+ */
+.volver { margin: 0 0 0.5rem; }
+
+.volver a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: 0.75rem;
+}
 </style>

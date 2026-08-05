@@ -47,7 +47,7 @@ async function enviar() {
 </script>
 
 <template>
-  <p><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
 
   <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 

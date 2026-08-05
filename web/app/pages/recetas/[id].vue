@@ -86,7 +86,7 @@ async function enviar() {
 </script>
 
 <template>
-  <p><NuxtLink to="/recetas">‹ Recetas</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/recetas">‹ Recetas</NuxtLink></p>
 
   <p v-if="!esNueva && !original" class="meta">No hay ninguna receta «{{ id }}».</p>
 

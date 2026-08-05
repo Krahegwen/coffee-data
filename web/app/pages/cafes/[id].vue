@@ -126,7 +126,7 @@ async function quitarFoto() {
 </script>
 
 <template>
-  <p><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
 
   <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
 

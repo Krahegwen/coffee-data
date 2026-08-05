@@ -96,7 +96,7 @@ async function retirar() {
 </script>
 
 <template>
-  <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
   <p v-if="!original" class="meta">No hay ninguna extracción #{{ id }}.</p>
 

@@ -96,7 +96,7 @@ async function enviar() {
 </script>
 
 <template>
-  <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
   <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 

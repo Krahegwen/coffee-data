@@ -127,7 +127,7 @@ onUnmounted(parar)
 </script>
 
 <template>
-  <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
   <section v-if="!arrancado">
     <h2>Preparar</h2>

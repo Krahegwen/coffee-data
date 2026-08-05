@@ -22,7 +22,7 @@ function restante(cafeId: string, pesoG: number | null) {
 </script>
 
 <template>
-  <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
   <div class="cabecera">
     <h2>Bolsas</h2>
@@ -69,6 +69,9 @@ function restante(cafeId: string, pesoG: number | null) {
 h2 { font-size: 1.05rem; margin: 0; }
 
 .boton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   background: var(--acento);
   color: #fff;
   font-weight: 600;

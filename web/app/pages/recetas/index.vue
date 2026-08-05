@@ -12,7 +12,7 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 </script>
 
 <template>
-  <p><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
 
   <div class="cabecera">
     <h2>Recetas</h2>
@@ -34,6 +34,7 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 h2 { font-size: 1.05rem; margin: 0; }
 
 .boton {
+  display: inline-flex; align-items: center; min-height: 44px;
   background: var(--acento); color: #fff; font-weight: 600; font-size: 0.9rem;
   border-radius: 0.5rem; padding: 0.55rem 0.9rem; text-decoration: none;
 }
