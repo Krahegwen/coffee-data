@@ -232,3 +232,43 @@ def test_la_semilla_conserva_los_datos_de_abbie(db):
         "SELECT peso_g, conservacion, fecha_compra FROM cafes WHERE id = 'abbie'"
     ).fetchone()
     assert fila == (340.0, "Fellow Atmos 1.2 L", "2026-05-11")
+
+
+# --- borrado lógico ----------------------------------------------------------
+
+def test_lo_retirado_desaparece_de_la_vista_normal(db):
+    db.execute("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = 1")
+    assert db.execute("SELECT COUNT(*) FROM v_extracciones").fetchone()[0] == 0
+
+
+def test_pero_la_fila_sigue_ahi(db):
+    db.execute("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = 1")
+    assert db.execute("SELECT COUNT(*) FROM extracciones").fetchone()[0] == 1
+    assert db.execute("SELECT COUNT(*) FROM v_extracciones_retiradas").fetchone()[0] == 1
+
+
+def test_restaurar_la_devuelve(db):
+    db.execute("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = 1")
+    db.execute("UPDATE extracciones SET borrada_en = NULL WHERE id = 1")
+    assert db.execute("SELECT COUNT(*) FROM v_extracciones").fetchone()[0] == 1
+    assert db.execute("SELECT COUNT(*) FROM v_extracciones_retiradas").fetchone()[0] == 0
+
+
+def test_el_id_no_se_reutiliza_tras_retirar(db):
+    """Retirar no libera el id: la serie sigue, que si no se pisarían."""
+    db.execute("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = 1")
+    insertar_extraccion(db)
+    assert db.execute("SELECT MAX(id) FROM extracciones").fetchone()[0] == 2
+
+
+def test_actualizado_en_se_marca_al_corregir(db):
+    assert db.execute("SELECT actualizado_en FROM extracciones WHERE id = 1").fetchone()[0] is None
+    db.execute("UPDATE extracciones SET nota = 9 WHERE id = 1")
+    assert db.execute("SELECT actualizado_en FROM extracciones WHERE id = 1").fetchone()[0] is not None
+
+
+def test_las_restricciones_siguen_valiendo_al_corregir(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("UPDATE extracciones SET nota = 12 WHERE id = 1")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("UPDATE extracciones SET defecto = 'quemado' WHERE id = 1")

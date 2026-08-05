@@ -13,9 +13,8 @@ En producción, **`https://brew.krahegwen.com`**: la app y la API las sirve el
 **mismo Worker**. `/api/*` lo atiende el script y el resto sale de los
 estáticos de la app.
 
-Compartir origen no es cosmético: elimina CORS de raíz, y deja la puerta
-abierta a mover el token de `localStorage` a una cookie `httpOnly`, que es la
-mejora pendiente de la autenticación.
+Compartir origen no es cosmético: elimina CORS de raíz, y es lo que permitió
+sacar el token de `localStorage` y meterlo en una cookie `HttpOnly`.
 
 En local, con su propia base y sin tocar la de verdad:
 
@@ -30,10 +29,13 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 |---|---|
 | `GET /api/cafes` | Las bolsas |
 | `GET /api/recetas` | Recetas con sus pasos |
-| `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` ya derivados. `?cafe=gary` filtra |
+| `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` derivados. `?cafe=gary` filtra, `?retiradas=1` es la papelera |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
 | `POST /api/cafes` | Da de alta una bolsa |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
+| `PATCH /api/extracciones/:id` | Corrige una extracción |
+| `DELETE /api/extracciones/:id` | La retira. **Borrado lógico**: la fila se queda |
+| `POST /api/extracciones/:id/restaurar` | La devuelve |
 | `POST /api/extracciones` | Registra una extracción. Devuelve la fila y las sugerencias |
 | `GET/POST/DELETE /api/sesion` | Consulta, abre y cierra la sesión de escritura |
 
@@ -86,7 +88,8 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
-Tres pantallas: el listado, el **cronómetro** y el alta.
+Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`) y corrección de
+extracciones (`/extracciones/<id>`).
 
 El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
 objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la
@@ -120,7 +123,7 @@ ahí es el mismo origen y el código no se entera de la diferencia.
 `id` · `fecha` · `cafe_id` · `dias_tueste` · `dosis_g` · `agua_g` · `ratio` ·
 `temp_c` · `molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` ·
 `variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
-`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper`
+`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper` · `borrada_en`
 
 `dripper`: `v60-02-plastico` | `v60-02-ceramica`. Lista cerrada porque entra en
 la detección de pares, y una errata parecería un cambio de variable. La
@@ -273,3 +276,16 @@ Al dejar de llevar los datos en git, **D1 pasó a ser la única copia**.
 `herramientas/exportar_csv.py` vuelca la base a los CSV del repo; commitearlos
 de vez en cuando es el respaldo, y de paso devuelve un diff mirable de lo que
 cambió.
+
+## Retirar extracciones
+
+El borrado es **lógico**: `DELETE` marca `borrada_en` y la fila se queda. Deja
+de salir en el historial y de contar para las sugerencias, pero se recupera con
+`POST /api/extracciones/:id/restaurar`, y el respaldo la sigue exportando.
+
+Los ids **no se reutilizan**: retirar la #3 no hace que la siguiente sea la #3.
+
+Y la advertencia que sale también en el modal de la app: **retira solo errores
+de registro**. Si quitas las extracciones que salieron mal, las medias suben
+solas y los deltas emparejados dejan de significar nada — te estarías mintiendo
+con tus propios datos.

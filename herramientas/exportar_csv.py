@@ -29,12 +29,13 @@ EXPORTS = [
         "precio_eur", "notas_tostador", "estado", "fecha_compra",
         "fecha_recepcion", "foto", "url", "conservacion",
     ], lambda f: f["id"]),
-    ("extracciones.csv", "/api/extracciones", [
-        "id", "fecha", "cafe_id", "dias_tueste", "dosis_g", "agua_g", "ratio",
-        "temp_c", "molinillo", "clics", "metodo", "reparto", "tiempo_total",
-        "variable_cambiada", "defecto", "notas_cata", "nota",
-        "siguiente_ajuste", "receta_id", "drawdown_s", "dripper",
-    ], lambda f: int(f["id"])),
+]
+
+COLUMNAS_EXTRACCIONES = [
+    "id", "fecha", "cafe_id", "dias_tueste", "dosis_g", "agua_g", "ratio",
+    "temp_c", "molinillo", "clics", "metodo", "reparto", "tiempo_total",
+    "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
+    "receta_id", "drawdown_s", "dripper", "borrada_en",
 ]
 
 
@@ -74,6 +75,18 @@ def como_csv(filas, columnas):
     return salida.getvalue()
 
 
+def exportar_extracciones():
+    """Activas y retiradas juntas.
+
+    Las retiradas también van al respaldo: si solo se exportaran las activas,
+    retirar una la borraría de verdad en cuanto se regenerase el CSV, y todo
+    el sentido del borrado lógico era que se pudiera recuperar.
+    """
+    filas = traer("/api/extracciones") + traer("/api/extracciones?retiradas=1")
+    filas.sort(key=lambda f: int(f["id"]))
+    return [("extracciones.csv", como_csv(filas, COLUMNAS_EXTRACCIONES))]
+
+
 def exportar_recetas():
     """recetas.csv y pasos.csv salen de la misma llamada."""
     recetas = traer("/api/recetas")
@@ -96,6 +109,7 @@ def main():
     for fichero, ruta, columnas, orden in EXPORTS:
         filas = sorted(traer(ruta), key=orden)
         pendientes.append((fichero, como_csv(filas, columnas)))
+    pendientes.extend(exportar_extracciones())
     pendientes.extend(exportar_recetas())
 
     cambiados = 0

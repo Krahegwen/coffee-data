@@ -130,6 +130,26 @@ export function useApi() {
       query: cafeId ? { cafe: cafeId } : undefined,
     })
 
+  /** Corrige una extracción. Solo se manda lo que cambia. */
+  const editarExtraccion = (id: number, cambios: Record<string, unknown>) =>
+    $fetch<{ extraccion: Extraccion; cambiado: string[] }>(`${base}/api/extracciones/${id}`, {
+      method: 'PATCH',
+      body: cambios,
+    })
+
+  /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
+  const retirarExtraccion = (id: number) =>
+    $fetch<{ retirada: boolean }>(`${base}/api/extracciones/${id}`, { method: 'DELETE' })
+
+  const restaurarExtraccion = (id: number) =>
+    $fetch<{ extraccion: Extraccion }>(`${base}/api/extracciones/${id}/restaurar`, {
+      method: 'POST',
+    })
+
+  /** La papelera. */
+  const retiradas = () =>
+    $fetch<Extraccion[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } })
+
   /** Da de alta una bolsa. */
   const crearCafe = (datos: Record<string, unknown>) =>
     $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
@@ -158,7 +178,10 @@ export function useApi() {
     })
   }
 
-  return { base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe }
+  return {
+    base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
+    editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
+  }
 }
 
 /** Saca los mensajes legibles de lo que devuelva la API al fallar. */

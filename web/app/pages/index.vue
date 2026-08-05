@@ -63,7 +63,7 @@ function restante(cafeId: string, pesoG: number | null) {
   <section>
     <h2>Últimas extracciones</h2>
     <p v-if="!ultimas.length" class="vacio">Todavía ninguna.</p>
-    <article v-for="e in ultimas" :key="e.id" class="tarjeta">
+    <NuxtLink v-for="e in ultimas" :key="e.id" :to="`/extracciones/${e.id}`" class="tarjeta enlace">
       <div class="fila">
         <strong>#{{ e.id }} {{ e.cafe_nombre }}</strong>
         <span v-if="e.nota" class="nota">{{ e.nota }}/10</span>
@@ -74,7 +74,7 @@ function restante(cafeId: string, pesoG: number | null) {
       </p>
       <p v-if="e.variable_cambiada" class="variable">{{ e.variable_cambiada }}</p>
       <p v-if="e.notas_cata" class="cata">{{ e.notas_cata }}</p>
-    </article>
+    </NuxtLink>
   </section>
 </template>
 
@@ -94,6 +94,8 @@ h2 {
   padding: 0.8rem 0.9rem;
   margin-bottom: 0.6rem;
 }
+
+.tarjeta.enlace { display: block; color: inherit; text-decoration: none; }
 
 .fila {
   display: flex;

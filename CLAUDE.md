@@ -120,3 +120,24 @@ exportados.
 `python resumen.py` da ranking, histórico y frescura leyendo de la API. Las
 palancas de ajuste están en la tabla del README; úsala para sugerir el
 `siguiente_ajuste`, y recuerda mover una sola cosa.
+
+## Corregir y retirar extracciones
+
+```bash
+curl -X PATCH https://brew.krahegwen.com/api/extracciones/3 -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"nota":8}'
+
+curl -X DELETE https://brew.krahegwen.com/api/extracciones/3 -H "Authorization: Bearer $COFFEE_TOKEN"
+curl -X POST https://brew.krahegwen.com/api/extracciones/3/restaurar -H "Authorization: Bearer $COFFEE_TOKEN"
+```
+
+El borrado es lógico: marca `borrada_en` y la fila se queda. **Si el usuario
+quiere retirar una extracción porque salió mal, adviértele**: quitar las malas
+sube las medias solas y deja los deltas emparejados sin sentido. Retirar es
+para errores de registro.
+
+## Tras desplegar, espera antes de verificar
+
+La propagación tarda. Verificar a los 5 segundos ha dado tres falsos negativos
+—404 en rutas que existían— y llevó a diagnosticar bugs inexistentes. Espera
+15-20 s, y si algo falla, repítelo antes de concluir nada.

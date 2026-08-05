@@ -253,3 +253,105 @@ export function validarCafe(cuerpo, { nuevo }) {
 
   return { valores, errores };
 }
+
+/**
+ * Corrección de una extracción: solo entran los campos que vengan, con las
+ * mismas reglas que el alta. El `id` no, que es la identidad de la fila.
+ */
+export function validarCambiosExtraccion(cuerpo) {
+  const errores = [];
+  const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
+  const valores = {};
+
+  const desconocidos = Object.keys(entrada).filter((c) => !CAMPOS.includes(c));
+  if (desconocidos.length) {
+    errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+  }
+
+  const dado = (campo) => entrada[campo] !== undefined;
+
+  if (dado("fecha")) {
+    const fecha = String(entrada.fecha).trim();
+    if (!fechaValida(fecha)) {
+      errores.push(`fecha inválida, se espera AAAA-MM-DD: ${JSON.stringify(entrada.fecha)}`);
+    }
+    valores.fecha = fecha;
+  }
+
+  if (dado("cafe_id")) {
+    const cafeId = String(entrada.cafe_id ?? "").trim();
+    if (!cafeId) errores.push("cafe_id no puede quedar vacío");
+    valores.cafe_id = cafeId;
+  }
+
+  for (const campo of ["dosis_g", "agua_g"]) {
+    if (!dado(campo)) continue;
+    const n = numero(entrada[campo]);
+    if (n === null || n <= 0) errores.push(`${campo} debe ser un número mayor que 0`);
+    valores[campo] = n;
+  }
+
+  for (const campo of ["temp_c", "clics"]) {
+    if (!dado(campo)) continue;
+    if (vacio(entrada[campo])) {
+      valores[campo] = null;
+      continue;
+    }
+    const n = numero(entrada[campo]);
+    if (n === null) errores.push(`${campo} debe ser un número`);
+    if (campo === "temp_c" && n !== null && (n < 0 || n > 100)) {
+      errores.push("temp_c debe estar entre 0 y 100");
+    }
+    valores[campo] = n;
+  }
+
+  if (dado("nota")) {
+    if (vacio(entrada.nota)) {
+      valores.nota = null;
+    } else {
+      const n = numero(entrada.nota);
+      if (n === null || !Number.isInteger(n) || n < 1 || n > 10) {
+        errores.push(`la nota debe ser un entero de 1 a 10: ${JSON.stringify(entrada.nota)}`);
+      }
+      valores.nota = n;
+    }
+  }
+
+  if (dado("drawdown_s")) {
+    if (vacio(entrada.drawdown_s)) {
+      valores.drawdown_s = null;
+    } else {
+      const n = numero(entrada.drawdown_s);
+      if (n === null || !Number.isInteger(n) || n < 0) {
+        errores.push("drawdown_s debe ser un entero de segundos, cero o más");
+      }
+      valores.drawdown_s = n;
+    }
+  }
+
+  if (dado("defecto")) {
+    const defecto = vacio(entrada.defecto) ? null : String(entrada.defecto).trim().toLowerCase();
+    if (defecto !== null && !DEFECTOS.includes(defecto)) {
+      errores.push(`defecto no permitido: ${JSON.stringify(entrada.defecto)}. Válidos: ${DEFECTOS.join(", ")}`);
+    }
+    valores.defecto = defecto;
+  }
+
+  if (dado("dripper")) {
+    const dripper = String(entrada.dripper ?? "").trim().toLowerCase();
+    if (!DRIPPERS.includes(dripper)) {
+      errores.push(`dripper no permitido: ${JSON.stringify(entrada.dripper)}. Válidos: ${DRIPPERS.join(", ")}`);
+    }
+    valores.dripper = dripper;
+  }
+
+  for (const campo of ["molinillo", "metodo", "receta_id", "reparto", "tiempo_total",
+                       "variable_cambiada", "notas_cata", "siguiente_ajuste"]) {
+    if (!dado(campo)) continue;
+    valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
+  }
+
+  if (!Object.keys(valores).length) errores.push("no hay ningún campo que corregir");
+
+  return { valores, errores };
+}

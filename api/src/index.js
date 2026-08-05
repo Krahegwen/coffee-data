@@ -12,7 +12,9 @@
 import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
 import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
-import { CAMPOS, CAMPOS_CAFE, validarCafe, validarExtraccion } from "./validacion.js";
+import {
+  CAMPOS, CAMPOS_CAFE, validarCafe, validarCambiosExtraccion, validarExtraccion,
+} from "./validacion.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 
@@ -187,8 +189,83 @@ async function editarCafe(request, env, id) {
   return json({ cafe: actualizado, cambiado: columnas });
 }
 
+/** Corrige una extracción. Solo toca los campos que lleguen. */
+async function editarExtraccion(request, env, id) {
+  const existe = await env.DB.prepare("SELECT id FROM extracciones WHERE id = ?").bind(id).first();
+  if (!existe) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+
+  let cuerpo;
+  try {
+    cuerpo = await request.json();
+  } catch {
+    return json({ error: "el cuerpo debe ser JSON" }, 400);
+  }
+
+  const { valores, errores } = validarCambiosExtraccion(cuerpo);
+  if (errores.length) return json({ errores }, 422);
+
+  const columnas = CAMPOS.filter((c) => valores[c] !== undefined);
+  const asignaciones = columnas.map((c) => `${c} = ?`).join(", ");
+  try {
+    await env.DB.prepare(`UPDATE extracciones SET ${asignaciones} WHERE id = ?`)
+      .bind(...columnas.map((c) => valores[c]), id)
+      .run();
+  } catch (error) {
+    return json({ errores: [`la base rechazó el cambio: ${error.message}`] }, 422);
+  }
+
+  const fila = await env.DB.prepare("SELECT * FROM v_extracciones WHERE id = ?").bind(id).first();
+  return json({ extraccion: fila, cambiado: columnas });
+}
+
+/**
+ * Retira una extracción. Borrado lógico: la fila se queda, marcada con la
+ * fecha, y deja de contar para las sugerencias. Se puede restaurar.
+ */
+async function retirarExtraccion(env, id) {
+  const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!fila) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+  if (fila.borrada_en) return json({ retirada: true, ya_estaba: true });
+
+  await env.DB.prepare("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = ?")
+    .bind(id)
+    .run();
+  return json({ retirada: true, id });
+}
+
+async function restaurarExtraccion(env, id) {
+  const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!fila) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+
+  await env.DB.prepare("UPDATE extracciones SET borrada_en = NULL WHERE id = ?").bind(id).run();
+  const devuelta = await env.DB.prepare("SELECT * FROM v_extracciones WHERE id = ?")
+    .bind(id)
+    .first();
+  return json({ extraccion: devuelta });
+}
+
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
+
+  if (ruta.startsWith("/api/extracciones/")) {
+    const resto = ruta.slice("/api/extracciones/".length);
+    const [crudo, accion] = resto.split("/");
+    const id = Number(crudo);
+    if (!Number.isInteger(id) || id <= 0) {
+      return json({ error: "id de extracción inválido" }, 400);
+    }
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+
+    if (accion === "restaurar" && request.method === "POST") {
+      return await restaurarExtraccion(env, id);
+    }
+    if (!accion && request.method === "PATCH") return await editarExtraccion(request, env, id);
+    if (!accion && request.method === "DELETE") return await retirarExtraccion(env, id);
+  }
 
   if (ruta === "/api/cafes" && request.method === "POST") {
     if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
@@ -228,10 +305,14 @@ async function enrutar(request, env, url, ruta) {
       return json(conPasos);
     }
     if (ruta === "/api/extracciones") {
+      // ?retiradas=1 para mirar la papelera y poder restaurar.
+      const vista = url.searchParams.get("retiradas")
+        ? "v_extracciones_retiradas"
+        : "v_extracciones";
       const cafeId = url.searchParams.get("cafe");
       const consulta = cafeId
-        ? env.DB.prepare("SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY id DESC").bind(cafeId)
-        : env.DB.prepare("SELECT * FROM v_extracciones ORDER BY id DESC");
+        ? env.DB.prepare(`SELECT * FROM ${vista} WHERE cafe_id = ? ORDER BY id DESC`).bind(cafeId)
+        : env.DB.prepare(`SELECT * FROM ${vista} ORDER BY id DESC`);
       const { results } = await consulta.all();
       return json(results);
     }

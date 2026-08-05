@@ -7,7 +7,9 @@ import {
 } from "../src/auth.js";
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
-import { fechaValida, validarCafe, validarExtraccion } from "../src/validacion.js";
+import {
+  fechaValida, validarCafe, validarCambiosExtraccion, validarExtraccion,
+} from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
   receta_id: "kasuya-46-base", orden, t_inicio_s, accion, agua_g, notas: "",
@@ -495,5 +497,45 @@ describe("corrección de bolsas", () => {
     assert.ok(validarCafe({ estado: "a medias" }, { nuevo: false }).errores.length);
     assert.ok(validarCafe({ fecha_tueste: "2026-02-30" }, { nuevo: false }).errores.length);
     assert.ok(validarCafe({ nombre: "" }, { nuevo: false }).errores.length);
+  });
+});
+
+describe("corrección de extracciones", () => {
+  it("solo toca lo que viene", () => {
+    const { valores, errores } = validarCambiosExtraccion({ nota: 9 });
+    assert.deepEqual(errores, []);
+    assert.deepEqual(Object.keys(valores), ["nota"]);
+  });
+
+  it("permite corregir el café, que es el error típico del cronómetro", () => {
+    const { valores, errores } = validarCambiosExtraccion({ cafe_id: "gary" });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.cafe_id, "gary");
+  });
+
+  it("valida igual que el alta", () => {
+    assert.ok(validarCambiosExtraccion({ nota: 12 }).errores.length);
+    assert.ok(validarCambiosExtraccion({ defecto: "quemado" }).errores.length);
+    assert.ok(validarCambiosExtraccion({ dripper: "chemex" }).errores.length);
+    assert.ok(validarCambiosExtraccion({ fecha: "2026-02-30" }).errores.length);
+    assert.ok(validarCambiosExtraccion({ dosis_g: 0 }).errores.length);
+    assert.ok(validarCambiosExtraccion({ temp_c: 150 }).errores.length);
+  });
+
+  it("admite vaciar lo que es opcional", () => {
+    assert.equal(validarCambiosExtraccion({ drawdown_s: "" }).valores.drawdown_s, null);
+    assert.equal(validarCambiosExtraccion({ notas_cata: "" }).valores.notas_cata, null);
+  });
+
+  it("no deja vaciar el café", () => {
+    assert.ok(validarCambiosExtraccion({ cafe_id: "" }).errores.length);
+  });
+
+  it("exige algún campo", () => {
+    assert.ok(validarCambiosExtraccion({}).errores.some((e) => e.includes("ningún campo")));
+  });
+
+  it("rechaza campos inventados", () => {
+    assert.ok(validarCambiosExtraccion({ inventado: 1 }).errores.some((e) => e.includes("desconocidos")));
   });
 });
