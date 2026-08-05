@@ -77,4 +77,15 @@ header h1 {
   min-height: 44px;
   padding-right: 0.75rem;
 }
+
+/*
+ * Las parejas de campos son un grid de 1fr 1fr, y sus hijos —las etiquetas—
+ * llevan de serie min-width: auto. Eso impide que la columna encoja por
+ * debajo del ancho intrínseco del campo que envuelven: un input de texto
+ * pide 204 px y uno de fecha 169, así que en el móvil la fila se salía y
+ * la página se podía arrastrar de lado. Ponerlo en el input no basta: el
+ * ítem del grid es la etiqueta. Va aquí porque .pareja se repite en cinco
+ * pantallas y el fallo era el mismo en todas.
+ */
+.pareja > * { min-width: 0; }
 </style>
