@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Cafe } from '~/composables/useApi'
 
-const { cafes, editarCafe } = useApi()
+const { cafes, editarCafe, subirFotoCafe, quitarFotoCafe, urlFoto } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const id = String(route.params.id)
@@ -57,6 +57,15 @@ const cambios = computed(() => {
 
 const hayCambios = computed(() => Object.keys(cambios.value).length > 0)
 
+/**
+ * La ficha que devuelve el servidor pisa a la de la lista cargada. El array
+ * se reasigna entero: `bolsas` es un shallowRef y mutarlo por índice no
+ * despierta a nadie.
+ */
+function reemplazaBolsa(cafe: Cafe) {
+  bolsas.value = (bolsas.value ?? []).map((c) => (c.id === id ? cafe : c))
+}
+
 async function enviar() {
   errores.value = []
   guardado.value = null
@@ -64,14 +73,45 @@ async function enviar() {
   try {
     const r = await editarCafe(id, cambios.value)
     guardado.value = r.cambiado
-    if (bolsas.value) {
-      const i = bolsas.value.findIndex((c) => c.id === id)
-      if (i >= 0) bolsas.value[i] = r.cafe
-    }
+    reemplazaBolsa(r.cafe)
   } catch (fallo) {
     errores.value = erroresDe(fallo)
   } finally {
     enviando.value = false
+  }
+}
+
+const ficheroFoto = ref<HTMLInputElement | null>(null)
+const subiendoFoto = ref(false)
+const erroresFoto = ref<string[]>([])
+
+async function subirFoto(evento: Event) {
+  const fichero = (evento.target as HTMLInputElement).files?.[0]
+  if (!fichero) return
+  erroresFoto.value = []
+  subiendoFoto.value = true
+  try {
+    const r = await subirFotoCafe(id, fichero)
+    reemplazaBolsa(r.cafe)
+  } catch (fallo) {
+    erroresFoto.value = erroresDe(fallo)
+  } finally {
+    subiendoFoto.value = false
+    // Sin esto, elegir el mismo fichero otra vez no dispararía el change.
+    if (ficheroFoto.value) ficheroFoto.value.value = ''
+  }
+}
+
+async function quitarFoto() {
+  erroresFoto.value = []
+  subiendoFoto.value = true
+  try {
+    const r = await quitarFotoCafe(id)
+    reemplazaBolsa(r.cafe)
+  } catch (fallo) {
+    erroresFoto.value = erroresDe(fallo)
+  } finally {
+    subiendoFoto.value = false
   }
 }
 </script>
@@ -92,19 +132,54 @@ async function enviar() {
       <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
     </section>
 
-    <form v-else @submit.prevent="enviar">
-      <h2>{{ original.nombre }}</h2>
-      <p class="meta">
-        id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
-        que apuntan las extracciones.
-      </p>
+    <template v-else>
+      <form @submit.prevent="enviar">
+        <h2>{{ original.nombre }}</h2>
+        <p class="meta">
+          id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
+          que apuntan las extracciones.
+        </p>
 
-      <CafeCampos v-model="form" />
+        <CafeCampos v-model="form" />
 
-      <button type="submit" :disabled="enviando || !hayCambios">
-        {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
-      </button>
-    </form>
+        <button type="submit" :disabled="enviando || !hayCambios">
+          {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
+        </button>
+      </form>
+
+      <section class="tarjeta">
+        <h2>Foto de la bolsa</h2>
+        <img
+          v-if="original.foto"
+          :src="urlFoto(original.foto)!"
+          alt="La bolsa de este café"
+          class="foto"
+        >
+        <p v-else class="meta">Sin foto todavía.</p>
+        <input
+          ref="ficheroFoto"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          @change="subirFoto"
+        >
+        <div class="botones-foto">
+          <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
+            {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
+          </button>
+          <button
+            v-if="original.foto"
+            type="button"
+            class="secundario"
+            :disabled="subiendoFoto"
+            @click="quitarFoto"
+          >
+            Quitar
+          </button>
+        </div>
+        <p v-if="erroresFoto.length" class="fallo">{{ erroresFoto.join(' · ') }}</p>
+      </section>
+    </template>
   </template>
 
   <section v-if="errores.length" class="tarjeta errores">
@@ -146,6 +221,21 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 
 .tarjeta input { width: 100%; margin: 0.5rem 0; font-size: 16px; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta); }
+
+.foto {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--linea);
+  margin: 0.4rem 0;
+}
+
+.botones-foto { display: flex; gap: 0.5rem; }
+
+.secundario {
+  background: transparent;
+  color: var(--tinta);
+  border: 1px solid var(--linea);
+}
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0 0.9rem; }
 .fallo { color: #c2410c; font-size: 0.85rem; }
 .errores { border-color: #c2410c; }

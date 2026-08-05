@@ -79,6 +79,20 @@ El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
 del usuario no son un banco de pruebas**: para verificar, usa la base local
 (`pnpm dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
 
+La foto de la bolsa va aparte, en binario (jpeg, png o webp, 10 MB máximo);
+**no entra por JSON**, así el servidor mantiene la columna y el objeto de R2
+a la par. La sirve el Worker en `/api/` + la clave que guarda la ficha, y
+cada subida estrena clave: reemplazar no deja cachés con la foto vieja.
+
+```bash
+curl -X PUT https://brew.krahegwen.com/api/cafes/gary/foto \
+  -H "Authorization: Bearer $COFFEE_TOKEN" -H 'content-type: image/jpeg' \
+  --data-binary @bolsa.jpg
+
+curl -X DELETE https://brew.krahegwen.com/api/cafes/gary/foto \
+  -H "Authorization: Bearer $COFFEE_TOKEN"
+```
+
 ## Recetas
 
 Tienen endpoints y pantallas: `/recetas`, `/recetas/nueva`, `/recetas/<id>`.

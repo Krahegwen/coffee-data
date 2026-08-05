@@ -172,6 +172,19 @@ export function useApi() {
       body: cambios,
     })
 
+  /** Sube o reemplaza la foto de la bolsa. La imagen va en binario, tal cual. */
+  const subirFotoCafe = (id: string, fichero: File) =>
+    $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
+      method: 'PUT',
+      body: fichero,
+      headers: { 'content-type': fichero.type },
+    })
+
+  const quitarFotoCafe = (id: string) =>
+    $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
+      method: 'DELETE',
+    })
+
   /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
   const guion = (recetaId: string, aguaG: number) =>
     $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
@@ -189,10 +202,13 @@ export function useApi() {
     })
   }
 
+  /** La URL pública de una foto: /api/ + la clave que guarda la ficha. */
+  const urlFoto = (foto: string | null) => (foto ? `${base}/api/${foto}` : null)
+
   return {
     base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
-    crearReceta, guardarReceta,
+    crearReceta, guardarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
   }
 }
 

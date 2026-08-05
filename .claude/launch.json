@@ -7,6 +7,12 @@
       "runtimeArgs": ["--filter", "@coffee/web", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@coffee/api", "dev"],
+      "port": 8787
     }
   ]
 }

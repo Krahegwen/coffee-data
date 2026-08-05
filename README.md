@@ -39,6 +39,9 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `DELETE /api/extracciones/:id` | La retira. **Borrado lógico**: la fila se queda |
 | `POST /api/extracciones/:id/restaurar` | La devuelve |
 | `POST /api/extracciones` | Registra una extracción. Devuelve la fila y las sugerencias |
+| `PUT /api/cafes/:id/foto` | Sube o reemplaza la foto de la bolsa. El cuerpo es la imagen tal cual (jpeg, png o webp, 10 MB máximo) |
+| `DELETE /api/cafes/:id/foto` | La quita |
+| `GET /api/fotos/...` | Sirve la foto desde R2. La URL es `/api/` + la clave que guarda la ficha |
 | `GET/POST/DELETE /api/sesion` | Consulta, abre y cierra la sesión de escritura |
 
 El `POST` recibe **una extracción en JSON, nunca una operación de git ni SQL**.
@@ -118,7 +121,8 @@ ahí es el mismo origen y el código no se entera de la diferencia.
 `id` · `nombre` · `tostador` · `origen` · `region` · `variedad` · `proceso` ·
 `altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) · `consumir_antes` · `peso_g` ·
 `precio_eur` · `notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
-`fecha_compra` · `fecha_recepcion` · `foto` (ruta relativa) · `url`
+`fecha_compra` · `fecha_recepcion` · `foto` (clave del objeto en R2; la mantiene
+el endpoint de subida, no entra por JSON) · `url`
 
 ## Esquema · `extracciones.csv`
 

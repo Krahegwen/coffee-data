@@ -13,8 +13,8 @@ import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth
 import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
 import {
-  CAMPOS, CAMPOS_CAFE, validarCafe, validarCambiosExtraccion, validarExtraccion,
-  validarReceta,
+  CAMPOS, CAMPOS_CAFE, claveDeFoto, validarCafe, validarCambiosExtraccion,
+  validarExtraccion, validarFoto, validarReceta,
 } from "./validacion.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -207,6 +207,71 @@ async function editarCafe(request, env, id) {
   return json({ cafe: actualizado, cambiado: columnas });
 }
 
+/**
+ * Sube o reemplaza la foto de la bolsa. El cuerpo es la imagen tal cual, sin
+ * JSON ni multipart; el tipo va en la cabecera content-type.
+ *
+ * La columna `foto` guarda la clave del objeto y la URL pública es
+ * `/api/` + clave. Cada subida estrena clave, así que primero entra el objeto
+ * nuevo, luego la columna, y la foto anterior se borra al final: en ningún
+ * momento la ficha apunta a un objeto que no exista.
+ */
+async function subirFoto(request, env, id) {
+  const cafe = await env.DB.prepare("SELECT id, foto FROM cafes WHERE id = ?").bind(id).first();
+  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+
+  const cuerpo = await request.arrayBuffer();
+  const foto = validarFoto(request.headers.get("content-type"), cuerpo.byteLength);
+  if (foto.error) return json({ errores: [foto.error] }, foto.estado);
+
+  const clave = claveDeFoto(id, foto.extension);
+  await env.FOTOS.put(clave, cuerpo, { httpMetadata: { contentType: foto.tipo } });
+
+  try {
+    await env.DB.prepare("UPDATE cafes SET foto = ? WHERE id = ?").bind(clave, id).run();
+  } catch (error) {
+    await env.FOTOS.delete(clave); // que la base diga que no, sin dejar huérfano
+    return json({ errores: [`la base rechazó la foto: ${error.message}`] }, 422);
+  }
+  if (cafe.foto && cafe.foto !== clave) await env.FOTOS.delete(cafe.foto);
+
+  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
+  return json({ cafe: actualizado }, 201);
+}
+
+/** Quita la foto de la bolsa: la columna a NULL y el objeto fuera. */
+async function quitarFoto(env, id) {
+  const cafe = await env.DB.prepare("SELECT id, foto FROM cafes WHERE id = ?").bind(id).first();
+  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+  if (!cafe.foto) return json({ quitada: true, ya_estaba: true });
+
+  await env.DB.prepare("UPDATE cafes SET foto = NULL WHERE id = ?").bind(id).run();
+  await env.FOTOS.delete(cafe.foto);
+
+  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
+  return json({ cafe: actualizado, quitada: true });
+}
+
+// Claves tal y como las genera claveDeFoto: ni escapes ni subcarpetas.
+const CLAVE_FOTO = /^fotos\/[a-z0-9_-]+-\d+\.(jpg|png|webp)$/;
+
+/** Sirve la foto desde R2. Lectura abierta, como el resto de los GET. */
+async function servirFoto(env, clave) {
+  if (!CLAVE_FOTO.test(clave)) return json({ error: "ruta no encontrada" }, 404);
+
+  const objeto = await env.FOTOS.get(clave);
+  if (!objeto) return json({ error: "no hay foto con esa clave" }, 404);
+
+  return new Response(objeto.body, {
+    headers: {
+      "content-type": objeto.httpMetadata?.contentType || "application/octet-stream",
+      etag: objeto.httpEtag,
+      // La clave cambia con cada subida, así que este contenido no caduca.
+      "cache-control": "public, max-age=31536000, immutable",
+    },
+  });
+}
+
 /** Corrige una extracción. Solo toca los campos que lleguen. */
 async function editarExtraccion(request, env, id) {
   const existe = await env.DB.prepare("SELECT id FROM extracciones WHERE id = ?").bind(id).first();
@@ -347,12 +412,22 @@ async function enrutar(request, env, url, ruta) {
     return await crearCafe(request, env);
   }
 
+  if (ruta.startsWith("/api/cafes/") && ruta.endsWith("/foto")) {
+    const id = decodeURIComponent(ruta.slice("/api/cafes/".length, -"/foto".length));
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    if (request.method === "PUT") return await subirFoto(request, env, id);
+    if (request.method === "DELETE") return await quitarFoto(env, id);
+  }
+
   if (ruta.startsWith("/api/cafes/") && request.method === "PATCH") {
     if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await editarCafe(request, env, decodeURIComponent(ruta.slice("/api/cafes/".length)));
   }
 
   if (request.method === "GET") {
+    if (ruta.startsWith("/api/fotos/")) {
+      return await servirFoto(env, ruta.slice("/api/".length));
+    }
     if (ruta === "/api/guion") {
       const recetaId = url.searchParams.get("receta");
       const agua = Number(url.searchParams.get("agua") || 300);

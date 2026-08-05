@@ -36,18 +36,19 @@ export const CAMPOS = [
 export const ESTADOS = ["abierto", "terminado", "pendiente"];
 
 // Las columnas de cafes que se pueden mandar. creado_en y actualizado_en no
-// están: los pone la base.
+// están: los pone la base. foto tampoco: la gestiona el endpoint de subida,
+// que es quien mantiene la columna y el objeto de R2 a la par.
 export const CAMPOS_CAFE = [
   "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
   "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
-  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion", "foto", "url",
+  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion", "url",
   "conservacion",
 ];
 
 const FECHAS_CAFE = ["fecha_tueste", "consumir_antes", "fecha_compra", "fecha_recepcion"];
 const TEXTOS_CAFE = [
   "tostador", "origen", "region", "variedad", "proceso", "notas_tostador",
-  "foto", "url", "conservacion",
+  "url", "conservacion",
 ];
 const NUMEROS_CAFE = {
   altitud_m: { min: 0, incluido: false, que: "mayor que 0" },
@@ -374,6 +375,50 @@ export function validarCambiosExtraccion(cuerpo) {
   if (!Object.keys(valores).length) errores.push("no hay ningún campo que corregir");
 
   return { valores, errores };
+}
+
+// La foto de la bolsa. Solo formatos que cualquier navegador pinta: si el
+// móvil manda HEIC, mejor un 415 claro que una ficha con un hueco roto.
+export const TIPOS_FOTO = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+export const MAX_FOTO_BYTES = 10 * 1024 * 1024;
+
+/** El content-type pelado: "image/JPEG; charset=x" -> "image/jpeg". */
+export function tipoDeFoto(cabecera) {
+  return String(cabecera || "").split(";")[0].trim().toLowerCase();
+}
+
+/**
+ * La foto viaja en binario, no en JSON: aquí solo se decide si el tipo y el
+ * tamaño valen. Devuelve el tipo normalizado y la extensión para la clave,
+ * o el error con su código HTTP.
+ */
+export function validarFoto(cabecera, bytes) {
+  const tipo = tipoDeFoto(cabecera);
+  const extension = TIPOS_FOTO[tipo];
+  if (!extension) {
+    const validos = Object.keys(TIPOS_FOTO).join(", ");
+    return { error: `tipo no admitido: ${JSON.stringify(tipo)}. Válidos: ${validos}`, estado: 415 };
+  }
+  if (!bytes) return { error: "la foto llega vacía", estado: 422 };
+  if (bytes > MAX_FOTO_BYTES) {
+    const mb = (bytes / (1024 * 1024)).toFixed(1);
+    const tope = MAX_FOTO_BYTES / (1024 * 1024);
+    return { error: `la foto pesa ${mb} MB y el máximo son ${tope} MB`, estado: 413 };
+  }
+  return { tipo, extension };
+}
+
+/**
+ * Cada subida estrena clave: con el momento dentro, la URL cambia al
+ * reemplazar la foto y la anterior puede cachearse para siempre.
+ */
+export function claveDeFoto(cafeId, extension, ahoraMs = Date.now()) {
+  return `fotos/${cafeId}-${ahoraMs}.${extension}`;
 }
 
 export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];

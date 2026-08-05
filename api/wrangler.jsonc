@@ -35,6 +35,15 @@
       "database_id": "de776103-1a8f-45a0-8b7b-3c4b6aec74c5",
       "migrations_dir": "migrations"
     }
+  ],
+
+  // Las fotos de las bolsas. La columna cafes.foto guarda la clave del
+  // objeto; el bucket no se expone: las sirve el Worker por /api/fotos/*.
+  "r2_buckets": [
+    {
+      "binding": "FOTOS",
+      "bucket_name": "coffee-fotos"
+    }
   ]
 
   // TOKEN_ESCRITURA no va aquí: es un secreto.

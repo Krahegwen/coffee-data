@@ -8,8 +8,8 @@ import {
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
 import {
-  fechaValida, slugDe, validarCafe, validarCambiosExtraccion, validarExtraccion,
-  validarReceta,
+  claveDeFoto, fechaValida, MAX_FOTO_BYTES, slugDe, validarCafe,
+  validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
 } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
@@ -504,6 +504,44 @@ describe("corrección de bolsas", () => {
     assert.ok(validarCafe({ estado: "a medias" }, { nuevo: false }).errores.length);
     assert.ok(validarCafe({ fecha_tueste: "2026-02-30" }, { nuevo: false }).errores.length);
     assert.ok(validarCafe({ nombre: "" }, { nuevo: false }).errores.length);
+  });
+
+  it("la foto no entra por JSON: la gestiona su endpoint", () => {
+    assert.ok(validarCafe({ foto: "fotos/gary-1.jpg" }, { nuevo: false })
+      .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarCafe({ nombre: "Gary", foto: "x" }, { nuevo: true })
+      .errores.some((e) => e.includes("desconocidos")));
+  });
+});
+
+describe("fotos", () => {
+  it("acepta los formatos que pinta cualquier navegador", () => {
+    assert.deepEqual(validarFoto("image/jpeg", 100), { tipo: "image/jpeg", extension: "jpg" });
+    assert.deepEqual(validarFoto("image/png", 100), { tipo: "image/png", extension: "png" });
+    assert.deepEqual(validarFoto("image/webp", 100), { tipo: "image/webp", extension: "webp" });
+  });
+
+  it("normaliza mayúsculas y parámetros del content-type", () => {
+    assert.deepEqual(validarFoto("image/JPEG; charset=binary", 100),
+      { tipo: "image/jpeg", extension: "jpg" });
+  });
+
+  it("rechaza lo que un navegador no pintaría", () => {
+    assert.equal(validarFoto("image/heic", 100).estado, 415);
+    assert.equal(validarFoto("application/octet-stream", 100).estado, 415);
+    assert.equal(validarFoto("", 100).estado, 415);
+    assert.equal(validarFoto(null, 100).estado, 415);
+  });
+
+  it("rechaza la foto vacía y la que pasa del tope", () => {
+    assert.equal(validarFoto("image/jpeg", 0).estado, 422);
+    assert.equal(validarFoto("image/jpeg", MAX_FOTO_BYTES + 1).estado, 413);
+    assert.equal(validarFoto("image/jpeg", MAX_FOTO_BYTES).extension, "jpg");
+  });
+
+  it("la clave lleva id, momento y extensión: cada subida estrena URL", () => {
+    assert.equal(claveDeFoto("gary", "jpg", 1722877200000), "fotos/gary-1722877200000.jpg");
+    assert.notEqual(claveDeFoto("gary", "jpg", 1), claveDeFoto("gary", "jpg", 2));
   });
 });
 
