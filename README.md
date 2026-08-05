@@ -102,6 +102,14 @@ báscula y mantiene la pantalla encendida. Al marcar «dejó de gotear» calcula
 `drawdown_s` **solo** y salta al alta con tiempo, goteo, café y receta ya
 puestos. Ese dato es justo el que a mano no se registra bien.
 
+Las fotos de las bolsas se ven en la portada y en `/cafes` como miniatura, y
+enteras en la ficha, que las enseña **sin necesidad de sesión**: mirar una
+bolsa no es editarla. Antes de subirlas, la app las **encoge** a 1600 px de
+lado y las recodifica a webp (`encogerFoto` en `web/app/composables/foto.ts`):
+una foto de 12 MP son megas que el móvil se rebaja enteros para pintar 64
+píxeles. Si la foto ya venía más ligera que el resultado, se sube tal cual.
+Por `curl` no hay encogido: sube lo que le des.
+
 La app se despliega dentro del Worker, así que **hay que construirla antes**:
 
 ```bash

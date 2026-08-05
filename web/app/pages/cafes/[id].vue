@@ -84,15 +84,21 @@ async function enviar() {
 const ficheroFoto = ref<HTMLInputElement | null>(null)
 const subiendoFoto = ref(false)
 const erroresFoto = ref<string[]>([])
+const encogida = ref<{ antes: number, despues: number } | null>(null)
 
 async function subirFoto(evento: Event) {
   const fichero = (evento.target as HTMLInputElement).files?.[0]
   if (!fichero) return
   erroresFoto.value = []
+  encogida.value = null
   subiendoFoto.value = true
   try {
-    const r = await subirFotoCafe(id, fichero)
+    const menguada = await encogerFoto(fichero)
+    const r = await subirFotoCafe(id, menguada)
     reemplazaBolsa(r.cafe)
+    if (menguada.size < fichero.size) {
+      encogida.value = { antes: fichero.size, despues: menguada.size }
+    }
   } catch (fallo) {
     erroresFoto.value = erroresDe(fallo)
   } finally {
@@ -104,6 +110,7 @@ async function subirFoto(evento: Event) {
 
 async function quitarFoto() {
   erroresFoto.value = []
+  encogida.value = null
   subiendoFoto.value = true
   try {
     const r = await quitarFotoCafe(id)
@@ -141,9 +148,13 @@ async function quitarFoto() {
         hidden
         @change="subirFoto"
       >
+      <p v-if="encogida" class="meta encogida">
+        Encogida antes de subir: {{ pesoLegible(encogida.antes) }} →
+        {{ pesoLegible(encogida.despues) }}.
+      </p>
       <div v-if="activa" class="botones-foto">
         <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
-          {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
+          {{ subiendoFoto ? 'Encogiendo y subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
         </button>
         <button
           v-if="original.foto"
@@ -234,6 +245,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .botones-foto { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .sin-foto { margin: 0; }
+.encogida { margin: 0.5rem 0 0; }
 
 .secundario {
   background: transparent;
