@@ -83,7 +83,9 @@ def main():
     )
     lineas.append("")
 
-    sys.stdout.write("\n".join(lineas))
+    # Por el buffer y no por stdout: en Windows el modo texto convertiría los
+    # \n en \r\n y el fichero generado saldría con finales distintos al resto.
+    sys.stdout.buffer.write("\n".join(lineas).encode("utf-8"))
     return 0
 
 
