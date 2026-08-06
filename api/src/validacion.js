@@ -8,6 +8,7 @@
 
 export const DEFECTOS = [
   "equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton",
+  "aguado",
 ];
 export const DRIPPERS = ["v60-02-plastico", "v60-02-ceramica"];
 
@@ -31,6 +32,7 @@ export const CAMPOS = [
   "fecha", "cafe_id", "dosis_g", "agua_g", "temp_c", "molinillo", "clics",
   "metodo", "reparto", "tiempo_total", "variable_cambiada", "defecto",
   "notas_cata", "nota", "siguiente_ajuste", "receta_id", "drawdown_s", "dripper",
+  "extraido_g",
 ];
 
 export const ESTADOS = ["abierto", "terminado", "pendiente"];
@@ -165,6 +167,20 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
       errores.push("drawdown_s debe ser un entero de segundos, cero o más");
     }
     valores.drawdown_s = n;
+  }
+
+  // Lo que acabó en la taza. Nunca puede ser más que el agua: lo que sube de
+  // ahí es que se pesó la jarra, o el agua, o las dos cosas mal.
+  if (vacio(entrada.extraido_g)) {
+    valores.extraido_g = null;
+  } else {
+    const n = numero(entrada.extraido_g);
+    if (n === null || n <= 0) {
+      errores.push("extraido_g debe ser un número mayor que 0");
+    } else if (valores.agua_g !== null && n > valores.agua_g) {
+      errores.push(`extraido_g (${n}) no puede pasar del agua (${valores.agua_g})`);
+    }
+    valores.extraido_g = n;
   }
 
   const defecto = vacio(entrada.defecto) ? null : String(entrada.defecto).trim().toLowerCase();
@@ -347,6 +363,16 @@ export function validarCambiosExtraccion(cuerpo) {
         errores.push("drawdown_s debe ser un entero de segundos, cero o más");
       }
       valores.drawdown_s = n;
+    }
+  }
+
+  if (dado("extraido_g")) {
+    if (vacio(entrada.extraido_g)) {
+      valores.extraido_g = null;
+    } else {
+      const n = numero(entrada.extraido_g);
+      if (n === null || n <= 0) errores.push("extraido_g debe ser un número mayor que 0");
+      valores.extraido_g = n;
     }
   }
 

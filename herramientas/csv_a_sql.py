@@ -30,7 +30,8 @@ TABLAS = [
     ]),
     ("extracciones.csv", "extracciones", [
         "id", "fecha", "cafe_id", "dosis_g", "agua_g", "temp_c", "molinillo",
-        "clics", "metodo", "reparto", "tiempo_total", "variable_cambiada",
+        "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
+        "variable_cambiada",
         "defecto", "notas_cata", "nota", "siguiente_ajuste", "receta_id",
         "drawdown_s", "dripper",
     ]),
@@ -40,6 +41,7 @@ TABLAS = [
 NUMERICAS = {
     "altitud_m", "sca", "peso_g", "precio_eur", "orden", "t_inicio_s",
     "agua_g", "dosis_g", "temp_c", "clics", "nota", "drawdown_s", "ratio",
+    "extraido_g",
 }
 
 

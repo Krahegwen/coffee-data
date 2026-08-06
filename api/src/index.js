@@ -85,12 +85,29 @@ async function crearExtraccion(request, env) {
   const historico = await historicoDe(env, valores.cafe_id);
   const fila = historico.find((e) => e.id === creada.id) ?? { ...valores, id: creada.id };
   const sugerencia = sugerir(fila, historico);
+  const resumen = textoCorto(sugerencia);
+
+  /*
+   * Si no dijiste qué tocar en la siguiente, se guarda lo que propone el
+   * motor. Antes se calculaba, se devolvía y ahí moría: quien no la copiaba a
+   * mano se quedaba con el campo vacío, que es justo el que da continuidad a
+   * la bitácora.
+   *
+   * Solo cuando el campo viene vacío: lo que tú escribes manda siempre, que
+   * para eso lo escribiste.
+   */
+  if (!fila.siguiente_ajuste && resumen) {
+    await env.DB.prepare("UPDATE extracciones SET siguiente_ajuste = ? WHERE id = ?")
+      .bind(resumen, creada.id)
+      .run();
+    fila.siguiente_ajuste = resumen;
+  }
 
   return json(
     {
       extraccion: fila,
       cafe: cafe.nombre,
-      sugerencias: { ...sugerencia, resumen: textoCorto(sugerencia) },
+      sugerencias: { ...sugerencia, resumen },
     },
     201,
   );

@@ -105,6 +105,15 @@ menú.
 Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`), recetas
 (`/recetas`) y corrección de extracciones (`/extracciones/<id>`).
 
+El alta arranca con la extracción anterior de esa bolsa ya puesta, porque el
+protocolo es repetir y mover una sola cosa: lo que teclees debería ser justo
+esa cosa. La **variable cambiada** se elige de una lista —una fila por
+variable, con el valor de antes en solo lectura y el nuevo para escribir— y el
+texto se genera de ahí. Lo que escribes va a la columna de verdad; el texto
+sale de las columnas y nunca al revés, que si no acaban contándose cosas
+distintas. Si añades una segunda fila, el formulario avisa de que ese par ya no
+va a decir nada.
+
 El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
 objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la
 báscula y mantiene la pantalla encendida. Al marcar «dejó de gotear» calcula el
@@ -155,8 +164,14 @@ el endpoint de subida, no entra por JSON) · `url`
 
 `id` · `fecha` · `cafe_id` · `dias_tueste` · `dosis_g` · `agua_g` · `ratio` ·
 `temp_c` · `molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` ·
-`variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
+`extraido_g` · `variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
 `siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper` · `borrada_en`
+
+`extraido_g`: lo que acabó en la taza. Con el agua y la dosis sale la
+**retención** —los gramos que se queda el lecho por gramo de café—, que en V60
+ronda 2. Fuera de la horquilla no dice que la taza esté mala: dice que algo se
+midió mal, y una medida torcida invalida la comparación con las demás. Nunca
+puede pasar del agua; el servidor lo rechaza con 422.
 
 `dripper`: `v60-02-plastico` | `v60-02-ceramica`. Lista cerrada porque entra en
 la detección de pares, y una errata parecería un cambio de variable. La
@@ -245,12 +260,18 @@ Retirar el dripper al terminar el goteo.
 | Síntoma | Qué mover |
 |---|---|
 | Amargo, seco | Moler más grueso, o bajar temperatura |
-| Plano, aguado, a cartón | Moler más fino, o subir temperatura |
+| Plano, a cartón | Moler más fino, o subir temperatura |
+| Aguado, sin cuerpo | Moler más fino, o subir la dosis dejando el agua |
 | Poca acidez, quiero más dulzor | Fase 1 desigual: 50-70 o 40-80 |
 | Quiero más cuerpo | Fase 2 en 2 vertidos (90-90) |
 | Quiero más claridad y fuerza | Fase 2 en 3 vertidos (60-60-60) |
 
 Una variable por extracción. Si mueves dos, el dato no sirve.
+
+`aguado` es un defecto y el cuerpo no: una taza puede tener poco cuerpo y estar
+buena. Está en la lista porque, cuando molesta, molesta como los demás y tiene
+palanca propia. Para describir el cuerpo sin que sea un problema están las
+notas de cata.
 
 ## Sugerencias
 
@@ -264,8 +285,17 @@ siguiente. No hay ningún modelo detrás, y es deliberado:
   controlada. Con dos pares en la misma dirección empieza a informar: «bajar
   `temp_c` movió la nota +1.5 de media». Una regresión sobre estos datos daría
   coeficientes de ruido con pinta de precisión.
+- **Extrapolación.** Solo si las reglas callan. `equilibrado` no tiene palanca,
+  así que una taza correcta y sosa se quedaba sin propuesta: ahí se mira el
+  último par limpio de ese café y se sigue por el eje que ya se movió —otro
+  paso en la misma dirección si no empeoró, media vuelta si empeoró—. Nunca
+  sobre una receta o un molinillo: de esos no se sabe cuál sería el siguiente.
 - **Cobertura.** Qué valores ya has probado con ese café, para no repetir sin
   darte cuenta.
+
+La principal se guarda en `siguiente_ajuste` **si no mandas uno**. Lo que
+escribas manda siempre; el automático solo rellena el hueco, que es el campo
+que le da continuidad a la bitácora y el que se quedaba vacío.
 
 Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
 `api/src/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando

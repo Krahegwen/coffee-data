@@ -50,6 +50,8 @@ export interface Extraccion {
   siguiente_ajuste: string | null
   receta_id: string | null
   dripper: string | null
+  /** Lo que acabó en la taza. Con el agua y la dosis da la retención. */
+  extraido_g: number | null
 }
 
 export interface Paso {
@@ -116,6 +118,7 @@ export interface NuevaExtraccion {
   dosis_g?: number
   agua_g?: number
   drawdown_s?: number
+  extraido_g?: number
   receta_id?: string
   dripper?: string
   notas_cata?: string

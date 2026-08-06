@@ -6,7 +6,9 @@ import {
   autorizado, cabeceraDeCierre, cabeceraDeSesion, tokenDe, tokenDeCookie,
 } from "../src/auth.js";
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
-import { avisosDe, cambiosDe, cobertura, efectos, pares, sugerir, textoCorto } from "../src/sugerencias.js";
+import {
+  avisosDe, cambiosDe, cobertura, efectos, extrapolar, pares, retencion, sugerir, textoCorto,
+} from "../src/sugerencias.js";
 import {
   claveDeFoto, fechaValida, MAX_FOTO_BYTES, slugDe, validarCafe,
   validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
@@ -244,6 +246,93 @@ describe("palancas por defecto", () => {
   it("no repite la misma variable dos veces", () => {
     const variables = cambiosDe(extraccion({ defecto: "amargor", drawdown_s: 95 })).map((c) => c.variable);
     assert.equal(variables.length, new Set(variables).size);
+  });
+});
+
+describe("cuerpo aguado", () => {
+  it("propone moler más fino y, si no, subir la dosis", () => {
+    const cambios = cambiosDe(extraccion({ defecto: "aguado" }));
+    assert.deepEqual(cambios.map((c) => `${c.variable} ${c.cambio}`), ["clics -2", "dosis_g +1"]);
+  });
+});
+
+describe("retención", () => {
+  const conTaza = (extraido) => extraccion({ agua_g: 300, dosis_g: 20, extraido_g: extraido });
+
+  it("son los gramos de agua que se queda el lecho por gramo de café", () => {
+    assert.equal(retencion(conTaza(260)), 2);
+  });
+
+  it("no se calcula sin la cantidad extraída", () => {
+    assert.equal(retencion(extraccion()), null);
+  });
+
+  it("una retención normal no dice nada", () => {
+    assert.deepEqual(avisosDe(conTaza(260)), []);
+  });
+
+  it("una retención imposible delata la medida, no la taza", () => {
+    const avisos = avisosDe(conTaza(295));
+    assert.ok(avisos.some((a) => a.includes("retención")));
+  });
+});
+
+describe("extrapolar cuando no hay defecto", () => {
+  const equilibrada = (campos) => extraccion({ defecto: "equilibrado", nota: 7, ...campos });
+
+  it("sigue por el eje que se movió si no empeoró", () => {
+    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91 })];
+    const siguiente = extrapolar(historico[1], historico);
+    assert.equal(siguiente.variable, "temp_c");
+    assert.equal(siguiente.cambio, "-3");
+  });
+
+  it("da media vuelta si el último cambio empeoró la nota", () => {
+    const historico = [
+      equilibrada({ id: 1, temp_c: 94, nota: 8 }),
+      equilibrada({ id: 2, temp_c: 91, nota: 6 }),
+    ];
+    assert.equal(extrapolar(historico[1], historico).cambio, "+3");
+  });
+
+  it("no se mete si hay defecto: para eso están las palancas", () => {
+    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91, defecto: "amargor" })];
+    assert.equal(extrapolar(historico[1], historico), null);
+  });
+
+  it("no se mete si la taza ya está buena", () => {
+    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91, nota: 9 })];
+    assert.equal(extrapolar(historico[1], historico), null);
+  });
+
+  it("calla si no hay ningún par del que tirar", () => {
+    const sola = equilibrada({ id: 1 });
+    assert.equal(extrapolar(sola, [sola]), null);
+  });
+
+  it("no extrapola sobre lo que no tiene salto conocido", () => {
+    const historico = [
+      equilibrada({ id: 1, receta_id: "kasuya-46-base" }),
+      equilibrada({ id: 2, receta_id: "kasuya-46-claridad" }),
+    ];
+    assert.equal(extrapolar(historico[1], historico), null);
+  });
+
+  it("solo habla cuando las reglas callan", () => {
+    // Con goteo corto hay palanca, así que la extrapolación no pinta nada.
+    const historico = [
+      equilibrada({ id: 1, temp_c: 94 }),
+      equilibrada({ id: 2, temp_c: 91, drawdown_s: 15 }),
+    ];
+    const { cambios } = sugerir(historico[1], historico);
+    assert.equal(cambios.length, 1);
+    assert.equal(cambios[0].variable, "clics");
+    assert.ok(cambios[0].porque.includes("de largo"));
+  });
+
+  it("y la principal acaba en siguiente_ajuste", () => {
+    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91 })];
+    assert.equal(textoCorto(sugerir(historico[1], historico)), "temp_c -3");
   });
 });
 

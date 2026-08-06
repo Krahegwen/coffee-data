@@ -47,8 +47,24 @@ export const PALANCAS = {
     ["dosis_g", "+1", "o subir la dosis"],
   ],
   carton: [["clics", "-2", "si el café está fresco, moler más fino"]],
+  aguado: [
+    ["clics", "-2", "sin cuerpo: moler más fino para extraer más"],
+    ["dosis_g", "+1", "o subir la dosis y dejar el agua donde está"],
+  ],
   equilibrado: [],
 };
+
+/**
+ * Cuánto se mueve cada variable cuando no hay defecto que corregir y solo se
+ * quiere seguir explorando. Son los mismos saltos que usan las palancas.
+ */
+export const PASOS = { temp_c: 3, clics: 2, dosis_g: 1 };
+
+/**
+ * Agua que se queda en el lecho y el filtro, en gramos por gramo de café. En
+ * V60 ronda 2; fuera de esta horquilla lo raro no es la taza, es la medida.
+ */
+export const RETENCION_NORMAL = [1.5, 2.6];
 
 /** Número o null. */
 function num(valor) {
@@ -91,7 +107,32 @@ export function avisosDe(extraccion, historico = []) {
     avisos.push("a cartón casi siempre es café pasado, no extracción");
   }
 
+  const retenido = retencion(extraccion);
+  if (retenido !== null) {
+    const [minimo, maximo] = RETENCION_NORMAL;
+    if (retenido < minimo || retenido > maximo) {
+      avisos.push(
+        `retención de ${retenido.toFixed(1)} g por gramo de café (lo normal es ` +
+          `${minimo}-${maximo}): repasa el agua, la dosis o lo que pesaste en la ` +
+          "jarra, porque con una medida torcida esta extracción no compara con las demás",
+      );
+    }
+  }
+
   return avisos;
+}
+
+/**
+ * Agua que no llegó a la taza, por gramo de café. Es la única lectura que
+ * cruza lo que echaste con lo que sacaste, y sirve de comprobación: no dice si
+ * la taza está buena, dice si las medidas se sostienen.
+ */
+export function retencion(extraccion) {
+  const agua = num(extraccion.agua_g);
+  const extraido = num(extraccion.extraido_g);
+  const dosis = num(extraccion.dosis_g);
+  if (agua === null || extraido === null || dosis === null || dosis <= 0) return null;
+  return (agua - extraido) / dosis;
 }
 
 export function cambiosDe(extraccion) {
@@ -206,10 +247,57 @@ export function cobertura(cafeId, historico) {
 
 // --- salida ----------------------------------------------------------------
 
+/**
+ * Qué probar cuando no hay defecto que corregir pero tampoco es para repetir.
+ *
+ * Es el hueco que dejaban las palancas: `equilibrado` no tiene ninguna, así
+ * que una taza correcta y sosa no recibía ninguna propuesta y la bitácora se
+ * quedaba sin siguiente paso. Aquí se mira el último par limpio de ese café y
+ * se sigue por el eje que ya se movió: si no empeoró, otro paso en la misma
+ * dirección para ver dónde está el techo; si empeoró, media vuelta.
+ *
+ * Solo se extrapola sobre variables con salto conocido. De un cambio de
+ * receta o de molinillo no se sabe cuál sería «el siguiente».
+ */
+export function extrapolar(extraccion, historico = []) {
+  if (extraccion.defecto !== "equilibrado") return null;
+  if ((num(extraccion.nota) ?? 0) >= NOTA_BUENA) return null;
+
+  const propios = pares(historico).filter((p) => p.cafe_id === extraccion.cafe_id);
+  const ultimo = propios[propios.length - 1];
+  if (!ultimo) return null;
+
+  const paso = PASOS[ultimo.variable];
+  if (!paso || ultimo.direccion === "cambiar") return null;
+
+  const sigue = ultimo.delta_nota >= 0;
+  const hacia = sigue
+    ? ultimo.direccion
+    : ultimo.direccion === "bajar" ? "subir" : "bajar";
+
+  const delta = ultimo.delta_nota > 0 ? `+${ultimo.delta_nota}` : String(ultimo.delta_nota);
+  return {
+    variable: ultimo.variable,
+    cambio: `${hacia === "bajar" ? "-" : "+"}${paso}`,
+    porque: sigue
+      ? `sin defecto pero sin nota: ${ultimo.variable} ${ultimo.direccion} salió ${delta}, ` +
+        "así que otro paso por ahí para ver dónde está el techo"
+      : `sin defecto pero sin nota: ${ultimo.variable} ${ultimo.direccion} salió ${delta}, ` +
+        "así que media vuelta",
+  };
+}
+
 export function sugerir(extraccion, historico = []) {
+  const cambios = cambiosDe(extraccion);
+  // La extrapolación es el último recurso: solo habla si las reglas callan.
+  if (!cambios.length) {
+    const siguiente = extrapolar(extraccion, historico);
+    if (siguiente) cambios.push(siguiente);
+  }
+
   return {
     avisos: avisosDe(extraccion, historico),
-    cambios: cambiosDe(extraccion),
+    cambios,
     efectos: efectos(historico),
     cobertura: cobertura(extraccion.cafe_id, historico),
     conforme:

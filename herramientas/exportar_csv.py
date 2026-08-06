@@ -34,8 +34,8 @@ EXPORTS = [
 COLUMNAS_EXTRACCIONES = [
     "id", "fecha", "cafe_id", "dias_tueste", "dosis_g", "agua_g", "ratio",
     "temp_c", "molinillo", "clics", "metodo", "reparto", "tiempo_total",
-    "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
-    "receta_id", "drawdown_s", "dripper", "borrada_en",
+    "extraido_g", "variable_cambiada", "defecto", "notas_cata", "nota",
+    "siguiente_ajuste", "receta_id", "drawdown_s", "dripper", "borrada_en",
 ]
 
 

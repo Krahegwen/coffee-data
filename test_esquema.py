@@ -113,6 +113,34 @@ def test_el_defecto_es_una_lista_cerrada(db):
         insertar_extraccion(db, defecto="'quemado'")
 
 
+def test_aguado_es_un_defecto_valido(db):
+    insertar_extraccion(db, defecto="'aguado'")
+    fila = db.execute("SELECT defecto FROM extracciones ORDER BY id DESC LIMIT 1").fetchone()
+    assert fila[0] == "aguado"
+
+
+def test_rehacer_la_tabla_no_se_llevo_por_delante_la_semilla(db):
+    """La migración de `aguado` recrea extracciones entera: que los id sigan."""
+    fila = db.execute("SELECT id, cafe_id, temp_c FROM extracciones WHERE id = 1").fetchone()
+    assert fila == (1, "gary", 94)
+    siguiente = db.execute("SELECT seq FROM sqlite_sequence WHERE name = 'extracciones'").fetchone()
+    assert siguiente[0] >= 1
+
+
+def test_lo_extraido_tiene_que_ser_positivo(db):
+    insertar_extraccion(db, extraido_g="260")
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, extraido_g="0")
+
+
+def test_la_vista_saca_lo_extraido(db):
+    insertar_extraccion(db, extraido_g="260")
+    fila = db.execute(
+        "SELECT extraido_g FROM v_extracciones ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert fila[0] == 260
+
+
 def test_el_dripper_es_una_lista_cerrada(db):
     with pytest.raises(sqlite3.IntegrityError):
         insertar_extraccion(db, dripper="'chemex'")

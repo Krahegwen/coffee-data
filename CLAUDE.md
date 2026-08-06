@@ -48,6 +48,13 @@ No mandes `id`, `ratio`, `dias_tueste` ni `reparto`: los calcula el servidor.
 El `reparto` sale de escalar la receta al agua real, así que solo se manda si
 ese día te desviaste de la receta.
 
+`siguiente_ajuste` **tampoco hace falta**: si no lo mandas, el servidor guarda
+la sugerencia principal. Lo que escribas manda siempre sobre eso.
+
+`extraido_g` es lo que acabó en la taza. Es opcional, pero con el agua y la
+dosis da la retención (unos 2 g por gramo de café en V60) y el servidor avisa
+si se sale, que ahí lo que falla es la medida y no el café.
+
 Si falta algún obligatorio (`cafe_id`, `temp_c`, `clics`, `tiempo_total`,
 `variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
 

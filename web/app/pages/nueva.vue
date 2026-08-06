@@ -3,23 +3,23 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 useHead({ title: 'Registrar extracción' })
 
-const { cafes, recetas, crear } = useApi()
+import { DEFECTOS, DRIPPERS, VARIABLES } from '~/composables/textos'
+
+const { cafes, recetas, extracciones, crear } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
+const { data: historial } = await useAsyncData('ext-form', () => extracciones())
 
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
-
-const DEFECTOS = ['equilibrado', 'amargor', 'astringente', 'plano', 'agrio', 'salado', 'carton']
-const DRIPPERS = ['v60-02-plastico', 'v60-02-ceramica']
 
 const q = route.query
 const numero = (v: unknown, porDefecto: number) => (v === undefined ? porDefecto : Number(v))
 
 // La receta base del README, salvo lo que traiga el cronómetro en la URL.
-const form = reactive({
+const form = reactive<Record<string, unknown>>({
   cafe_id: String(q.cafe ?? ''),
   dosis_g: numero(q.dosis, 20),
   agua_g: numero(q.agua, 300),
@@ -29,10 +29,79 @@ const form = reactive({
   dripper: 'v60-02-plastico',
   tiempo_total: String(q.tiempo ?? ''),
   drawdown_s: (q.drawdown === undefined ? '' : Number(q.drawdown)) as number | '',
+  extraido_g: '' as number | '',
   variable_cambiada: '',
   defecto: 'equilibrado',
   notas_cata: '',
   nota: 7,
+})
+
+/** La última de este café: de ahí salen los valores «de antes». */
+const anterior = computed(
+  () => (historial.value ?? []).find((e) => e.cafe_id === form.cafe_id) ?? null,
+)
+
+const cambiadas = ref<string[]>([])
+
+/** Las variables que son de elegir, no de teclear. */
+const opciones = computed(() => ({
+  receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
+  dripper: Object.entries(DRIPPERS).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+}))
+
+/*
+ * Se arranca con la anterior puesta: el protocolo es repetir y mover una sola
+ * cosa, así que lo que se teclea debería ser justo esa cosa. Lo que traiga el
+ * cronómetro en la URL manda sobre esto.
+ */
+const DESDE_LA_URL: Record<string, string> = {
+  dosis_g: 'dosis', agua_g: 'agua', receta_id: 'receta',
+}
+
+watch(anterior, (previa) => {
+  if (!previa) return
+  for (const clave of Object.keys(VARIABLES)) {
+    const enUrl = DESDE_LA_URL[clave]
+    if (enUrl && q[enUrl] !== undefined) continue
+    const valor = (previa as Record<string, unknown>)[clave]
+    if (valor !== null && valor !== undefined) form[clave] = valor
+  }
+}, { immediate: true })
+
+const nombreCorto = (clave: string) =>
+  (VARIABLES[clave as keyof typeof VARIABLES] ?? clave).replace(/\s*\(.*\)$/, '')
+
+function comoTexto(clave: string, valor: unknown) {
+  if (valor === null || valor === undefined || valor === '') return '—'
+  const lista = (opciones.value as Record<string, { valor: string; etiqueta: string }[]>)[clave]
+  return lista?.find((o) => o.valor === String(valor))?.etiqueta ?? String(valor)
+}
+
+/** «Temperatura 91 → 88». Sale de los valores, nunca al revés. */
+const textoVariables = computed(() =>
+  cambiadas.value
+    .map((c) => `${nombreCorto(c)} ${comoTexto(c, anterior.value?.[c as keyof typeof anterior.value])} → ${comoTexto(c, form[c])}`)
+    .join(' · '),
+)
+
+watchEffect(() => {
+  if (cambiadas.value.length) {
+    form.variable_cambiada = textoVariables.value
+    return
+  }
+  // «basal» se pone y se quita solo: solo es verdad mientras no haya nada
+  // anterior con lo que comparar. Si cambias de bolsa, se va con ella.
+  if (!anterior.value && !form.variable_cambiada) form.variable_cambiada = 'basal'
+  if (anterior.value && form.variable_cambiada === 'basal') form.variable_cambiada = ''
+})
+
+/** Lo que se queda el lecho, por gramo de café. El juicio lo da el servidor. */
+const retencion = computed(() => {
+  const extraido = Number(form.extraido_g)
+  const agua = Number(form.agua_g)
+  const dosis = Number(form.dosis_g)
+  if (!extraido || !agua || !dosis) return null
+  return (agua - extraido) / dosis
 })
 
 const desdeCrono = computed(() => q.tiempo !== undefined)
@@ -58,7 +127,7 @@ async function iniciarSesion() {
 }
 
 const ratio = computed(() =>
-  form.dosis_g > 0 ? (form.agua_g / form.dosis_g).toFixed(1) : '—',
+  Number(form.dosis_g) > 0 ? (Number(form.agua_g) / Number(form.dosis_g)).toFixed(1) : '—',
 )
 
 async function enviar() {
@@ -67,28 +136,32 @@ async function enviar() {
   enviando.value = true
   try {
     const datos: NuevaExtraccion = {
-      cafe_id: form.cafe_id,
-      temp_c: form.temp_c,
-      clics: form.clics,
-      tiempo_total: form.tiempo_total,
-      variable_cambiada: form.variable_cambiada,
-      defecto: form.defecto,
-      nota: form.nota,
-      dosis_g: form.dosis_g,
-      agua_g: form.agua_g,
-      receta_id: form.receta_id,
-      dripper: form.dripper,
+      cafe_id: String(form.cafe_id),
+      temp_c: Number(form.temp_c),
+      clics: Number(form.clics),
+      tiempo_total: String(form.tiempo_total),
+      variable_cambiada: String(form.variable_cambiada),
+      defecto: String(form.defecto),
+      nota: Number(form.nota),
+      dosis_g: Number(form.dosis_g),
+      agua_g: Number(form.agua_g),
+      receta_id: String(form.receta_id),
+      dripper: String(form.dripper),
     }
     if (form.drawdown_s !== '') datos.drawdown_s = Number(form.drawdown_s)
-    if (form.notas_cata.trim()) datos.notas_cata = form.notas_cata.trim()
+    if (form.extraido_g !== '') datos.extraido_g = Number(form.extraido_g)
+    if (String(form.notas_cata).trim()) datos.notas_cata = String(form.notas_cata).trim()
 
     resultado.value = await crear(datos)
     // Lo que no se repite entre extracciones se limpia; el resto se queda,
-    // que lo normal es cambiar una cosa y volver a medir.
+    // que lo normal es cambiar una cosa y volver a medir. Las variables
+    // cambiadas también: la de ahora ya pasó a ser el punto de partida.
     form.tiempo_total = ''
     form.drawdown_s = ''
+    form.extraido_g = ''
     form.variable_cambiada = ''
     form.notas_cata = ''
+    cambiadas.value = []
   } catch (fallo) {
     errores.value = erroresDe(fallo)
   } finally {
@@ -148,7 +221,9 @@ async function enviar() {
     <label>
       Dripper
       <select v-model="form.dripper">
-        <option v-for="d in DRIPPERS" :key="d" :value="d">{{ d }}</option>
+        <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
+          {{ etiqueta }}
+        </option>
       </select>
     </label>
 
@@ -158,14 +233,35 @@ async function enviar() {
     </div>
 
     <label>
-      Variable cambiada
-      <input v-model="form.variable_cambiada" placeholder="91 °C" required>
+      En la taza (g)
+      <input v-model="form.extraido_g" type="number" step="1" min="1" placeholder="260">
+    </label>
+    <p v-if="retencion !== null" class="meta">
+      Se queda {{ retencion.toFixed(1) }} g de agua por gramo de café
+    </p>
+
+    <h3>Variable cambiada</h3>
+    <VariablesCambiadas
+      v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
+      @cambia="(clave, valor) => (form[clave] = valor)"
+    />
+    <label>
+      <!-- Con variables elegidas el texto lo escribe la lista de arriba; sin
+           ellas queda libre, que hay cambios que no son una columna: la
+           báscula nueva, el agua de otra botella, la primera de la bolsa. -->
+      Queda como
+      <input
+        v-model="form.variable_cambiada" :readonly="cambiadas.length > 0"
+        placeholder="basal" required
+      >
     </label>
 
     <label>
       Defecto
       <select v-model="form.defecto">
-        <option v-for="d in DEFECTOS" :key="d" :value="d">{{ d }}</option>
+        <option v-for="(etiqueta, clave) in DEFECTOS" :key="clave" :value="clave">
+          {{ etiqueta }}
+        </option>
       </select>
     </label>
 
@@ -218,7 +314,18 @@ async function enviar() {
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 
+h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--suave);
+  margin: 0.5rem 0 0;
+}
+
 form { display: flex; flex-direction: column; gap: 0.85rem; }
+
+/* Sale del formulario, no se toca: es lo que ya está guardado. */
+input[readonly] { color: var(--suave); background: transparent; }
 
 label {
   display: flex;

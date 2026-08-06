@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
+import { DEFECTOS, DRIPPERS } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -15,13 +16,10 @@ const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
 
 const original = computed(() => (historial.value ?? []).find((e) => e.id === id) ?? null)
 
-const DEFECTOS = ['equilibrado', 'amargor', 'astringente', 'plano', 'agrio', 'salado', 'carton']
-const DRIPPERS = ['v60-02-plastico', 'v60-02-ceramica']
-
 const EDITABLES = [
   'fecha', 'cafe_id', 'dosis_g', 'agua_g', 'temp_c', 'clics', 'receta_id',
-  'reparto', 'dripper', 'tiempo_total', 'drawdown_s', 'variable_cambiada',
-  'defecto', 'notas_cata', 'nota', 'siguiente_ajuste',
+  'reparto', 'dripper', 'tiempo_total', 'drawdown_s', 'extraido_g',
+  'variable_cambiada', 'defecto', 'notas_cata', 'nota', 'siguiente_ajuste',
 ] as const
 
 const form = reactive<Record<string, any>>({})
@@ -148,12 +146,17 @@ async function retirar() {
         <label>Goteo (s)<input v-model="form.drawdown_s" type="number" step="1" min="0" inputmode="numeric"></label>
       </div>
 
-      <label>
-        Dripper
-        <select v-model="form.dripper">
-          <option v-for="d in DRIPPERS" :key="d" :value="d">{{ d }}</option>
-        </select>
-      </label>
+      <div class="pareja">
+        <label>
+          Dripper
+          <select v-model="form.dripper">
+            <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
+              {{ etiqueta }}
+            </option>
+          </select>
+        </label>
+        <label>En la taza (g)<input v-model="form.extraido_g" type="number" step="1" min="1" inputmode="numeric"></label>
+      </div>
 
       <label>Reparto<input v-model="form.reparto" placeholder="60-60-90-90"></label>
       <label>Variable cambiada<input v-model="form.variable_cambiada"></label>
@@ -161,7 +164,9 @@ async function retirar() {
       <label>
         Defecto
         <select v-model="form.defecto">
-          <option v-for="d in DEFECTOS" :key="d" :value="d">{{ d }}</option>
+          <option v-for="(etiqueta, clave) in DEFECTOS" :key="clave" :value="clave">
+            {{ etiqueta }}
+          </option>
         </select>
       </label>
 

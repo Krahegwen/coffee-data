@@ -23,8 +23,36 @@ export const ESTILOS = {
   centro: 'al centro',
 } as const
 
+/** Lo que le pasa a la taza. La clave va sin acentos; la etiqueta, con ellos. */
+export const DEFECTOS = {
+  equilibrado: 'Equilibrado',
+  amargor: 'Amargor',
+  astringente: 'Astringente',
+  plano: 'Plano',
+  agrio: 'Agrio',
+  salado: 'Salado',
+  carton: 'Cartón',
+  aguado: 'Aguado (sin cuerpo)',
+} as const
+
+/** Lo que se puede tocar de una extracción a la siguiente. */
+export const VARIABLES = {
+  temp_c: 'Temperatura (°C)',
+  clics: 'Clics',
+  dosis_g: 'Dosis (g)',
+  agua_g: 'Agua (g)',
+  receta_id: 'Receta',
+  dripper: 'Dripper',
+} as const
+
+export const DRIPPERS = {
+  'v60-02-plastico': 'V60 02 plástico',
+  'v60-02-ceramica': 'V60 02 cerámica',
+} as const
+
 export type Accion = keyof typeof ACCIONES
 export type Estilo = keyof typeof ESTILOS
+export type Variable = keyof typeof VARIABLES
 
 /**
  * Lo que se lee del paso: «Verter en espiral».
