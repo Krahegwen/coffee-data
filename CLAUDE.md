@@ -110,7 +110,16 @@ agua de referencia. Los tiempos tienen que ir en aumento, y toda receta
 necesita al menos un vertido o el cronómetro no sabría qué guiar.
 
 Editar una receta **no cambia las extracciones ya registradas**: cada una
-guardó su propio `reparto`.
+guardó su propio `reparto`. Para variar una que funciona, la app la duplica
+desde la ficha: es el `POST` de siempre con el formulario relleno.
+
+Borrar sí es de verdad —se van receta y pasos, sin papelera—, y el servidor
+devuelve 409 si alguna extracción la usa, retiradas incluidas.
+
+```bash
+curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
+  -H "Authorization: Bearer $COFFEE_TOKEN"
+```
 
 ## Estructura
 

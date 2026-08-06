@@ -9,7 +9,7 @@ import type { PasoEditable } from '~/components/RecetaPasos.vue'
  * (`/recetas/nueva?de=<id>`): no hay endpoint de copia porque no hace falta
  * ninguno, el POST de siempre ya recibe la receta entera con sus pasos.
  */
-const { recetas, crearReceta, guardarReceta } = useApi()
+const { recetas, crearReceta, guardarReceta, borrarReceta } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const router = useRouter()
@@ -40,6 +40,8 @@ const errores = ref<string[]>([])
 const guardado = ref(false)
 const tokenVisible = ref('')
 const errorSesion = ref('')
+const dialogoBorrar = ref<HTMLDialogElement | null>(null)
+const borrando = ref(false)
 
 watchEffect(() => {
   // Al duplicar se copia todo menos la identidad: el id no se puede cambiar
@@ -102,6 +104,27 @@ async function enviar() {
     enviando.value = false
   }
 }
+
+/**
+ * Borrar de verdad. El servidor se niega si alguna extracción usa la receta,
+ * así que el aviso del modal no es la única defensa: si dice que no, el
+ * motivo sale en la lista de errores.
+ */
+async function borrar() {
+  errores.value = []
+  borrando.value = true
+  try {
+    await borrarReceta(id)
+    dialogoBorrar.value?.close()
+    await recargarCatalogo()
+    await router.push('/recetas')
+  } catch (fallo) {
+    dialogoBorrar.value?.close()
+    errores.value = erroresDe(fallo)
+  } finally {
+    borrando.value = false
+  }
+}
 </script>
 
 <template>
@@ -157,7 +180,31 @@ async function enviar() {
         Al guardar, los pasos reemplazan a los que había. Las extracciones ya
         registradas no cambian: guardaron su propio <code>reparto</code>.
       </p>
+
+      <!-- Abajo y solo: separado del botón de guardar a propósito, para que no
+           se pulse con el pulgar buscando el de al lado. -->
+      <button
+        v-if="!esNueva" type="button" class="peligro"
+        :disabled="borrando" @click="dialogoBorrar?.showModal()"
+      >
+        Borrar receta
+      </button>
     </form>
+
+    <dialog ref="dialogoBorrar" @cancel="dialogoBorrar?.close()">
+      <h3>¿Borrar «{{ original?.nombre }}»?</h3>
+      <p>
+        Esta no tiene papelera como las extracciones: se van la receta y sus
+        pasos, y no hay vuelta atrás. Si alguna extracción la usó, el servidor
+        se negará.
+      </p>
+      <div class="botones">
+        <button type="button" class="cancelar" @click="dialogoBorrar?.close()">Cancelar</button>
+        <button type="button" class="peligro" :disabled="borrando" @click="borrar">
+          {{ borrando ? 'Borrando…' : 'Borrar' }}
+        </button>
+      </div>
+    </dialog>
   </template>
 
   <section v-if="errores.length" class="tarjeta errores">
@@ -195,6 +242,24 @@ button {
 }
 
 button:disabled { opacity: 0.5; cursor: default; }
+
+.peligro { background: #c2410c; }
+.cancelar { background: transparent; color: var(--tinta); border: 1px solid var(--linea); }
+
+dialog {
+  border: 1px solid var(--linea); border-radius: 0.8rem;
+  background: var(--tarjeta); color: var(--tinta); padding: 1rem;
+  /* Como en la ficha del café: en el móvil vw no mide lo que se ve y el
+     modal se salía a lo ancho. */
+  max-width: min(28rem, calc(100% - 2rem)); margin: auto;
+  overflow-wrap: anywhere;
+}
+
+dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; text-transform: none; letter-spacing: normal; color: var(--tinta); }
+dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
+
+.botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 
 .tarjeta {
   background: var(--tarjeta); border: 1px solid var(--linea);

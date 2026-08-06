@@ -161,6 +161,12 @@ export function useApi() {
       body: datos,
     })
 
+  /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
+  const borrarReceta = (id: string) =>
+    $fetch<{ borrada: boolean; id: string }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+
   /** Da de alta una bolsa. */
   const crearCafe = (datos: Record<string, unknown>) =>
     $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
@@ -208,7 +214,7 @@ export function useApi() {
   return {
     base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
-    crearReceta, guardarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
+    crearReceta, guardarReceta, borrarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
   }
 }
 

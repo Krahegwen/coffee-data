@@ -34,6 +34,7 @@ pnpm dev:web      # la app en :3000, con /api proxeado a :8787
 | `POST /api/cafes` | Da de alta una bolsa. Sin `id`, se deriva del nombre |
 | `POST /api/recetas` | Crea una receta con sus pasos |
 | `PUT /api/recetas/:id` | Guarda una receta. Los pasos **reemplazan** a los que había |
+| `DELETE /api/recetas/:id` | La borra con sus pasos. **Sin papelera**, y da 409 si alguna extracción la usa |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
 | `PATCH /api/extracciones/:id` | Corrige una extracción |
 | `DELETE /api/extracciones/:id` | La retira. **Borrado lógico**: la fila se queda |
@@ -317,6 +318,16 @@ sabría qué guiar.
 Editar una receta **no toca las extracciones ya registradas**: cada una guardó
 su propio `reparto` cuando se registró. La receta es la intención; el reparto
 es lo que echaste.
+
+Para partir de una que ya funciona, **duplicar**: el botón de la ficha abre el
+alta con todo relleno —nombre, ratio, notas y pasos— y el id vacío, que es lo
+único que no se puede cambiar luego. No hay endpoint de copia: es el `POST` de
+siempre con el formulario ya escrito.
+
+Borrar una receta **no tiene papelera**, al revés que las extracciones: una
+receta es una plantilla, no un dato observado. Y el servidor se niega con 409
+si alguna extracción la usa —retiradas incluidas—, porque sin la fila no
+habría forma de saber con qué se preparó aquella taza.
 
 ## El id de las bolsas
 

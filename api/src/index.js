@@ -377,6 +377,45 @@ async function guardarReceta(request, env, { id, nuevo }) {
   return json({ receta: { ...guardada, pasos: await pasosDe(env, recetaId) } }, nuevo ? 201 : 200);
 }
 
+/**
+ * Borra una receta y sus pasos. Este borrado sí es de verdad, no lógico como
+ * el de las extracciones: una receta no es un dato observado sino una
+ * plantilla, y una plantilla retirada solo ensuciaría la lista.
+ *
+ * Se niega si alguna extracción la usa, retiradas incluidas: siguen
+ * apuntando, y sin la fila no habría forma de saber con qué se preparó
+ * aquella taza. Para eso está editarla, o dejarla ahí sin usarla.
+ */
+async function borrarReceta(env, id) {
+  const existe = await env.DB.prepare("SELECT id FROM recetas WHERE id = ?").bind(id).first();
+  if (!existe) return json({ errores: [`no existe la receta '${id}'`] }, 404);
+
+  const usos = await env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM extracciones WHERE receta_id = ?",
+  )
+    .bind(id)
+    .first();
+
+  if (usos.total) {
+    const cuantas = usos.total === 1 ? "1 extracción" : `${usos.total} extracciones`;
+    return json(
+      {
+        errores: [
+          `la receta '${id}' la usan ${cuantas}, retiradas incluidas: no se puede borrar, ` +
+            "edítala o déjala ahí sin usarla",
+        ],
+      },
+      409,
+    );
+  }
+
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM recetas WHERE id = ?").bind(id),
+  ]);
+  return json({ borrada: true, id });
+}
+
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
 
@@ -389,6 +428,11 @@ async function enrutar(request, env, url, ruta) {
     if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     const id = decodeURIComponent(ruta.slice("/api/recetas/".length));
     return await guardarReceta(request, env, { id, nuevo: false });
+  }
+
+  if (ruta.startsWith("/api/recetas/") && request.method === "DELETE") {
+    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+    return await borrarReceta(env, decodeURIComponent(ruta.slice("/api/recetas/".length)));
   }
 
   if (ruta.startsWith("/api/extracciones/")) {
