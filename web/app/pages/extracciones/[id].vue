@@ -79,6 +79,9 @@ watchEffect(() => {
   sembrada = true
 })
 
+// Tocar un campo de arriba crea su fila si el valor se aleja de la anterior.
+useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> | null, cambiadas)
+
 /** Has metido mano en la tabla, acabe donde acabe. Lo dice el componente. */
 const manoseada = ref(false)
 

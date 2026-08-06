@@ -68,6 +68,13 @@ watch(anterior, (previa) => {
   }
 }, { immediate: true })
 
+// Tocar un campo de arriba crea su fila si el valor se aleja de la anterior.
+useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> | null, cambiadas)
+
+// Al cambiar de bolsa, las filas de la de antes no valen: sus «antes» eran de
+// otro café, y el formulario se rellena con la última de la nueva.
+watch(() => form.cafe_id, () => { cambiadas.value = [] })
+
 /** «Temperatura 91 → 88». Sale de los valores, nunca al revés. */
 const textoVariables = computed(() =>
   textoDeCambios(cambiadas.value, anterior.value, form, opciones.value),

@@ -143,6 +143,13 @@ decir «esto no pasó»; si solo desapareciera del texto, la columna se quedarí
 cambiada y las dos se contradirían. Sin extracción anterior no hay a dónde
 volver y el valor se queda como está.
 
+Y va en los dos sentidos: tocar el campo de siempre —el de Temperatura, el de
+Clics— **crea su fila** en cuanto el valor se aleja de la anterior. Devolverlo
+a su sitio, en cambio, **no la quita**: se queda con el mismo número a los dos
+lados hasta que recargues o cambies de pantalla. Una tabla que se encoge sola
+mientras escribes mueve de sitio lo que estás mirando, y basta pasar por un
+valor intermedio al teclear para perder la fila recién creada.
+
 De la portada se sale por una sola puerta, **preparar**. El paso previo del
 cronómetro —café, receta, dosis, agua y el guion escalado delante— acaba en dos
 salidas: al reloj, o al alta a mano con todo eso ya puesto. Hasta ahí se llega
