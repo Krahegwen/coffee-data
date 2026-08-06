@@ -1,10 +1,10 @@
 receta_id,orden,t_inicio_s,accion,estilo,agua_g,notas
-kasuya-46-base,1,0,verter,,60,Fase 1 - Bloom
+kasuya-46-base,1,0,verter,espiral,60,Fase 1 - Bloom
 kasuya-46-base,2,15,esperar,,0,
-kasuya-46-base,3,45,verter,,60,Fase 1
+kasuya-46-base,3,45,verter,espiral,60,Fase 1
 kasuya-46-base,4,60,esperar,,0,
-kasuya-46-base,5,90,verter,,90,Fase 2
+kasuya-46-base,5,90,verter,espiral,90,Fase 2
 kasuya-46-base,6,115,esperar,,0,
-kasuya-46-base,7,145,verter,,90,Fase 2
+kasuya-46-base,7,145,verter,espiral,90,Fase 2
 kasuya-46-base,8,170,esperar,,0,Hasta que deje de gotear
 kasuya-46-base,9,200,retirar,,0,Retirar el dripper
