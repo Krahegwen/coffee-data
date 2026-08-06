@@ -169,16 +169,16 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
     valores.drawdown_s = n;
   }
 
-  // Lo que acabó en la taza. Nunca puede ser más que el agua: lo que sube de
-  // ahí es que se pesó la jarra, o el agua, o las dos cosas mal.
+  // Lo que acabó en la taza.
   if (vacio(entrada.extraido_g)) {
     valores.extraido_g = null;
   } else {
     const n = numero(entrada.extraido_g);
     if (n === null || n <= 0) {
       errores.push("extraido_g debe ser un número mayor que 0");
-    } else if (valores.agua_g !== null && n > valores.agua_g) {
-      errores.push(`extraido_g (${n}) no puede pasar del agua (${valores.agua_g})`);
+    } else {
+      const imposible = extraidoImposible(n, valores.agua_g);
+      if (imposible) errores.push(imposible);
     }
     valores.extraido_g = n;
   }
@@ -445,6 +445,21 @@ export function validarFoto(cabecera, bytes) {
  */
 export function claveDeFoto(cafeId, extension, ahoraMs = Date.now()) {
   return `fotos/${cafeId}-${ahoraMs}.${extension}`;
+}
+
+/**
+ * Lo que cae en la taza nunca puede pasar del agua que echaste: lo que sube de
+ * ahí es que se pesó la jarra, o el agua, o las dos cosas mal.
+ *
+ * Vive suelta porque hacen falta las dos puertas. Al dar de alta, el agua
+ * viene en el mismo cuerpo; al corregir puede venir en el PATCH o estar ya
+ * guardada, y eso solo lo sabe quien tiene la fila delante.
+ */
+export function extraidoImposible(extraido, agua) {
+  if (extraido === null || extraido === undefined) return null;
+  if (agua === null || agua === undefined) return null;
+  if (extraido <= agua) return null;
+  return `extraido_g (${extraido}) no puede pasar del agua (${agua})`;
 }
 
 export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];

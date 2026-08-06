@@ -10,7 +10,7 @@ import {
   avisosDe, cambiosDe, cobertura, efectos, extrapolar, pares, retencion, sugerir, textoCorto,
 } from "../src/sugerencias.js";
 import {
-  claveDeFoto, fechaValida, MAX_FOTO_BYTES, slugDe, validarCafe,
+  claveDeFoto, extraidoImposible, fechaValida, MAX_FOTO_BYTES, slugDe, validarCafe,
   validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
 } from "../src/validacion.js";
 
@@ -253,6 +253,31 @@ describe("cuerpo aguado", () => {
   it("propone moler más fino y, si no, subir la dosis", () => {
     const cambios = cambiosDe(extraccion({ defecto: "aguado" }));
     assert.deepEqual(cambios.map((c) => `${c.variable} ${c.cambio}`), ["clics -2", "dosis_g +1"]);
+  });
+});
+
+describe("lo extraído contra el agua", () => {
+  it("pasarse del agua es imposible, no una taza rara", () => {
+    assert.ok(extraidoImposible(400, 300).includes("no puede pasar"));
+  });
+
+  it("justo el agua entero cuela: el lecho podría no quedarse nada", () => {
+    assert.equal(extraidoImposible(300, 300), null);
+  });
+
+  it("sin uno de los dos no hay nada que comparar", () => {
+    assert.equal(extraidoImposible(null, 300), null);
+    assert.equal(extraidoImposible(260, null), null);
+    assert.equal(extraidoImposible(undefined, undefined), null);
+  });
+
+  it("el alta lo rechaza con su mensaje", () => {
+    const { errores } = validarExtraccion({
+      cafe_id: "gary", temp_c: 91, clics: 28, tiempo_total: "3:30",
+      variable_cambiada: "prueba", defecto: "equilibrado", nota: 7,
+      agua_g: 300, extraido_g: 400,
+    });
+    assert.ok(errores.some((e) => e.includes("no puede pasar del agua")));
   });
 });
 

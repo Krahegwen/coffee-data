@@ -13,8 +13,8 @@ import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth
 import { guion, repartoDe } from "./recetas.js";
 import { sugerir, textoCorto } from "./sugerencias.js";
 import {
-  CAMPOS, CAMPOS_CAFE, claveDeFoto, validarCafe, validarCambiosExtraccion,
-  validarExtraccion, validarFoto, validarReceta,
+  CAMPOS, CAMPOS_CAFE, claveDeFoto, extraidoImposible, validarCafe,
+  validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
 } from "./validacion.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -291,8 +291,12 @@ async function servirFoto(env, clave) {
 
 /** Corrige una extracción. Solo toca los campos que lleguen. */
 async function editarExtraccion(request, env, id) {
-  const existe = await env.DB.prepare("SELECT id FROM extracciones WHERE id = ?").bind(id).first();
-  if (!existe) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+  const guardada = await env.DB.prepare(
+    "SELECT id, agua_g, extraido_g FROM extracciones WHERE id = ?",
+  )
+    .bind(id)
+    .first();
+  if (!guardada) return json({ errores: [`no existe la extracción #${id}`] }, 404);
 
   let cuerpo;
   try {
@@ -303,6 +307,14 @@ async function editarExtraccion(request, env, id) {
 
   const { valores, errores } = validarCambiosExtraccion(cuerpo);
   if (errores.length) return json({ errores }, 422);
+
+  // Aquí hace falta la fila: el agua puede venir en este PATCH o llevar
+  // guardada desde el alta, y cualquiera de las dos manda sobre lo extraído.
+  const imposible = extraidoImposible(
+    valores.extraido_g !== undefined ? valores.extraido_g : guardada.extraido_g,
+    valores.agua_g !== undefined ? valores.agua_g : guardada.agua_g,
+  );
+  if (imposible) return json({ errores: [imposible] }, 422);
 
   const columnas = CAMPOS.filter((c) => valores[c] !== undefined);
   const asignaciones = columnas.map((c) => `${c} = ?`).join(", ");
