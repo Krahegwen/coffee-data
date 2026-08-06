@@ -199,6 +199,12 @@ describe("guion para el cronómetro", () => {
     assert.equal(pasos[0].t_inicio_s, 0);
     assert.equal(pasos[5].t_inicio_s, null);
   });
+
+  it("lleva el estilo del vertido hasta el cronómetro", () => {
+    const conEstilo = [{ ...paso(1, "verter", 300, 0), estilo: "espiral" }];
+    assert.equal(guion(conEstilo, 300)[0].estilo, "espiral");
+    assert.equal(guion(BASE, 300)[0].estilo, null);
+  });
 });
 
 describe("palancas por defecto", () => {
@@ -657,6 +663,38 @@ describe("recetas", () => {
       { nuevo: true },
     );
     assert.ok(errores.some((e) => e.includes("acción no permitida")));
+  });
+
+  it("el vertido admite estilo, y sin estilo queda a null", () => {
+    const { pasos, errores } = validarReceta(
+      receta({ pasos: [
+        { accion: "verter", agua_g: 60, t_inicio_s: 0, estilo: "espiral" },
+        { accion: "verter", agua_g: 240, t_inicio_s: 45 },
+      ] }),
+      { nuevo: true },
+    );
+    assert.deepEqual(errores, []);
+    assert.equal(pasos[0].estilo, "espiral");
+    assert.equal(pasos[1].estilo, null);
+  });
+
+  it("rechaza estilos inventados", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [{ accion: "verter", agua_g: 300, t_inicio_s: 0, estilo: "zigzag" }] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("estilo no permitido")));
+  });
+
+  it("solo los vertidos llevan estilo", () => {
+    const { errores } = validarReceta(
+      receta({ pasos: [
+        { accion: "verter", agua_g: 300, t_inicio_s: 0 },
+        { accion: "esperar", t_inicio_s: 45, estilo: "espiral" },
+      ] }),
+      { nuevo: true },
+    );
+    assert.ok(errores.some((e) => e.includes("el estilo es de los vertidos")));
   });
 
   it("exige id con formato y nombre", () => {

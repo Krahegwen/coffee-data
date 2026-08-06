@@ -74,6 +74,8 @@ export function guion(pasos, aguaG) {
       orden: Number(paso.orden),
       t_inicio_s: t === null || t === undefined || t === "" ? null : Number(t),
       accion: paso.accion,
+      // Solo lo llevan los vertidos, y ni siquiera todos: null es lo normal.
+      estilo: paso.estilo ?? null,
       agua_g: paso.agua_g,
       acumulado_g: Math.round(total),
       lectura_fiable: !SIN_LECTURA_FIABLE.includes(paso.accion),

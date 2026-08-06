@@ -423,6 +423,9 @@ export function claveDeFoto(cafeId, extension, ahoraMs = Date.now()) {
 
 export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];
 
+/** Cómo se vierte. Es un atributo del vertido, no una acción aparte. */
+export const ESTILOS = ["espiral", "centro"];
+
 /**
  * Valida una receta con sus pasos.
  *
@@ -489,6 +492,14 @@ export function validarReceta(cuerpo, { nuevo }) {
       errores.push(`paso ${n}: solo 'verter' lleva gramos`);
     }
     paso.agua_g = agua ?? 0;
+
+    const estilo = vacio(crudo?.estilo) ? null : String(crudo.estilo).trim().toLowerCase();
+    if (estilo && !ESTILOS.includes(estilo)) {
+      errores.push(`paso ${n}: estilo no permitido ${JSON.stringify(crudo?.estilo)}. Válidos: ${ESTILOS.join(", ")}`);
+    } else if (estilo && accion !== "verter") {
+      errores.push(`paso ${n}: el estilo es de los vertidos, y '${accion}' no lo es`);
+    }
+    paso.estilo = estilo;
 
     if (vacio(crudo?.t_inicio_s)) {
       paso.t_inicio_s = null;

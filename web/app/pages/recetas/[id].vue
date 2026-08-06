@@ -32,7 +32,7 @@ useHead({
 
 const form = reactive({ id: '', nombre: '', ratio: 15 as number | '', notas: '' })
 const pasos = ref<PasoEditable[]>([
-  { accion: 'verter', agua_g: 60, t_inicio_s: 0, notas: '' },
+  { accion: 'verter', estilo: '', agua_g: 60, t_inicio_s: 0, notas: '' },
 ])
 
 const enviando = ref(false)
@@ -53,6 +53,7 @@ watchEffect(() => {
   form.notas = modelo.notas ?? ''
   pasos.value = modelo.pasos.map((p) => ({
     accion: p.accion,
+    estilo: p.estilo ?? '',
     agua_g: p.accion === 'verter' ? p.agua_g : '',
     t_inicio_s: p.t_inicio_s ?? '',
     notas: p.notas ?? '',
@@ -82,6 +83,7 @@ async function enviar() {
       notas: form.notas,
       pasos: pasos.value.map((p) => ({
         accion: p.accion,
+        estilo: p.estilo || null,
         agua_g: p.accion === 'verter' ? p.agua_g : 0,
         t_inicio_s: p.t_inicio_s,
         notas: p.notas,

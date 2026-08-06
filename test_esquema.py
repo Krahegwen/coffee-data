@@ -177,6 +177,36 @@ def test_un_vertido_sin_agua_no_cuela(db):
         )
 
 
+def test_el_vertido_admite_estilo(db):
+    db.execute(
+        "INSERT INTO pasos (receta_id, orden, accion, agua_g, estilo) "
+        "VALUES ('kasuya-46-base', 99, 'verter', 60, 'espiral')"
+    )
+    estilo = db.execute("SELECT estilo FROM pasos WHERE orden = 99").fetchone()[0]
+    assert estilo == "espiral"
+
+
+def test_un_estilo_inventado_no_cuela(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(
+            "INSERT INTO pasos (receta_id, orden, accion, agua_g, estilo) "
+            "VALUES ('kasuya-46-base', 99, 'verter', 60, 'zigzag')"
+        )
+
+
+def test_solo_los_vertidos_llevan_estilo(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(
+            "INSERT INTO pasos (receta_id, orden, accion, agua_g, estilo) "
+            "VALUES ('kasuya-46-base', 99, 'esperar', 0, 'espiral')"
+        )
+
+
+def test_los_pasos_de_siempre_se_quedan_sin_estilo(db):
+    sin_estilo = db.execute("SELECT COUNT(*) FROM pasos WHERE estilo IS NULL").fetchone()[0]
+    assert sin_estilo == db.execute("SELECT COUNT(*) FROM pasos").fetchone()[0]
+
+
 def test_la_accion_es_una_lista_cerrada(db):
     with pytest.raises(sqlite3.IntegrityError):
         db.execute(

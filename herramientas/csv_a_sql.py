@@ -25,7 +25,8 @@ TABLAS = [
     ]),
     ("recetas.csv", "recetas", ["id", "nombre", "ratio", "notas"]),
     ("pasos.csv", "pasos", [
-        "receta_id", "orden", "t_inicio_s", "accion", "agua_g", "notas",
+        "receta_id", "orden", "t_inicio_s", "accion", "estilo", "agua_g",
+        "notas",
     ]),
     ("extracciones.csv", "extracciones", [
         "id", "fecha", "cafe_id", "dosis_g", "agua_g", "temp_c", "molinillo",

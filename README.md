@@ -153,13 +153,24 @@ hay que mover la molienda.
 
 `recetas.csv`: `id` · `nombre` · `ratio` · `notas`
 
-`pasos.csv`: `receta_id` · `orden` · `t_inicio_s` · `accion` · `agua_g` · `notas`
+`pasos.csv`: `receta_id` · `orden` · `t_inicio_s` · `accion` · `estilo` ·
+`agua_g` · `notas`
 
 Una receta es una **lista de pasos**, no solo una lista de vertidos: agitar,
 meter la cuchara o esperar el goteo son pasos sin agua y hacen falta para guiar
 una extracción de verdad.
 
 `accion`: `verter` | `agitar` | `remover` | `esperar` | `retirar`
+
+`estilo`: `espiral` | `centro`, y vacío es «sin especificar». Es **cómo** se
+vierte, así que solo lo llevan los vertidos: un `esperar en espiral` no cuela.
+Va de atributo y no de acción aparte a propósito — si `verter_espiral` fuese
+una acción habría que repasar las catorce comparaciones con `verter` de las que
+salen los gramos, el acumulado, el reparto y el agua de referencia.
+
+En la base van las claves, no las frases: `espiral`, no `en espiral`. El
+castellano vive en `web/app/composables/textos.ts`, que es el fichero que se
+duplicará por idioma el día que haya i18n.
 
 Solo `verter` lleva gramos y solo `verter` escala con el agua: **la suma de los
 vertidos es el agua de referencia**, así que `60-60-90-90` sobre 300 g son
@@ -173,7 +184,7 @@ se rompería:
 
 | Acción | El peso | Qué debe hacer la app |
 |---|---|---|
-| `verter` | Sube | Objetivo **acumulado** («hasta 120 g»), que es como se vierte con báscula |
+| `verter` | Sube | Objetivo **acumulado** («hasta 120 g»), que es como se vierte con báscula. El `estilo` solo se lee: en espiral o al centro |
 | `agitar` | Ruido y picos | Ignorar la báscula, solo tiempo |
 | `remover` | **Sube**: la cuchara pesa mientras está dentro | Ignorar la báscula, o saltará el paso sola |
 | `esperar` | Meseta | La meseta **es** el fin del goteo: de ahí sale `drawdown_s` |

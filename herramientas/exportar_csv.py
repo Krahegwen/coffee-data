@@ -99,7 +99,8 @@ def exportar_recetas():
     return [
         ("recetas.csv", como_csv(filas_recetas, ["id", "nombre", "ratio", "notas"])),
         ("pasos.csv", como_csv(pasos, [
-            "receta_id", "orden", "t_inicio_s", "accion", "agua_g", "notas",
+            "receta_id", "orden", "t_inicio_s", "accion", "estilo", "agua_g",
+            "notas",
         ])),
     ]
 

@@ -57,6 +57,8 @@ export interface Paso {
   orden: number
   t_inicio_s: number | null
   accion: 'verter' | 'agitar' | 'remover' | 'esperar' | 'retirar'
+  /** Cómo se vierte. Solo lo llevan los vertidos, y ni todos. */
+  estilo: 'espiral' | 'centro' | null
   agua_g: number
   notas: string | null
 }
@@ -74,6 +76,7 @@ export interface PasoGuion {
   orden: number
   t_inicio_s: number | null
   accion: 'verter' | 'agitar' | 'remover' | 'esperar' | 'retirar'
+  estilo: 'espiral' | 'centro' | null
   agua_g: number
   acumulado_g: number
   /** Falso al agitar o remover: la cuchara pesa y el peso deja de valer. */

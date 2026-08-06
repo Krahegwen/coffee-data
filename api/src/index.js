@@ -362,8 +362,9 @@ async function guardarReceta(request, env, { id, nuevo }) {
     env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(recetaId),
     ...pasos.map((p) =>
       env.DB.prepare(
-        "INSERT INTO pasos (receta_id, orden, t_inicio_s, accion, agua_g, notas) VALUES (?, ?, ?, ?, ?, ?)",
-      ).bind(recetaId, p.orden, p.t_inicio_s, p.accion, p.agua_g, p.notas),
+        "INSERT INTO pasos (receta_id, orden, t_inicio_s, accion, agua_g, notas, estilo) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).bind(recetaId, p.orden, p.t_inicio_s, p.accion, p.agua_g, p.notas, p.estilo),
     ),
   ];
 

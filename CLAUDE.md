@@ -109,6 +109,12 @@ Solo `verter` lleva gramos; el resto van a 0. La suma de los vertidos es el
 agua de referencia. Los tiempos tienen que ir en aumento, y toda receta
 necesita al menos un vertido o el cronómetro no sabría qué guiar.
 
+Un vertido puede llevar `estilo`: `espiral` o `centro`. Es **cómo** se vierte,
+no una acción aparte, así que ningún otro paso lo admite. A la base va la clave
+(`espiral`); el castellano («en espiral») vive en
+`web/app/composables/textos.ts`, el catálogo que se duplicará por idioma
+cuando haya i18n. **Ningún texto visible se guarda en la base.**
+
 Editar una receta **no cambia las extracciones ya registradas**: cada una
 guardó su propio `reparto`. Para variar una que funciona, la app la duplica
 desde la ficha: es el `POST` de siempre con el formulario relleno.

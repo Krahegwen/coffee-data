@@ -7,6 +7,8 @@
  */
 export interface PasoEditable {
   accion: string
+  /** Vacío es «sin especificar», que es lo normal en los pasos de siempre. */
+  estilo: string
   agua_g: number | ''
   t_inicio_s: number | ''
   notas: string
@@ -32,10 +34,16 @@ function anadir() {
   const t = Number(ultimo?.t_inicio_s)
   pasos.value.push({
     accion: 'verter',
+    estilo: '',
     agua_g: '',
     t_inicio_s: Number.isFinite(t) ? t + 45 : 0,
     notas: '',
   })
+}
+
+/** El estilo es de los vertidos: si el paso deja de serlo, se va con él. */
+function alCambiarAccion(paso: PasoEditable) {
+  if (paso.accion !== 'verter') paso.estilo = ''
 }
 
 function quitar(i: number) {
@@ -64,7 +72,7 @@ function mover(i: number, salto: number) {
     <div v-for="(paso, i) in pasos" :key="i" class="paso">
       <div class="linea">
         <span class="num">{{ i + 1 }}</span>
-        <select v-model="paso.accion" aria-label="acción">
+        <select v-model="paso.accion" aria-label="acción" @change="alCambiarAccion(paso)">
           <!-- Se guarda la clave y se enseña la etiqueta: la base no sabe de
                castellano. -->
           <option v-for="(etiqueta, clave) in ACCIONES" :key="clave" :value="clave">
@@ -82,12 +90,24 @@ function mover(i: number, salto: number) {
         >
         <span v-else class="singramos">—</span>
       </div>
-      <!-- La nota va en su línea: en la rejilla no cabe sin estrujar los
-           números, y es lo único del paso que se lee durante la extracción. -->
-      <input
-        v-model="paso.notas" class="apunte"
-        placeholder="nota: se lee en el cronómetro" aria-label="nota del paso"
-      >
+      <!-- Segunda línea: en la rejilla de arriba no caben sin estrujar los
+           números. El estilo solo sale en los vertidos, que son los únicos
+           que lo admiten. -->
+      <div class="detalle" :class="{ vertido: paso.accion === 'verter' }">
+        <select
+          v-if="paso.accion === 'verter'" v-model="paso.estilo"
+          aria-label="estilo del vertido"
+        >
+          <option value="">sin estilo</option>
+          <option v-for="(etiqueta, clave) in ESTILOS" :key="clave" :value="clave">
+            {{ etiqueta }}
+          </option>
+        </select>
+        <input
+          v-model="paso.notas"
+          placeholder="nota: se lee en el cronómetro" aria-label="nota del paso"
+        >
+      </div>
       <div class="pie">
         <span v-if="paso.accion === 'verter'" class="acum">hasta {{ acumulado(i) }} g</span>
         <span v-else-if="paso.accion === 'agitar' || paso.accion === 'remover'" class="ojo">
@@ -159,8 +179,11 @@ select, input {
 
 .singramos { color: var(--suave); text-align: center; font-size: 0.85rem; }
 
-/* Fuera de la rejilla, así que el ancho no lo hereda de ninguna columna. */
-.apunte { width: 100%; margin-top: 0.4rem; }
+/* Fuera de la rejilla de arriba: aquí manda el estilo, que solo está a veces.
+   Con él, dos columnas; sin él, la nota se lleva la línea entera. */
+.detalle { display: grid; grid-template-columns: 1fr; gap: var(--hueco); margin-top: 0.4rem; }
+.detalle.vertido { grid-template-columns: 7.5rem 1fr; }
+.detalle input, .detalle select { width: 100%; }
 
 .pie {
   display: flex;

@@ -204,7 +204,7 @@ onUnmounted(parar)
     <ol class="plan">
       <li v-for="p in pasos" :key="p.orden">
         <span class="t">{{ p.t_inicio_s === null ? '—' : reloj_mmss(p.t_inicio_s) }}</span>
-        <span class="que">{{ etiquetaPaso(p.accion) }}</span>
+        <span class="que">{{ etiquetaPaso(p.accion, p.estilo) }}</span>
         <span v-if="p.accion === 'verter'" class="ag">hasta {{ p.acumulado_g }} g</span>
       </li>
     </ol>
@@ -227,7 +227,7 @@ onUnmounted(parar)
       <div class="dentro">
         <p class="crono">{{ reloj_mmss(transcurrido) }}</p>
         <template v-if="actual">
-          <p class="accion">{{ etiquetaPaso(actual.accion) }}</p>
+          <p class="accion">{{ etiquetaPaso(actual.accion, actual.estilo) }}</p>
           <!-- El espacio va explícito: Vue se come el salto de línea entre
                etiquetas y quedaba «60 g(+60)». -->
           <p v-if="actual.accion === 'verter'" class="objetivo">
@@ -247,7 +247,7 @@ onUnmounted(parar)
     <p v-if="actual?.notas" class="notas">{{ actual.notas }}</p>
 
     <p v-if="siguiente && corriendo" class="faltan">
-      {{ etiquetaPaso(siguiente.accion) }}{{ siguiente.accion === 'verter' ? ` hasta ${siguiente.acumulado_g} g` : '' }}
+      {{ etiquetaPaso(siguiente.accion, siguiente.estilo) }}{{ siguiente.accion === 'verter' ? ` hasta ${siguiente.acumulado_g} g` : '' }}
       en <strong>{{ Math.ceil(faltan ?? 0) }} s</strong>
     </p>
 
