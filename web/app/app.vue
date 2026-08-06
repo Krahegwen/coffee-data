@@ -14,13 +14,14 @@ const APP = 'Bitácora de café'
 const { version } = useRuntimeConfig().public
 
 /**
- * El modo lo decide la sesión, y la sesión vive detrás del pie.
+ * Todo vive en el cajón local; la sesión, detrás del pie, solo decide si
+ * además se sincroniza.
  *
- * Por defecto la app trabaja **en local**: los datos en el IndexedDB de este
- * navegador, sin servidor de por medio. Con sesión abierta —la cookie de
- * siempre— todo va al Worker, como antes. La comprobación se hace una vez
- * aquí y se espera antes de pintar nada: si las pantallas dispararan sus
- * cargas antes de saber el modo, mezclarían cajones.
+ * Sin sesión, los datos son de este navegador y ahí se quedan. Con ella, la
+ * cola de salida sube cada escritura al Worker y el refresco trae de vuelta
+ * la copia buena: al abrir, al volver a la pestaña, al recuperar la red y a
+ * mano desde el pie. El primer pintado espera a ese refresco —si hay red,
+ * dura lo que cuatro GET; si no, nada— para no enseñar un cajón viejo.
  *
  * La puerta a la sesión son cinco toques en el número de versión. No es
  * seguridad, es discreción: a quien la app le funciona en local no le sale
@@ -28,10 +29,12 @@ const { version } = useRuntimeConfig().public
  * siendo el token.
  */
 const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
+const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
 const panelSesion = ref(false)
+const lista = ref(false)
 
 let toques = 0
 let ultimoToque = 0
@@ -47,7 +50,24 @@ function tocarVersion() {
   }
 }
 
-onMounted(comprobar)
+/** Refresca y, si de verdad bajó algo, repinta lo que haya cargado. */
+async function actualizar(opciones: { minimo?: number } = {}) {
+  if (await refrescar(opciones)) await refreshNuxtData()
+}
+
+onMounted(async () => {
+  await comprobar()
+  if (activa.value) await refrescar()
+  await recontar()
+  lista.value = true
+
+  // Al volver a la pestaña tras un rato, y en cuanto vuelva la red: es como
+  // se entera este dispositivo de lo que se registró en el otro.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void actualizar({ minimo: 60_000 })
+  })
+  window.addEventListener('online', () => void actualizar())
+})
 
 async function iniciarSesion() {
   errorSesion.value = ''
@@ -56,8 +76,8 @@ async function iniciarSesion() {
     await abrir(tokenVisible.value)
     tokenVisible.value = ''
     panelSesion.value = false
-    // Las pantallas cargaron del cajón local: se repite todo contra el
-    // servidor ahora que hay cookie.
+    // Lo local pasa a ser la copia del servidor, y se repinta con ella.
+    await refrescar()
     await refreshNuxtData()
   } catch {
     errorSesion.value = 'Ese token no es'
@@ -98,22 +118,35 @@ useHead({
       </NuxtLink>
     </header>
     <main>
-      <p v-if="!comprobada" class="meta-sesion">Un momento…</p>
+      <p v-if="!comprobada || !lista" class="meta-sesion">Un momento…</p>
       <NuxtPage v-else />
     </main>
     <footer>
       <!-- Cinco toques abren el panel de sesión. La coletilla dice el modo:
            sin nada, tus datos viven en este navegador. -->
       <p @click="tocarVersion">v{{ version }}<template v-if="activa"> · en el servidor</template></p>
+      <!-- El estado de la cola, siempre a la vista: una cola en silencio es
+           una pérdida de datos esperando. Y de paso es el tirador de
+           actualizar, para cuando uno desconfía. -->
+      <p v-if="activa">
+        <button
+          type="button" class="sincro" :class="{ pendiente: pendientes, atascada: atasco }"
+          :disabled="sincronizando" @click="actualizar()"
+        >
+          {{ sincronizando ? 'Sincronizando…'
+            : pendientes ? `${pendientes} por subir` : 'Al día' }}
+        </button>
+      </p>
       <p>© 2026 Krahegwen · MIT</p>
 
       <section v-if="panelSesion" class="portero">
         <template v-if="!activa">
           <h2>Abrir sesión</h2>
           <p>
-            Con sesión, la bitácora se lee y se escribe en el servidor. Sin
-            ella, todo vive en este navegador. El token se pide una vez y se
-            cambia por una cookie que este código no puede leer.
+            Con sesión, lo que registres se sube al servidor y lo que haya
+            allí baja aquí. Sin ella, todo vive en este navegador. El token se
+            pide una vez y se cambia por una cookie que este código no puede
+            leer.
           </p>
           <input
             v-model="tokenVisible" type="password" placeholder="token"
@@ -126,8 +159,20 @@ useHead({
         </template>
         <template v-else>
           <h2>Sesión abierta</h2>
-          <p>La bitácora está trabajando contra el servidor.</p>
-          <button type="button" class="cerrar" @click="cerrarSesion">Cerrar sesión</button>
+          <p>
+            La bitácora se guarda en este navegador y la cola la va subiendo
+            al servidor.
+          </p>
+          <p v-if="atasco" class="fallo-sesion">
+            Hay una escritura que el servidor no acepta: {{ atasco }}
+          </p>
+          <p v-if="pendientes" class="fallo-sesion">
+            Quedan {{ pendientes }} por subir: si cierras la sesión ahora, no
+            subirán.
+          </p>
+          <button type="button" class="cerrar" :disabled="pendientes > 0" @click="cerrarSesion">
+            Cerrar sesión
+          </button>
         </template>
       </section>
     </footer>
@@ -270,6 +315,25 @@ footer {
 }
 
 footer p { margin: 0.15rem 0; }
+
+/*
+ * El estado de la cola, como texto discreto que además es botón. El color
+ * sube de tono con lo que hay: nada que subir, pendientes, o una entrada
+ * que el servidor rechaza.
+ */
+.sincro {
+  font: inherit;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0.35rem 0.6rem;
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.sincro.pendiente { color: var(--acento); font-weight: 600; }
+.sincro.atascada { color: #c2410c; font-weight: 600; }
+.sincro:disabled { cursor: default; opacity: 0.7; }
 
 /* El panel de sesión, detrás de los cinco toques. Alineado a la izquierda:
    dentro del pie centrado parecería un aviso y es un formulario. */

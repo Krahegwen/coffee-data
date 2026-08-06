@@ -100,20 +100,35 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
-### Dos modos, una API
+### Offline-first: un solo camino, y la cola de salida
 
-Por defecto la app trabaja **en local**: los datos viven en el IndexedDB del
-navegador y no tocan el servidor. Quien entre por la URL puede usar la
-bitácora entera —bolsas, recetas, cronómetro, sugerencias, fotos— sin cuenta y
-sin que sus datos salgan de su navegador. El modo local arranca con las tres
-recetas base sembradas: sin una receta el cronómetro no tendría qué guiar.
+Toda la app lee y escribe **en el IndexedDB del navegador**, con los mismos
+manejadores del núcleo que corren en el Worker: mismos códigos de estado,
+mismos mensajes, otro cajón. Quien entre por la URL puede usar la bitácora
+entera —bolsas, recetas, cronómetro, sugerencias, fotos como `Blob` servidos
+con `createObjectURL`— sin cuenta y sin que sus datos salgan de su navegador.
+Sin sesión, la casa arranca con las tres recetas base sembradas: sin una
+receta el cronómetro no tendría qué guiar.
 
-El árbitro vive en `useApi()`: **con sesión abierta**, cada llamada va por
-`fetch` al Worker, como siempre; **sin ella**, la misma llamada ejecuta el
-mismo manejador del núcleo en proceso, contra el adaptador de IndexedDB.
-Mismos códigos de estado, mismos mensajes de error, otro cajón — y el
-adaptador pasa la misma suite de contrato que los de memoria y D1. Las fotos
-en local son `Blob` en IndexedDB servidos con `createObjectURL`.
+La sesión no cambia de camino: añade la **cola de salida**. Cada escritura
+pasa primero en local y se apunta para la red; la cola se drena en orden y se
+para en el primer fallo, porque una extracción puede apuntar a una bolsa que
+también está en la cola. Reintentar es seguro: los altas viajan con su id
+—UUIDv7 puesto por el cliente— y su `creado_en`, así que el servidor escribe
+exactamente la misma fila y repetir un envío choca con un 409 que el drenador
+da por hecho.
+
+El **refresco** hace el ciclo entero, siempre en este orden: drenar la cola
+y, solo con ella ya vacía, traer todo del servidor y reemplazar el cajón —al
+abrir la app, al volver a la pestaña, al recuperar la red y a mano—. Los
+borrados salen gratis: lo que no viene en la respuesta desaparece. Y si la
+cola no queda vacía no se reemplaza nada, que lo local es lo único que tiene
+esas filas.
+
+El estado de la cola vive en el pie —«Al día», «2 por subir», y en rojo si el
+servidor rechaza una entrada— y ese texto es también el tirador de
+actualizar. Una cola en silencio es una pérdida de datos esperando el
+momento.
 
 La puerta a la sesión son **cinco toques en la versión del pie**. No es
 seguridad, es discreción: a quien la app le funciona en local no le sale un

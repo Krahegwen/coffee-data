@@ -17,7 +17,8 @@
  */
 
 const NOMBRE = "coffee";
-const VERSION = 1;
+// La 2 añade `cola`: la salida hacia la red del modo con sesión.
+const VERSION = 2;
 
 /** Un IDBRequest como promesa. */
 function pedir(peticion) {
@@ -44,6 +45,7 @@ function abrir(fabrica, nombre) {
       if (!db.objectStoreNames.contains(tabla)) db.createObjectStore(tabla, { keyPath: "id" });
     }
     if (!db.objectStoreNames.contains("fotos")) db.createObjectStore("fotos", { keyPath: "clave" });
+    if (!db.objectStoreNames.contains("cola")) db.createObjectStore("cola", { keyPath: "id" });
   };
   return pedir(peticion);
 }
@@ -119,6 +121,59 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
         transaccion.objectStore("fotos").delete(clave);
         await completa(transaccion);
       },
+    },
+    /**
+     * La cola de salida: lo escrito en local que la red aún no ha visto.
+     * También fuera del contrato — los otros adaptadores *son* el destino.
+     * La id es un uuid v7, así que el orden de las claves es el de encolado.
+     */
+    cola: {
+      async listar() {
+        const d = await db();
+        const filas = await pedir(d.transaction("cola").objectStore("cola").getAll());
+        filas.sort((a, b) => (a.id < b.id ? -1 : 1));
+        return filas;
+      },
+      async poner(entrada) {
+        const d = await db();
+        const transaccion = d.transaction("cola", "readwrite");
+        transaccion.objectStore("cola").add(entrada);
+        await completa(transaccion);
+      },
+      async quitar(id) {
+        const d = await db();
+        const transaccion = d.transaction("cola", "readwrite");
+        transaccion.objectStore("cola").delete(id);
+        await completa(transaccion);
+      },
+      async marcar(id, error) {
+        const d = await db();
+        const transaccion = d.transaction("cola", "readwrite");
+        const almacen = transaccion.objectStore("cola");
+        const fila = await pedir(almacen.get(id));
+        if (fila) almacen.put({ ...fila, error });
+        await completa(transaccion);
+      },
+      async contar() {
+        const d = await db();
+        return pedir(d.transaction("cola").objectStore("cola").count());
+      },
+    },
+    /**
+     * Reemplaza las tres tablas con lo que diga el servidor, en una sola
+     * transacción: o el cajón entero pasa a la versión nueva, o se queda como
+     * estaba. Solo lo llama el refresco, y solo con la cola vacía.
+     */
+    async reemplazar({ cafes, recetas, extracciones }) {
+      const d = await db();
+      const transaccion = d.transaction(["cafes", "recetas", "extracciones"], "readwrite");
+      const tablas = { cafes, recetas, extracciones };
+      for (const [tabla, filas] of Object.entries(tablas)) {
+        const almacen = transaccion.objectStore(tabla);
+        almacen.clear();
+        for (const fila of filas) almacen.put(fila);
+      }
+      await completa(transaccion);
     },
   };
 }

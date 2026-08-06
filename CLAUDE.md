@@ -51,9 +51,12 @@ no la ve, se lee del registro de Windows sin imprimirla:
 a `/api/*` (salvo `/api/sesion`) va con la misma cabecera. `resumen.py` y
 `exportar_csv.py` lo cogen solos de `COFFEE_TOKEN`.
 
-No mandes `id`, `ratio`, `dias_tueste` ni `reparto`: los calcula el servidor.
-El `reparto` sale de escalar la receta al agua real, así que solo se manda si
-ese día te desviaste de la receta.
+No mandes `id`, `creado_en`, `ratio`, `dias_tueste` ni `reparto`: los calcula
+el servidor. Los dos primeros **se aceptan** si llegan —con formato: uuid y
+sello de SQLite—, pero son para la cola de salida de la app, que reenvía
+filas nacidas en local; repetir una id no duplica, responde 409 con
+`repetida`. El `reparto` sale de escalar la receta al agua real, así que solo
+se manda si ese día te desviaste de la receta.
 
 `siguiente_ajuste` **tampoco hace falta**: si no lo mandas, el servidor guarda
 la sugerencia principal. Lo que escribas manda siempre sobre eso.
@@ -85,12 +88,13 @@ curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bear
   -H 'content-type: application/json' -d '{"estado":"terminado"}'
 ```
 
-**No mandes `id` ni `slug`**: la API los rechaza. La clave es un UUIDv7 que
-pone el servidor (y pondrá el cliente en el modo local); el slug sale del
-nombre (minúsculas, sin acentos, espacios a guion bajo) y si ya existe se le
-pone sufijo — `gary`, `gary_2` — porque la segunda bolsa del mismo café es
-normal. **Los endpoints aceptan uuid o slug indistintamente**: `gary` sigue
-valiendo en rutas, filtros y cuerpos (`cafe_id`, `receta_id`).
+**No mandes `slug`**: la API lo rechaza — sale del nombre (minúsculas, sin
+acentos, espacios a guion bajo) y si ya existe se le pone sufijo — `gary`,
+`gary_2` — porque la segunda bolsa del mismo café es normal. La clave es un
+UUIDv7 que pone quien crea la fila: el servidor si no llega, o el cliente —la
+cola de salida la manda puesta al reenviar—; a mano tampoco la mandes. **Los
+endpoints aceptan uuid o slug indistintamente**: `gary` sigue valiendo en
+rutas, filtros y cuerpos (`cafe_id`, `receta_id`).
 
 La frescura tiene **dos relojes**: `fecha_tueste` mientras la bolsa está
 precintada y `fecha_apertura` desde que la abres. La vista deriva
@@ -189,16 +193,21 @@ herramientas de Python. `datos/` son los CSV exportados.
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
-- `web/` es la app. `ssr: false` a propósito. Todo el acceso a la API pasa por
-  `useApi()`: si añades una llamada, va ahí y con su tipo — **y con sus dos
-  caminos**, que `useApi()` es el árbitro: con sesión, `$fetch` al Worker; sin
-  ella, el mismo manejador del núcleo en proceso contra IndexedDB
-  (`web/app/almacen/idb.js`). La sesión vive en `useSesion()` y **no guarda el
-  token en ninguna parte**: lo cambia por una cookie `HttpOnly` que este código
-  no puede leer. La puerta a la sesión son cinco toques en la versión del pie.
+- `web/` es la app. `ssr: false` a propósito. Todo el acceso a los datos pasa
+  por `useApi()`, y desde la cola de salida hay **un solo camino**: leer y
+  escribir van siempre por los manejadores del núcleo contra IndexedDB
+  (`web/app/almacen/idb.js`). La sesión solo añade que cada escritura se
+  apunta además en la cola (`almacen/cola.js`) y `useSincro()` la sube al
+  Worker y trae de vuelta la copia buena — drenar primero, traer todo y
+  reemplazar después, y **nunca reemplazar con la cola no vacía**. El estado
+  de la cola se ve en el pie. La sesión vive en `useSesion()` y **no guarda
+  el token en ninguna parte**: lo cambia por una cookie `HttpOnly` que este
+  código no puede leer; la puerta son cinco toques en la versión del pie.
 - El adaptador de IndexedDB se prueba con la **misma suite de contrato** que
-  los demás (`nucleo/test/contrato.js`), con fake-indexeddb; el modo local
-  arranca sembrando las tres recetas base (`web/app/almacen/semilla.js`).
+  los demás (`nucleo/test/contrato.js`), con fake-indexeddb; el modo sin
+  sesión arranca sembrando las tres recetas base (`web/app/almacen/semilla.js`).
+  La cola tiene su suite (`web/test/cola.test.js`), con el test de paridad:
+  drenar contra un almacén en memoria deja «el servidor» idéntico al local.
 - La app **no reimplementa reglas del servidor**. El escalado de recetas lo da
   el manejador `guion` del núcleo — por la red o en proceso, según el modo —;
   si necesitas otra lógica de dominio, hazle un manejador al núcleo.

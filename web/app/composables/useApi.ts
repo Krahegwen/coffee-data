@@ -1,30 +1,24 @@
 /**
- * Acceso a la API. La app no sabe de SQL ni de commits: pide y manda
- * extracciones, y punto. Ese contrato es lo que permite cambiar la
- * autenticación del servidor sin tocar nada de aquí.
+ * Acceso a los datos. La app no sabe de SQL ni de red: pide y manda
+ * extracciones, y punto.
+ *
+ * Desde la cola de salida hay **un solo camino**: toda lectura y toda
+ * escritura pasan por los manejadores del núcleo contra el cajón de
+ * IndexedDB, haya sesión o no. La sesión solo añade una cosa: cada
+ * escritura se apunta además en la cola, y useSincro() la va subiendo al
+ * Worker y trayendo de vuelta la copia buena. Offline-first sin dos rutas
+ * que mantener a la par.
  */
 
 import * as nucleo from '@coffee/nucleo/api'
 import { claveDeFoto, validarFoto } from '@coffee/nucleo/validacion'
 
-import { almacenIDB } from '~/almacen/idb'
-import { sembrar } from '~/almacen/semilla'
+import { cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta } from '~/almacen/cola'
+import { almacenLocal } from '~/almacen/local'
 
-type AlmacenLocal = ReturnType<typeof almacenIDB>
+import type { EntradaCola } from './useSincro'
 
-/*
- * El cajón del modo local, uno por pestaña y perezoso: no se abre IndexedDB
- * ni se siembra nada hasta la primera llamada que de verdad va a local.
- */
-let cajon: AlmacenLocal | null = null
-let sembrado: Promise<void> | null = null
-
-async function almacenLocal(): Promise<AlmacenLocal> {
-  cajon ??= almacenIDB()
-  sembrado ??= sembrar(cajon)
-  await sembrado
-  return cajon
-}
+type AlmacenLocal = Awaited<ReturnType<typeof almacenLocal>>
 
 export const ESTADOS = ['abierto', 'terminado', 'pendiente'] as const
 
@@ -159,21 +153,19 @@ export interface NuevaExtraccion {
 }
 
 export function useApi() {
-  const base = useRuntimeConfig().public.apiBase
   const { activa } = useSesion()
+  const { encolar } = useSincro()
 
   /*
-   * El árbitro. Con sesión abierta, la app habla con el Worker por fetch,
-   * como siempre. Sin ella, llama a los mismos manejadores del núcleo en
-   * proceso, contra IndexedDB: mismos códigos, mismos mensajes, otro cajón.
-   * Se decide en cada llamada, no al montar: abrir o cerrar sesión cambia de
-   * camino sin recargar.
+   * El cajón, sembrado solo sin sesión: a quien trabaja contra el servidor
+   * las recetas le llegan con el primer refresco, y unas semillas con uuid
+   * propio solo estorbarían al reemplazo.
    */
-  const servidor = () => activa.value
+  const cajon = () => almacenLocal(!activa.value)
 
   /** Un {estado, datos} del núcleo, con la forma de error de $fetch. */
   async function local<T>(fn: (a: AlmacenLocal) => Promise<{ estado: number; datos: unknown }>): Promise<T> {
-    const { estado, datos } = await fn(await almacenLocal())
+    const { estado, datos } = await fn(await cajon())
     if (estado >= 400) {
       const cuerpo = datos as { error?: string; errores?: string[] }
       throw Object.assign(new Error(cuerpo.error ?? cuerpo.errores?.[0] ?? `HTTP ${estado}`), {
@@ -184,143 +176,142 @@ export function useApi() {
     return datos as T
   }
 
-  const cafes = () =>
-    servidor()
-      ? $fetch<Cafe[]>(`${base}/api/cafes`)
-      : local<Cafe[]>((a) => nucleo.listaCafes(a)).then(async (filas) => {
-          await refrescarFotosLocales()
-          return filas
-        })
+  /** Con sesión, además de escribirse en local se apunta para la red. */
+  const subir = async (entrada: EntradaCola) => {
+    if (activa.value) await encolar(entrada)
+  }
 
-  const recetas = () =>
-    servidor()
-      ? $fetch<Receta[]>(`${base}/api/recetas`)
-      : local<Receta[]>((a) => nucleo.listaRecetas(a))
+  const cafes = () =>
+    local<Cafe[]>((a) => nucleo.listaCafes(a)).then(async (filas) => {
+      await refrescarFotosLocales()
+      return filas
+    })
+
+  const recetas = () => local<Receta[]>((a) => nucleo.listaRecetas(a))
 
   const extracciones = (cafeId?: string) =>
-    servidor()
-      ? $fetch<Extraccion[]>(`${base}/api/extracciones`, {
-          query: cafeId ? { cafe: cafeId } : undefined,
-        })
-      : local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { cafe: cafeId }))
-
-  /** Corrige una extracción. Solo se manda lo que cambia. */
-  const editarExtraccion = (id: string, cambios: Record<string, unknown>) =>
-    servidor()
-      ? $fetch<{ extraccion: Extraccion; cambiado: string[] }>(`${base}/api/extracciones/${id}`, {
-          method: 'PATCH',
-          body: cambios,
-        })
-      : local<{ extraccion: Extraccion; cambiado: string[] }>((a) => nucleo.editarExtraccion(a, id, cambios))
-
-  /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
-  const retirarExtraccion = (id: string) =>
-    servidor()
-      ? $fetch<{ retirada: boolean }>(`${base}/api/extracciones/${id}`, { method: 'DELETE' })
-      : local<{ retirada: boolean }>((a) => nucleo.retirarExtraccion(a, id))
-
-  const restaurarExtraccion = (id: string) =>
-    servidor()
-      ? $fetch<{ extraccion: Extraccion }>(`${base}/api/extracciones/${id}/restaurar`, {
-          method: 'POST',
-        })
-      : local<{ extraccion: Extraccion }>((a) => nucleo.restaurarExtraccion(a, id))
+    local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { cafe: cafeId }))
 
   /** La papelera. */
   const retiradas = () =>
-    servidor()
-      ? $fetch<Extraccion[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } })
-      : local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { retiradas: true }))
-
-  /** Crea una receta con sus pasos. */
-  const crearReceta = (datos: Record<string, unknown>) =>
-    servidor()
-      ? $fetch<{ receta: Receta }>(`${base}/api/recetas`, { method: 'POST', body: datos })
-      : local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { nuevo: true }, datos))
-
-  /** Guarda una receta: los pasos reemplazan a los que hubiera. */
-  const guardarReceta = (id: string, datos: Record<string, unknown>) =>
-    servidor()
-      ? $fetch<{ receta: Receta }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
-          method: 'PUT',
-          body: datos,
-        })
-      : local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { ref: id, nuevo: false }, datos))
-
-  /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
-  const borrarReceta = (id: string) =>
-    servidor()
-      ? $fetch<{ borrada: boolean; id: string }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-        })
-      : local<{ borrada: boolean; id: string }>((a) => nucleo.borrarReceta(a, id))
-
-  /** Da de alta una bolsa. */
-  const crearCafe = (datos: Record<string, unknown>) =>
-    servidor()
-      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
-      : local<{ cafe: Cafe }>((a) => nucleo.crearCafe(a, datos))
-
-  /** Corrige una ficha. Solo se manda lo que cambia. */
-  const editarCafe = (id: string, cambios: Record<string, unknown>) =>
-    servidor()
-      ? $fetch<{ cafe: Cafe; cambiado: string[] }>(`${base}/api/cafes/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          body: cambios,
-        })
-      : local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios))
-
-  /**
-   * Sube o reemplaza la foto de la bolsa. En el servidor va en binario a R2;
-   * en local el Blob se queda en IndexedDB, con la misma validación y el
-   * mismo esquema de claves, y la URL sale de createObjectURL.
-   */
-  const subirFotoCafe = (id: string, fichero: File) =>
-    servidor()
-      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
-          method: 'PUT',
-          body: fichero,
-          headers: { 'content-type': fichero.type },
-        })
-      : subirFotoLocal(id, fichero)
-
-  const quitarFotoCafe = (id: string) =>
-    servidor()
-      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
-          method: 'DELETE',
-        })
-      : quitarFotoLocal(id)
+    local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { retiradas: true }))
 
   /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
   const guion = (recetaId: string, aguaG: number) =>
-    servidor()
-      ? $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
-      : local<PasoGuion[]>((a) => nucleo.guionDe(a, recetaId, String(aguaG)))
+    local<PasoGuion[]>((a) => nucleo.guionDe(a, recetaId, String(aguaG)))
 
   /**
    * Registra una extracción. Entera o ninguna: si algo se rechaza, no se
-   * escribe nada y llega la lista de errores.
-   *
-   * En el servidor no lleva token: la sesión va en una cookie HttpOnly.
+   * escribe nada y llega la lista de errores. A la cola va la fila creada
+   * —identidad, reparto y ajuste del motor incluidos—, no lo tecleado: así
+   * el servidor escribe exactamente lo mismo.
    */
-  const crear = (datos: NuevaExtraccion): Promise<Creada> =>
-    servidor()
-      ? $fetch<Creada>(`${base}/api/extracciones`, { method: 'POST', body: datos })
-      : local<Creada>((a) => nucleo.crearExtraccion(a, datos as unknown as Record<string, unknown>))
+  const crear = async (datos: NuevaExtraccion): Promise<Creada> => {
+    const r = await local<Creada>((a) => nucleo.crearExtraccion(a, datos as unknown as Record<string, unknown>))
+    await subir({ metodo: 'POST', camino: '/api/extracciones', cuerpo: cuerpoDeExtraccion(r.extraccion) })
+    return r
+  }
+
+  /** Corrige una extracción. Solo se manda lo que cambia. */
+  const editarExtraccion = async (id: string, cambios: Record<string, unknown>) => {
+    const r = await local<{ extraccion: Extraccion; cambiado: string[] }>(
+      (a) => nucleo.editarExtraccion(a, id, cambios),
+    )
+    await subir({ metodo: 'PATCH', camino: `/api/extracciones/${r.extraccion.id}`, cuerpo: cambios })
+    return r
+  }
+
+  /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
+  const retirarExtraccion = async (id: string) => {
+    const r = await local<{ retirada: boolean }>((a) => nucleo.retirarExtraccion(a, id))
+    await subir({ metodo: 'DELETE', camino: `/api/extracciones/${id}` })
+    return r
+  }
+
+  const restaurarExtraccion = async (id: string) => {
+    const r = await local<{ extraccion: Extraccion }>((a) => nucleo.restaurarExtraccion(a, id))
+    await subir({ metodo: 'POST', camino: `/api/extracciones/${id}/restaurar` })
+    return r
+  }
+
+  /** Da de alta una bolsa. */
+  const crearCafe = async (datos: Record<string, unknown>) => {
+    const r = await local<{ cafe: Cafe }>((a) => nucleo.crearCafe(a, datos))
+    await subir({ metodo: 'POST', camino: '/api/cafes', cuerpo: cuerpoDeCafe(r.cafe) })
+    return r
+  }
+
+  /** Corrige una ficha. Solo se manda lo que cambia. */
+  const editarCafe = async (id: string, cambios: Record<string, unknown>) => {
+    const r = await local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios))
+    await subir({ metodo: 'PATCH', camino: `/api/cafes/${r.cafe.id}`, cuerpo: cambios })
+    return r
+  }
+
+  /** Crea una receta con sus pasos. */
+  const crearReceta = async (datos: Record<string, unknown>) => {
+    const r = await local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { nuevo: true }, datos))
+    await subir({ metodo: 'POST', camino: '/api/recetas', cuerpo: cuerpoDeReceta(r.receta) })
+    return r
+  }
+
+  /** Guarda una receta: los pasos reemplazan a los que hubiera. */
+  const guardarReceta = async (id: string, datos: Record<string, unknown>) => {
+    const r = await local<{ receta: Receta }>(
+      (a) => nucleo.guardarReceta(a, { ref: id, nuevo: false }, datos),
+    )
+    await subir({
+      metodo: 'PUT',
+      camino: `/api/recetas/${r.receta.id}`,
+      cuerpo: cuerpoDeReceta(r.receta, { conIdentidad: false }),
+    })
+    return r
+  }
+
+  /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
+  const borrarReceta = async (id: string) => {
+    const r = await local<{ borrada: boolean; id: string; slug: string }>(
+      (a) => nucleo.borrarReceta(a, id),
+    )
+    await subir({ metodo: 'DELETE', camino: `/api/recetas/${r.id}` })
+    return r
+  }
 
   /**
-   * La URL de una foto. En el servidor, /api/ + la clave; en local, un
-   * object URL del Blob, en un estado reactivo para que la imagen aparezca
-   * cuando el Blob ya está leído.
+   * Sube o reemplaza la foto de la bolsa. El Blob se queda en IndexedDB con
+   * la misma validación y el mismo esquema de claves que R2; con sesión, el
+   * binario viaja en su entrada de cola detrás del alta de su bolsa.
+   */
+  const subirFotoCafe = async (id: string, fichero: File) => {
+    const r = await subirFotoLocal(id, fichero)
+    await subir({
+      metodo: 'PUT',
+      camino: `/api/cafes/${r.cafe.id}/foto`,
+      blob: fichero,
+      tipo: fichero.type,
+    })
+    return r
+  }
+
+  const quitarFotoCafe = async (id: string) => {
+    const r = await quitarFotoLocal(id)
+    await subir({ metodo: 'DELETE', camino: `/api/cafes/${r.cafe.id}/foto` })
+    return r
+  }
+
+  /**
+   * La URL de una foto: un object URL del Blob del cajón, en un estado
+   * reactivo para que la imagen aparezca cuando el Blob ya está leído. En el
+   * modo con sesión los Blob los baja el refresco.
    */
   const urlsLocales = useState<Record<string, string>>('fotos-locales', () => ({}))
   const urlFoto = (foto: string | null) => {
     if (!foto) return null
-    return servidor() ? `${base}/api/${foto}` : urlsLocales.value[foto] ?? null
+    return urlsLocales.value[foto] ?? null
   }
 
   async function refrescarFotosLocales() {
-    const guardadas = await (await almacenLocal()).fotos.listar()
+    const guardadas = await (await cajon()).fotos.listar()
     const mapa: Record<string, string> = { ...urlsLocales.value }
     for (const f of guardadas) {
       if (!mapa[f.clave]) mapa[f.clave] = URL.createObjectURL(f.blob)
@@ -336,7 +327,7 @@ export function useApi() {
   }
 
   async function subirFotoLocal(ref: string, fichero: File) {
-    const almacen = await almacenLocal()
+    const almacen = await cajon()
     const cafe = nucleo.porRef(await almacen.cafes.listar(), ref) as Cafe | null
     if (!cafe) noExiste(ref)
     const foto = validarFoto(fichero.type, fichero.size) as {
@@ -363,7 +354,7 @@ export function useApi() {
   }
 
   async function quitarFotoLocal(ref: string) {
-    const almacen = await almacenLocal()
+    const almacen = await cajon()
     const cafe = nucleo.porRef(await almacen.cafes.listar(), ref) as Cafe | null
     if (!cafe) noExiste(ref)
     if (cafe.foto) {
@@ -377,7 +368,7 @@ export function useApi() {
   }
 
   return {
-    base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
+    cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
     crearReceta, guardarReceta, borrarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
   }

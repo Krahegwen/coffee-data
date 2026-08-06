@@ -23,8 +23,18 @@ export function useSesion() {
     try {
       const r = await $fetch<{ activa: boolean }>(`${base}/api/sesion`)
       activa.value = r.activa
-    } catch {
-      activa.value = false
+      localStorage.setItem('coffee.sesion', r.activa ? '1' : '0')
+    } catch (fallo) {
+      /*
+       * Sin red no se sabe, y aquí equivocarse hacia el «no» pierde datos:
+       * arrancando como local, una extracción registrada sin cobertura no se
+       * encolaría y el siguiente refresco la pisaría. Así que ante un fallo
+       * de red vale el último estado conocido — es solo un «solía haber
+       * sesión», no un secreto—. Si la cookie hubiera caducado de verdad, el
+       * drenado dará 401 y la cola quedará a la vista, que no es perder nada.
+       */
+      const sinRed = !(fallo as { statusCode?: number })?.statusCode
+      activa.value = sinRed && localStorage.getItem('coffee.sesion') === '1'
     } finally {
       comprobada.value = true
     }
@@ -36,11 +46,13 @@ export function useSesion() {
       body: { token: token.trim() },
     })
     activa.value = true
+    localStorage.setItem('coffee.sesion', '1')
   }
 
   async function cerrar() {
     await $fetch(`${base}/api/sesion`, { method: 'DELETE' })
     activa.value = false
+    localStorage.setItem('coffee.sesion', '0')
   }
 
   return { activa, comprobada, comprobar, abrir, cerrar }
