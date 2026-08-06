@@ -78,6 +78,11 @@ const enMarcha = computed(
 
 const pausado = computed(() => enMarcha.value && !corriendo.value)
 
+const etiquetaEsfera = computed(() => {
+  if (!enMarcha.value) return 'Iniciar el cronómetro'
+  return corriendo.value ? 'Pausar' : 'Reanudar el cronómetro'
+})
+
 // El anillo: la bola da una vuelta entera por paso.
 const RADIO = 45
 const VUELTA = 2 * Math.PI * RADIO
@@ -167,10 +172,14 @@ function pausar() {
   parar()
 }
 
-/** Dentro del círculo y en el botón: pausa, y otra vez reanuda. */
-function alternarPausa() {
-  if (!enMarcha.value) return
-  if (corriendo.value) pausar()
+/**
+ * El círculo, que es el único mando que se acierta sin mirar: arranca si
+ * está parado del todo, y a partir de ahí pausa y reanuda.
+ */
+function tocarEsfera() {
+  if (finGoteo.value !== null) return
+  if (!enMarcha.value) iniciar()
+  else if (corriendo.value) pausar()
   else arrancarDesde(transcurrido.value)
 }
 
@@ -263,13 +272,13 @@ onUnmounted(parar)
 
   <section v-else class="corriendo">
     <!-- El anillo es decorativo: lo que hay que saber está en los números.
-         Toda la esfera es el botón de pausa: es lo más grande de la pantalla
-         y se acierta sin mirar, que es de lo que se trata con el hervidor en
-         la mano. -->
+         Toda la esfera es el mando: arranca, pausa y reanuda. Es lo más
+         grande de la pantalla y se acierta sin mirar, que es de lo que se
+         trata con el hervidor en la mano. -->
     <button
       type="button" class="esfera" :class="{ pausada: pausado }"
-      :disabled="!enMarcha" :aria-label="corriendo ? 'Pausar' : 'Reanudar el cronómetro'"
-      @click="alternarPausa"
+      :disabled="finGoteo !== null" :aria-label="etiquetaEsfera"
+      @click="tocarEsfera"
     >
       <svg class="anillo" viewBox="0 0 100 100" aria-hidden="true">
         <circle class="pista" cx="50" cy="50" :r="RADIO" />
@@ -311,10 +320,16 @@ onUnmounted(parar)
       En pausa · toca el círculo para seguir
     </p>
 
+    <!-- Que se sepa que el círculo también arranca: es un gesto que nadie
+         descubre solo. -->
+    <p v-else-if="!enMarcha && finGoteo === null" class="faltan">
+      Toca el círculo cuando empieces a verter
+    </p>
+
     <button v-if="!enMarcha && finGoteo === null" @click="iniciar">Iniciar</button>
 
     <template v-else-if="finGoteo === null">
-      <button class="pausa" @click="alternarPausa">
+      <button class="pausa" @click="tocarEsfera">
         {{ corriendo ? 'Pausa' : 'Reanudar' }}
       </button>
       <button class="goteo" @click="marcarFinGoteo">Dejó de gotear</button>
