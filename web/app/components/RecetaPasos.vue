@@ -5,8 +5,6 @@
  * Los pasos se editan como lista completa, no uno a uno: es como se piensa una
  * receta y es lo que el servidor espera. El orden lo da la posición.
  */
-const ACCIONES = ['verter', 'agitar', 'remover', 'esperar', 'retirar'] as const
-
 export interface PasoEditable {
   accion: string
   agua_g: number | ''
@@ -67,7 +65,11 @@ function mover(i: number, salto: number) {
       <div class="linea">
         <span class="num">{{ i + 1 }}</span>
         <select v-model="paso.accion" aria-label="acción">
-          <option v-for="a in ACCIONES" :key="a" :value="a">{{ a }}</option>
+          <!-- Se guarda la clave y se enseña la etiqueta: la base no sabe de
+               castellano. -->
+          <option v-for="(etiqueta, clave) in ACCIONES" :key="clave" :value="clave">
+            {{ etiqueta }}
+          </option>
         </select>
         <input
           v-model="paso.t_inicio_s" type="number" min="0" step="1"
