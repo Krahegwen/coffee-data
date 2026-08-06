@@ -168,10 +168,18 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
       const d = await db();
       const transaccion = d.transaction(["cafes", "recetas", "extracciones"], "readwrite");
       const tablas = { cafes, recetas, extracciones };
-      for (const [tabla, filas] of Object.entries(tablas)) {
-        const almacen = transaccion.objectStore(tabla);
-        almacen.clear();
-        for (const fila of filas) almacen.put(fila);
+      try {
+        for (const [tabla, filas] of Object.entries(tablas)) {
+          const almacen = transaccion.objectStore(tabla);
+          almacen.clear();
+          for (const fila of filas) almacen.put(fila);
+        }
+      } catch (error) {
+        // Un put puede reventar en el sitio —una fila que no se deja clonar—
+        // y eso no aborta la transacción solo: sin esto, el clear de arriba
+        // se confirmaría y el cajón quedaría a medias.
+        transaccion.abort();
+        throw error;
       }
       await completa(transaccion);
     },

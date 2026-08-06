@@ -22,12 +22,14 @@ DATOS = Path(__file__).resolve().parent.parent / "datos"
 API = os.environ.get("COFFEE_API", "https://brew.krahegwen.com")
 
 # fichero -> (ruta de la API, columnas, clave de orden)
+# creado_en va al respaldo desde la fase 8: la app restaura desde estos mismos
+# CSV y una fila sin su fecha de creación volvería con una inventada.
 EXPORTS = [
     ("cafes.csv", "/api/cafes", [
         "id", "slug", "nombre", "tostador", "origen", "region", "variedad",
         "proceso", "altitud_m", "sca", "fecha_tueste", "consumir_antes",
         "fecha_apertura", "peso_g", "precio_eur", "notas_tostador", "estado",
-        "foto", "url", "conservacion",
+        "foto", "url", "conservacion", "creado_en",
     ], lambda f: f["slug"]),
 ]
 
@@ -116,7 +118,9 @@ def exportar_recetas():
         for paso in sorted(receta.get("pasos", []), key=lambda p: int(p["orden"]))
     ]
     return [
-        ("recetas.csv", como_csv(filas_recetas, ["id", "slug", "nombre", "ratio", "notas"])),
+        ("recetas.csv", como_csv(filas_recetas, [
+            "id", "slug", "nombre", "ratio", "notas", "creado_en",
+        ])),
         ("pasos.csv", como_csv(pasos, [
             "receta_id", "orden", "t_inicio_s", "accion", "estilo", "agua_g",
             "notas",

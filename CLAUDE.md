@@ -208,6 +208,11 @@ herramientas de Python. `datos/` son los CSV exportados.
   sesión arranca sembrando las tres recetas base (`web/app/almacen/semilla.js`).
   La cola tiene su suite (`web/test/cola.test.js`), con el test de paridad:
   drenar contra un almacén en memoria deja «el servidor» idéntico al local.
+- El respaldo (`/respaldo`, `web/app/almacen/respaldo.js`) es un ZIP *stored*
+  con los CSV en el **mismo formato que `datos/`** —si tocas columnas en
+  `exportar_csv.py`, tócalas también ahí— y restaurar valida todo por los
+  manejadores contra memoria antes de reemplazar el cajón. Ojo al pasar filas
+  a IndexedDB desde Vue: un proxy reactivo no se deja clonar — `shallowRef`.
 - La app **no reimplementa reglas del servidor**. El escalado de recetas lo da
   el manejador `guion` del núcleo — por la red o en proceso, según el modo —;
   si necesitas otra lógica de dominio, hazle un manejador al núcleo.

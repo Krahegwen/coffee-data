@@ -137,6 +137,9 @@ useHead({
             : pendientes ? `${pendientes} por subir` : 'Al día' }}
         </button>
       </p>
+      <!-- El respaldo vive en el pie: se usa poco, pero tiene que poder
+           encontrarse sin que nadie te lo cuente. -->
+      <p><NuxtLink to="/respaldo" class="enlace-pie">Respaldo</NuxtLink></p>
       <p>© 2026 Krahegwen · MIT</p>
 
       <section v-if="panelSesion" class="portero">
@@ -334,6 +337,17 @@ footer p { margin: 0.15rem 0; }
 .sincro.pendiente { color: var(--acento); font-weight: 600; }
 .sincro.atascada { color: #c2410c; font-weight: 600; }
 .sincro:disabled { cursor: default; opacity: 0.7; }
+
+.enlace-pie {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 0.6rem;
+  color: var(--suave);
+  text-decoration: underline;
+}
+
+.enlace-pie:hover { color: var(--acento); }
 
 /* El panel de sesión, detrás de los cinco toques. Alineado a la izquierda:
    dentro del pie centrado parecería un aviso y es un formulario. */

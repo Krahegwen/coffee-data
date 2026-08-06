@@ -135,6 +135,24 @@ seguridad, es discreción: a quien la app le funciona en local no le sale un
 formulario de token que no le sirve; lo que protege sigue siendo el token. El
 pie dice el modo — con sesión añade «en el servidor».
 
+### El respaldo
+
+En `/respaldo` (enlazado desde el pie) la bitácora entera se descarga como un
+ZIP: `cafes.csv`, `recetas.csv`, `pasos.csv` y `extracciones.csv` con **las
+mismas columnas y el mismo dialecto** que `datos/` en este repo, las fotos
+tal cual y un `manifiesto.json` con la versión del formato. Un respaldo ajeno
+se abre con las herramientas de siempre. El ZIP va en modo *stored* —las
+fotos ya son webp comprimido— y lo escribe y lee la propia app, sin
+dependencias; el CRC se comprueba al restaurar.
+
+**Restaurar reemplaza, no fusiona** — por eso se llama respaldo y no
+«exportar»—, y avisa con números de lo que va a tirar. Antes de tocar nada,
+el contenido entero pasa por los manejadores del núcleo contra un almacén en
+memoria: la misma validación que un alta, el mismo tipado — un CSV solo sabe
+de textos—. Si una sola fila no pasa, no se restaura ninguna. Sirve de copia
+y de mudanza entre navegadores; con sesión solo se ofrece descargar, porque
+la copia buena es el servidor y el siguiente refresco pisaría lo restaurado.
+
 El botón de instalar no sale si ya la tienes puesta, **aunque estés viéndola en
 una pestaña del navegador**. Mirar el `display-mode` solo dice cómo la abriste
 tú; para saber si existe en la pantalla de inicio hace falta
