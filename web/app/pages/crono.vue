@@ -28,6 +28,11 @@ const finGoteo = ref<number | null>(null)
 let animacion = 0
 let inicio = 0
 let despierta: WakeLockSentinel | null = null
+/**
+ * Si el reloj iba al marcar el fin del goteo. Solo entonces tiene sentido
+ * ponerse al día si se deshace: si estaba en pausa, la parada fue a propósito.
+ */
+let goteoEnMarcha = false
 
 /** Cuando acaba el último vertido: desde ahí se cuenta el goteo. */
 const finVertidos = computed(() => {
@@ -65,6 +70,13 @@ const drawdown = computed(() =>
     ? Math.max(0, Math.round(finGoteo.value - finVertidos.value))
     : null,
 )
+
+/** Arrancado y sin cerrar el goteo: o va el reloj, o está en pausa. */
+const enMarcha = computed(
+  () => finGoteo.value === null && (corriendo.value || transcurrido.value > 0),
+)
+
+const pausado = computed(() => enMarcha.value && !corriendo.value)
 
 // El anillo: la bola da una vuelta entera por paso.
 const RADIO = 45
@@ -118,13 +130,18 @@ function ahora() {
   return (performance.now() - inicio) / 1000
 }
 
-async function iniciar() {
-  // Contra el reloj del sistema y no sumando ticks: sumar acumula deriva, y
-  // aquí 45 segundos tienen que ser 45. Con requestAnimationFrame la bola va
-  // fluida en vez de a diez saltos por segundo.
-  inicio = performance.now()
-  transcurrido.value = 0
-  finGoteo.value = null
+/**
+ * Pone el reloj a andar desde el segundo que se le diga.
+ *
+ * El origen se recalcula en vez de guardarse una vez: así reanudar es lo
+ * mismo que arrancar, solo que desde otro punto, y el tiempo en pausa no
+ * cuenta. Se mide contra el reloj del sistema y no sumando ticks —sumar
+ * acumula deriva y aquí 45 segundos tienen que ser 45—; con
+ * requestAnimationFrame la bola va fluida en vez de a diez saltos por segundo.
+ */
+async function arrancarDesde(desde: number) {
+  inicio = performance.now() - desde * 1000
+  transcurrido.value = desde
   corriendo.value = true
 
   const tic = () => {
@@ -139,12 +156,44 @@ async function iniciar() {
   } catch { /* sin wake lock se sigue igual */ }
 }
 
-function marcarFinGoteo() {
-  // Del reloj del sistema, no de la última pintada: con la pestaña de fondo
-  // el navegador congela las animaciones y el valor se quedaría corto.
+async function iniciar() {
+  finGoteo.value = null
+  await arrancarDesde(0)
+}
+
+/** Pausa de verdad: lo que dure no cuenta para la extracción. */
+function pausar() {
   transcurrido.value = ahora()
+  parar()
+}
+
+/** Dentro del círculo y en el botón: pausa, y otra vez reanuda. */
+function alternarPausa() {
+  if (!enMarcha.value) return
+  if (corriendo.value) pausar()
+  else arrancarDesde(transcurrido.value)
+}
+
+function marcarFinGoteo() {
+  goteoEnMarcha = corriendo.value
+  // Del reloj del sistema, no de la última pintada: con la pestaña de fondo
+  // el navegador congela las animaciones y el valor se quedaría corto. En
+  // pausa manda `transcurrido`, que es donde se dejó.
+  if (corriendo.value) transcurrido.value = ahora()
   finGoteo.value = transcurrido.value
   parar()
+}
+
+/**
+ * Deshace un «dejó de gotear» pulsado sin querer.
+ *
+ * Se retoma con el tiempo real, no donde se marcó: el café siguió goteando
+ * mientras se caía en la cuenta del error, así que el reloj no se había
+ * parado de verdad. Si estaba en pausa al marcarlo, se sigue donde estaba.
+ */
+function seguirGoteando() {
+  finGoteo.value = null
+  arrancarDesde(goteoEnMarcha ? ahora() : transcurrido.value)
 }
 
 function parar() {
@@ -213,8 +262,15 @@ onUnmounted(parar)
   </section>
 
   <section v-else class="corriendo">
-    <!-- El anillo es decorativo: lo que hay que saber está en los números. -->
-    <div class="esfera">
+    <!-- El anillo es decorativo: lo que hay que saber está en los números.
+         Toda la esfera es el botón de pausa: es lo más grande de la pantalla
+         y se acierta sin mirar, que es de lo que se trata con el hervidor en
+         la mano. -->
+    <button
+      type="button" class="esfera" :class="{ pausada: pausado }"
+      :disabled="!enMarcha" :aria-label="corriendo ? 'Pausar' : 'Reanudar el cronómetro'"
+      @click="alternarPausa"
+    >
       <svg class="anillo" viewBox="0 0 100 100" aria-hidden="true">
         <circle class="pista" cx="50" cy="50" :r="RADIO" />
         <circle
@@ -238,7 +294,7 @@ onUnmounted(parar)
         </template>
         <p v-else class="accion">preparados…</p>
       </div>
-    </div>
+    </button>
 
     <!-- Fuera del anillo: los textos largos no caben dentro sin estrujarlo. -->
     <p v-if="actual && !actual.lectura_fiable" class="ojo">
@@ -251,16 +307,28 @@ onUnmounted(parar)
       en <strong>{{ Math.ceil(faltan ?? 0) }} s</strong>
     </p>
 
-    <button v-if="!corriendo && finGoteo === null" @click="iniciar">Iniciar</button>
+    <p v-else-if="pausado" class="faltan">
+      En pausa · toca el círculo para seguir
+    </p>
 
-    <button v-else-if="finGoteo === null" class="goteo" @click="marcarFinGoteo">
-      Dejó de gotear
-    </button>
+    <button v-if="!enMarcha && finGoteo === null" @click="iniciar">Iniciar</button>
+
+    <template v-else-if="finGoteo === null">
+      <button class="pausa" @click="alternarPausa">
+        {{ corriendo ? 'Pausa' : 'Reanudar' }}
+      </button>
+      <button class="goteo" @click="marcarFinGoteo">Dejó de gotear</button>
+    </template>
 
     <div v-if="finGoteo !== null" class="tarjeta">
       <p><strong>{{ reloj_mmss(finGoteo) }}</strong> en total</p>
       <p v-if="drawdown !== null" class="meta">Goteo: {{ drawdown }} s, medido solo</p>
       <button @click="registrar">Registrar esta extracción</button>
+      <!-- Marcar el goteo cerraba la extracción sin vuelta atrás, y se pulsa
+           sin querer con el hervidor en la mano. -->
+      <button class="secundario" @click="seguirGoteando">
+        Fue sin querer: seguir contando
+      </button>
     </div>
 
     <button class="secundario" @click="reiniciar">
@@ -311,6 +379,10 @@ button {
 .secundario { background: transparent; color: var(--suave); font-weight: 400; }
 .goteo { background: var(--tostado); }
 
+/* Ni acento ni apagado: es el que más se pulsa después del de gotear, pero no
+   es el que cierra la extracción. */
+.pausa { background: transparent; color: var(--acento); border: 1px solid var(--linea); }
+
 .plan {
   margin: 1rem 0;
   padding: 0;
@@ -331,15 +403,37 @@ button {
 
 .corriendo { text-align: center; }
 
-/* Cuadrada a la fuerza: el anillo se deforma si el alto no sigue al ancho. */
+/*
+ * Cuadrada a la fuerza: el anillo se deforma si el alto no sigue al ancho.
+ *
+ * Es un <button>, así que hay que deshacerle el estilo de los botones de esta
+ * pantalla, que son barras de color de lado a lado.
+ */
 .esfera {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  min-height: 0;
   position: relative;
   width: min(78vw, 20rem);
   aspect-ratio: 1;
   margin: 1rem auto 0.5rem;
   display: grid;
   place-items: center;
+  cursor: pointer;
 }
+
+/* Antes de arrancar no hay nada que pausar, y no debe parecer pulsable. */
+.esfera:disabled { cursor: default; }
+
+/* En pausa el anillo se apaga: el número se queda quieto y sin esto no se
+   distingue de un cronómetro que sigue entre dos pasos. */
+.esfera.pausada .avance, .esfera.pausada .bola { opacity: 0.3; }
+.esfera.pausada .crono { opacity: 0.6; }
 
 .anillo { position: absolute; inset: 0; width: 100%; height: 100%; }
 

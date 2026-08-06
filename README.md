@@ -111,6 +111,16 @@ báscula y mantiene la pantalla encendida. Al marcar «dejó de gotear» calcula
 `drawdown_s` **solo** y salta al alta con tiempo, goteo, café y receta ya
 puestos. Ese dato es justo el que a mano no se registra bien.
 
+**Toda la esfera es el botón de pausa** —es lo más grande de la pantalla y se
+acierta sin mirar—, y hay otro encima del de gotear para quien prefiera un
+botón con su nombre. La pausa es de verdad: lo que dure no cuenta.
+
+Marcar el goteo **se puede deshacer**, que se pulsa sin querer con el hervidor
+en la mano. Al deshacerlo el reloj se pone al día con el tiempo real y no
+vuelve a donde se marcó: el café siguió goteando mientras caías en la cuenta.
+Salvo que estuvieras en pausa al marcarlo, y entonces se sigue donde estaba,
+porque esa parada sí fue a propósito.
+
 Las fotos de las bolsas se ven en la portada y en `/cafes` como miniatura, y
 enteras en la ficha, que las enseña **sin necesidad de sesión**: mirar una
 bolsa no es editarla. Antes de subirlas, la app las **encoge** a 1600 px de
