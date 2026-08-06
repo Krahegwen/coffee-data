@@ -113,6 +113,22 @@ def test_el_defecto_es_una_lista_cerrada(db):
         insertar_extraccion(db, defecto="'quemado'")
 
 
+def test_la_apertura_tiene_que_ser_una_fecha(db):
+    db.execute("UPDATE cafes SET fecha_apertura = '2026-06-01' WHERE id = 'gary'")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("UPDATE cafes SET fecha_apertura = 'ayer' WHERE id = 'gary'")
+
+
+def test_los_dias_abierta_se_cuentan_desde_la_fecha_de_la_extraccion(db):
+    db.execute("UPDATE cafes SET fecha_apertura = '2026-08-01' WHERE id = 'gary'")
+    dias = db.execute("SELECT dias_abierta FROM v_extracciones WHERE id = 1").fetchone()[0]
+    assert dias == 4  # la extracción #1 es del 2026-08-05
+
+
+def test_sin_fecha_de_apertura_los_dias_quedan_a_null(db):
+    assert db.execute("SELECT dias_abierta FROM v_extracciones WHERE id = 1").fetchone()[0] is None
+
+
 def test_aguado_es_un_defecto_valido(db):
     insertar_extraccion(db, defecto="'aguado'")
     fila = db.execute("SELECT defecto FROM extracciones ORDER BY id DESC LIMIT 1").fetchone()

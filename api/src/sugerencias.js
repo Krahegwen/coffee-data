@@ -13,6 +13,20 @@ export const DRAWDOWN_CORTO_S = 30;
 export const NOTA_BUENA = 8;
 export const DIAS_TUESTE_VIEJO = 60;
 
+/**
+ * Días con la bolsa abierta a partir de los cuales el café se apaga por
+ * oxidación, no por lo que hagas al prepararlo.
+ *
+ * Es el otro reloj de la frescura. Mientras la bolsa está precintada manda el
+ * tueste; desde que la abres manda esto, y por eso dos bolsas del mismo tueste
+ * —una abierta hace un mes y otra recién estrenada— no son el mismo café.
+ *
+ * Tres semanas es un punto de partida para bolsa con clip. En un bote de vacío
+ * aguanta bastante más, así que este umbral pide calibrarse con tus datos más
+ * que ninguno de los otros.
+ */
+export const DIAS_ABIERTA_VIEJA = 21;
+
 // Un par emparejado es una anécdota; dos empiezan a ser una tendencia.
 export const MINIMO_PARES = 2;
 
@@ -105,6 +119,15 @@ export function avisosDe(extraccion, historico = []) {
   }
   if (extraccion.defecto === "carton" && (dias === null || dias > DIAS_TUESTE_VIEJO)) {
     avisos.push("a cartón casi siempre es café pasado, no extracción");
+  }
+
+  const abierta = num(extraccion.dias_abierta);
+  if (abierta !== null && abierta > DIAS_ABIERTA_VIEJA) {
+    avisos.push(
+      `la bolsa lleva ${Math.round(abierta)} días abierta (más de ` +
+        `${DIAS_ABIERTA_VIEJA}): a partir de ahí el café se apaga por oxidación ` +
+        "y no por lo que hagas al prepararlo, salvo que la guardes al vacío",
+    );
   }
 
   const retenido = retencion(extraccion);

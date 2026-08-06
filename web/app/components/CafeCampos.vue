@@ -50,10 +50,12 @@ const idPrevisto = computed(() =>
     </label>
   </div>
 
-  <label>
-    Fecha de tueste
-    <input v-model="modelo.fecha_tueste" type="date">
-  </label>
+  <!-- Los dos relojes de la frescura, juntos y arriba: mientras la bolsa está
+       precintada manda el tueste; desde que la abres, la oxidación. -->
+  <div class="pareja">
+    <label>Fecha de tueste<input v-model="modelo.fecha_tueste" type="date"></label>
+    <label>Abierta el<input v-model="modelo.fecha_apertura" type="date"></label>
+  </div>
 
   <label>
     Conservación
@@ -80,10 +82,9 @@ const idPrevisto = computed(() =>
       <label>Consumir antes<input v-model="modelo.consumir_antes" type="date"></label>
     </div>
 
-    <div class="pareja">
-      <label>Comprado el<input v-model="modelo.fecha_compra" type="date"></label>
-      <label>Recibido el<input v-model="modelo.fecha_recepcion" type="date"></label>
-    </div>
+    <!-- «Recibido el» ya no se pide: no lo leía nadie. La columna sigue ahí con
+         lo que tenía, porque quitarla obliga a rehacer la tabla entera. -->
+    <label>Comprado el<input v-model="modelo.fecha_compra" type="date"></label>
 
     <label>Notas del tostador<textarea v-model="modelo.notas_tostador" rows="2" /></label>
     <label>Ficha del tostador (url)<input v-model="modelo.url" type="url" inputmode="url"></label>

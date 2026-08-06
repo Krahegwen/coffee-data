@@ -280,10 +280,14 @@ async function enviar() {
       v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
       @cambia="(clave, valor) => (form[clave] = valor)"
     />
+    <!-- El dato pelado y sin umbral: quién decide qué es «mucho» es el
+         servidor, y ya lo dirá en sus avisos al registrar. -->
     <p v-if="bolsaPrevia" class="meta">
       Los valores vienen de la última de la bolsa anterior
-      ({{ bolsaPrevia.fecha }}). El tueste es otro, así que esta cuenta como
-      basal y no se compara con aquélla.
+      ({{ bolsaPrevia.fecha }}<span v-if="bolsaPrevia.dias_abierta !== null">, que
+      llevaba {{ bolsaPrevia.dias_abierta }} días abierta</span>). El tueste es
+      otro, así que esta cuenta como basal y no se compara con aquélla — y esos
+      ajustes pueden estar compensando un café ya apagado.
     </p>
     <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
          repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay

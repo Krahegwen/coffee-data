@@ -27,7 +27,7 @@ EXPORTS = [
         "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
         "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g",
         "precio_eur", "notas_tostador", "estado", "fecha_compra",
-        "fecha_recepcion", "foto", "url", "conservacion",
+        "fecha_recepcion", "fecha_apertura", "foto", "url", "conservacion",
     ], lambda f: f["id"]),
 ]
 

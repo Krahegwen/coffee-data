@@ -22,7 +22,7 @@ const errorSesion = ref('')
 const EDITABLES = [
   'nombre', 'tostador', 'origen', 'region', 'variedad', 'proceso', 'altitud_m',
   'sca', 'fecha_tueste', 'consumir_antes', 'peso_g', 'precio_eur',
-  'notas_tostador', 'estado', 'fecha_compra', 'fecha_recepcion', 'url',
+  'notas_tostador', 'estado', 'fecha_compra', 'fecha_apertura', 'url',
   'conservacion',
 ] as const
 

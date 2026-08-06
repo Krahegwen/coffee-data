@@ -43,11 +43,14 @@ export const ESTADOS = ["abierto", "terminado", "pendiente"];
 export const CAMPOS_CAFE = [
   "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
   "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
-  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion", "url",
-  "conservacion",
+  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion",
+  "fecha_apertura", "url", "conservacion",
 ];
 
-const FECHAS_CAFE = ["fecha_tueste", "consumir_antes", "fecha_compra", "fecha_recepcion"];
+const FECHAS_CAFE = [
+  "fecha_tueste", "consumir_antes", "fecha_compra", "fecha_recepcion",
+  "fecha_apertura",
+];
 const TEXTOS_CAFE = [
   "tostador", "origen", "region", "variedad", "proceso", "notas_tostador",
   "url", "conservacion",

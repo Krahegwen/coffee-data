@@ -374,6 +374,19 @@ describe("avisos", () => {
     assert.deepEqual(avisosDe(extraccion({ dias_tueste: null })), []);
   });
 
+  it("avisa de una bolsa que lleva mucho abierta", () => {
+    const avisos = avisosDe(extraccion({ dias_abierta: 40 }));
+    assert.ok(avisos.some((a) => a.includes("40 días abierta")));
+  });
+
+  it("una bolsa recién abierta no dice nada", () => {
+    assert.deepEqual(avisosDe(extraccion({ dias_abierta: 3 })), []);
+  });
+
+  it("sin fecha de apertura no se inventa el aviso", () => {
+    assert.deepEqual(avisosDe(extraccion({ dias_abierta: null })), []);
+  });
+
   it("avisa de la masa térmica de la cerámica", () => {
     const avisos = avisosDe(extraccion({ dripper: "v60-02-ceramica" }));
     assert.ok(avisos.some((a) => a.includes("masa térmica")));

@@ -24,6 +24,8 @@ export interface Cafe {
   estado: (typeof ESTADOS)[number]
   fecha_compra: string | null
   fecha_recepcion: string | null
+  /** Cuándo se abrió. El otro reloj de la frescura, junto al tueste. */
+  fecha_apertura: string | null
   foto: string | null
   url: string | null
   conservacion: string | null
@@ -38,6 +40,8 @@ export interface Extraccion {
   agua_g: number
   ratio: number
   dias_tueste: number | null
+  /** Días que llevaba la bolsa abierta ese día. Null si no consta la apertura. */
+  dias_abierta: number | null
   temp_c: number | null
   clics: number | null
   reparto: string | null

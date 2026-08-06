@@ -85,6 +85,11 @@ curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bear
 bajo). Si ya existe, se le pone sufijo — `gary`, `gary_2` — porque la segunda
 bolsa del mismo café es normal. Un `id` explícito que choque sigue dando 409.
 
+La frescura tiene **dos relojes**: `fecha_tueste` mientras la bolsa está
+precintada y `fecha_apertura` desde que la abres. La vista deriva
+`dias_abierta` y el motor avisa pasados 21 días. `fecha_recepcion` sigue en el
+esquema pero ya no se pide: no la lee nadie.
+
 Una fila es **una bolsa**, no un café: el tueste es lo que hace la taza, y dos
 bolsas con el mismo `cafe_id` harían que el motor emparejase extracciones de
 lotes distintos. La app duplica la ficha desde la bolsa vieja («Otra bolsa») y

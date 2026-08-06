@@ -199,7 +199,8 @@ ahí es el mismo origen y el código no se entera de la diferencia.
 `id` · `nombre` · `tostador` · `origen` · `region` · `variedad` · `proceso` ·
 `altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) · `consumir_antes` · `peso_g` ·
 `precio_eur` · `notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
-`fecha_compra` · `fecha_recepcion` · `foto` (clave del objeto en R2; la mantiene
+`fecha_compra` · `fecha_recepcion` · `fecha_apertura` ·
+`foto` (clave del objeto en R2; la mantiene
 el endpoint de subida, no entra por JSON) · `url`
 
 ## Esquema · `extracciones.csv`
@@ -436,6 +437,26 @@ Borrar una receta **no tiene papelera**, al revés que las extracciones: una
 receta es una plantilla, no un dato observado. Y el servidor se niega con 409
 si alguna extracción la usa —retiradas incluidas—, porque sin la fila no
 habría forma de saber con qué se preparó aquella taza.
+
+## Los dos relojes de la frescura
+
+`fecha_tueste` manda mientras la bolsa está **precintada**. Desde que la abres
+manda `fecha_apertura`: el café se oxida y se desgasifica a otro ritmo, y ahí
+ya no importa tanto cuándo se tostó como cuánto lleva respirando. Dos bolsas
+del mismo tueste —una abierta hace un mes y otra precintada— no son el mismo
+café, y sin el segundo reloj no hay forma de explicar por qué dos tazas
+idénticas no saben igual.
+
+La vista deriva `dias_abierta` igual que `dias_tueste`: **desde la fecha de la
+extracción**, no desde hoy. El aviso salta por encima de `DIAS_ABIERTA_VIEJA`
+(21 días), que es un punto de partida para bolsa con clip — en un bote de vacío
+aguanta bastante más, así que este umbral pide calibrarse más que ninguno.
+
+`fecha_recepcion` se quedó en el esquema pero **ya no se pide**: no la lee
+nadie —ni una vista, ni el motor, ni un aviso—. Quitarla no es un `DROP
+COLUMN`: SQLite se niega mientras un `CHECK` la mencione, y rehacer `cafes` con
+todas las extracciones apuntándola por clave foránea es mucho riesgo para un
+campo opcional.
 
 ## Otra bolsa del mismo café
 
