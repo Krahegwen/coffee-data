@@ -80,6 +80,12 @@ function mover(i: number, salto: number) {
         >
         <span v-else class="singramos">—</span>
       </div>
+      <!-- La nota va en su línea: en la rejilla no cabe sin estrujar los
+           números, y es lo único del paso que se lee durante la extracción. -->
+      <input
+        v-model="paso.notas" class="apunte"
+        placeholder="nota: se lee en el cronómetro" aria-label="nota del paso"
+      >
       <div class="pie">
         <span v-if="paso.accion === 'verter'" class="acum">hasta {{ acumulado(i) }} g</span>
         <span v-else-if="paso.accion === 'agitar' || paso.accion === 'remover'" class="ojo">
@@ -150,6 +156,9 @@ select, input {
 }
 
 .singramos { color: var(--suave); text-align: center; font-size: 0.85rem; }
+
+/* Fuera de la rejilla, así que el ancho no lo hereda de ninguna columna. */
+.apunte { width: 100%; margin-top: 0.4rem; }
 
 .pie {
   display: flex;
