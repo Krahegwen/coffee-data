@@ -303,9 +303,22 @@ def test_actualizado_en_se_mueve_al_editar(db):
 
 def test_la_semilla_conserva_los_datos_de_abbie(db):
     fila = db.execute(
-        "SELECT peso_g, conservacion, fecha_compra FROM cafes WHERE id = 'abbie'"
+        "SELECT peso_g, conservacion, fecha_tueste FROM cafes WHERE id = 'abbie'"
     ).fetchone()
     assert fila == (340.0, "Fellow Atmos 1.2 L", "2026-05-11")
+
+
+def test_las_fechas_de_compra_siguen_en_la_tabla_pero_congeladas(db):
+    """Se intentó quitarlas y D1 no dejó. Quedan ahí, y nadie las escribe.
+
+    El intento está contado en el README: no vale un DROP COLUMN mientras un
+    CHECK las mencione, y rehacer `cafes` no cuela porque tirar la tabla apunta
+    una violación aplazada por cada extracción que la referencia. Fuera del
+    formulario y fuera de CAMPOS_CAFE, que es lo que de verdad importaba.
+    """
+    columnas = {c[1] for c in db.execute("PRAGMA table_info(cafes)")}
+    assert {"fecha_compra", "fecha_recepcion"} <= columnas
+    assert "fecha_apertura" in columnas
 
 
 # --- borrado lógico ----------------------------------------------------------

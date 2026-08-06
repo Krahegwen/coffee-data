@@ -26,6 +26,8 @@ EXPORTS = [
     ("cafes.csv", "/api/cafes", [
         "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
         "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g",
+        # fecha_compra y fecha_recepcion ya no se piden ni se escriben, pero
+        # siguen en la tabla: el respaldo tiene que reflejar lo que hay.
         "precio_eur", "notas_tostador", "estado", "fecha_compra",
         "fecha_recepcion", "fecha_apertura", "foto", "url", "conservacion",
     ], lambda f: f["id"]),

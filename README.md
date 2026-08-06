@@ -199,7 +199,7 @@ ahí es el mismo origen y el código no se entera de la diferencia.
 `id` · `nombre` · `tostador` · `origen` · `region` · `variedad` · `proceso` ·
 `altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) · `consumir_antes` · `peso_g` ·
 `precio_eur` · `notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
-`fecha_compra` · `fecha_recepcion` · `fecha_apertura` ·
+`fecha_apertura` ·
 `foto` (clave del objeto en R2; la mantiene
 el endpoint de subida, no entra por JSON) · `url`
 
@@ -452,11 +452,26 @@ extracción**, no desde hoy. El aviso salta por encima de `DIAS_ABIERTA_VIEJA`
 (21 días), que es un punto de partida para bolsa con clip — en un bote de vacío
 aguanta bastante más, así que este umbral pide calibrarse más que ninguno.
 
-`fecha_recepcion` se quedó en el esquema pero **ya no se pide**: no la lee
-nadie —ni una vista, ni el motor, ni un aviso—. Quitarla no es un `DROP
-COLUMN`: SQLite se niega mientras un `CHECK` la mencione, y rehacer `cafes` con
-todas las extracciones apuntándola por clave foránea es mucho riesgo para un
-campo opcional.
+`fecha_compra` y `fecha_recepcion` **ya no se piden ni se escriben**: no las
+leía nadie —ni una vista, ni el motor, ni un aviso— y cuándo pagaste la bolsa
+no cambia la taza. Fuera del formulario y fuera de `CAMPOS_CAFE`, así que la
+API las rechaza como campo desconocido.
+
+**Las columnas siguen en la tabla**, y no por dejadez. Se intentó quitarlas y
+D1 no dejó:
+
+- `DROP COLUMN` lo rechaza SQLite mientras un `CHECK` mencione la columna, y
+  las dos lo tienen desde la migración inicial.
+- Rehacer `cafes` tampoco vale. Todas las extracciones la apuntan por clave
+  foránea: **renombrarla** hace que SQLite reescriba esa referencia para que
+  siga al nombre nuevo, y **tirarla** apunta una violación aplazada por cada
+  fila que la referencia — un contador que no se cancela porque la tabla
+  vuelva después con ese nombre. D1 tira la transacción entera al confirmar.
+  Probado con las dos variantes; el esquema en SQLite pelado las traga y el
+  runtime de verdad no.
+
+Dos columnas nulas y congeladas no molestan a nadie. Rehacer a martillazos la
+tabla que cuelga de cada extracción, sí.
 
 ## Otra bolsa del mismo café
 

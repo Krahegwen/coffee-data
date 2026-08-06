@@ -82,9 +82,8 @@ const idPrevisto = computed(() =>
       <label>Consumir antes<input v-model="modelo.consumir_antes" type="date"></label>
     </div>
 
-    <!-- «Recibido el» ya no se pide: no lo leía nadie. La columna sigue ahí con
-         lo que tenía, porque quitarla obliga a rehacer la tabla entera. -->
-    <label>Comprado el<input v-model="modelo.fecha_compra" type="date"></label>
+    <!-- Ni «comprado el» ni «recibido el»: cuándo la pagaste no cambia la taza,
+         y no los leía nadie. Se fueron de la tabla en la migración 0008. -->
 
     <label>Notas del tostador<textarea v-model="modelo.notas_tostador" rows="2" /></label>
     <label>Ficha del tostador (url)<input v-model="modelo.url" type="url" inputmode="url"></label>

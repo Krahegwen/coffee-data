@@ -42,15 +42,11 @@ export const ESTADOS = ["abierto", "terminado", "pendiente"];
 // que es quien mantiene la columna y el objeto de R2 a la par.
 export const CAMPOS_CAFE = [
   "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
-  "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g", "precio_eur",
-  "notas_tostador", "estado", "fecha_compra", "fecha_recepcion",
-  "fecha_apertura", "url", "conservacion",
+  "altitud_m", "sca", "fecha_tueste", "consumir_antes", "fecha_apertura",
+  "peso_g", "precio_eur", "notas_tostador", "estado", "url", "conservacion",
 ];
 
-const FECHAS_CAFE = [
-  "fecha_tueste", "consumir_antes", "fecha_compra", "fecha_recepcion",
-  "fecha_apertura",
-];
+const FECHAS_CAFE = ["fecha_tueste", "consumir_antes", "fecha_apertura"];
 const TEXTOS_CAFE = [
   "tostador", "origen", "region", "variedad", "proceso", "notas_tostador",
   "url", "conservacion",

@@ -22,8 +22,6 @@ export interface Cafe {
   precio_eur: number | null
   notas_tostador: string | null
   estado: (typeof ESTADOS)[number]
-  fecha_compra: string | null
-  fecha_recepcion: string | null
   /** Cuándo se abrió. El otro reloj de la frescura, junto al tueste. */
   fecha_apertura: string | null
   foto: string | null

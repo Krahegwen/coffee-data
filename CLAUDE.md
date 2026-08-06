@@ -87,8 +87,12 @@ bolsa del mismo café es normal. Un `id` explícito que choque sigue dando 409.
 
 La frescura tiene **dos relojes**: `fecha_tueste` mientras la bolsa está
 precintada y `fecha_apertura` desde que la abres. La vista deriva
-`dias_abierta` y el motor avisa pasados 21 días. `fecha_recepcion` sigue en el
-esquema pero ya no se pide: no la lee nadie.
+`dias_abierta` y el motor avisa pasados 21 días. `fecha_compra` y
+`fecha_recepcion` ya no se piden ni se escriben —la API las rechaza—, pero las
+columnas siguen ahí: quitarlas obliga a rehacer `cafes` y D1 no deja, porque
+tirar una tabla que cuelga de cada extracción apunta violaciones aplazadas que
+ya no se cancelan. Está contado en el README; **no lo vuelvas a intentar** sin
+una idea nueva.
 
 Una fila es **una bolsa**, no un café: el tueste es lo que hace la taza, y dos
 bolsas con el mismo `cafe_id` harían que el motor emparejase extracciones de
