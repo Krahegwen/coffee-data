@@ -13,6 +13,15 @@ export default defineNuxtPlugin(() => {
   yaInstalada.value = enModoApp()
   enTactilAhora.value = enTactil()
 
+  // Y si estás en el navegador pero la tienes puesta en la pantalla de inicio,
+  // tampoco hay nada que ofrecer. La pregunta es asíncrona, así que llega un
+  // instante después que el resto.
+  if (!yaInstalada.value) {
+    instaladaAparte().then((instalada) => {
+      if (instalada) yaInstalada.value = true
+    })
+  }
+
   window.addEventListener('beforeinstallprompt', (evento) => {
     // Sin esto, el navegador puede sacar su propio cartel cuando le parezca
     // y perdemos la ocasión de guardarlo para el botón.

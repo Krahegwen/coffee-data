@@ -76,6 +76,17 @@ export default defineNuxtConfig({
       display: 'standalone',
       orientation: 'portrait',
       start_url: '/',
+      /*
+       * Que la app se declare a sí misma como «aplicación relacionada» es lo
+       * que permite a `getInstalledRelatedApps()` decir, desde el navegador,
+       * que ya la tienes instalada. Sin esta entrada la respuesta es siempre
+       * una lista vacía.
+       *
+       * `prefer_related_applications` se queda en false a propósito: en true,
+       * el navegador dejaría de ofrecer la instalación.
+       */
+      related_applications: [{ platform: 'webapp', url: '/manifest.webmanifest' }],
+      prefer_related_applications: false,
       icons: [
         { src: 'icono-192.png', sizes: '192x192', type: 'image/png' },
         { src: 'icono-512.png', sizes: '512x512', type: 'image/png' },

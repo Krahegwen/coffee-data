@@ -24,6 +24,16 @@ useHead({
 <template>
   <div class="marco">
     <header>
+      <!-- Las recetas se consultan a menudo y se editan poco, así que viven
+           arriba y siempre a la misma altura en vez de ocupar un botón en la
+           portada. -->
+      <NuxtLink to="/recetas" class="atajo" aria-label="Recetas">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
+          <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
+          <path d="M8 7.5h7M8 11h5" />
+        </svg>
+      </NuxtLink>
       <h1>Bitácora de café</h1>
     </header>
     <main>
@@ -105,13 +115,38 @@ body {
 }
 
 /* El hueco lo ponía el lema, que ya no está: ahora lo pone la cabecera. */
-header { margin-bottom: 1rem; }
+header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
 
 header h1 {
   margin: 0;
   font-size: 1.4rem;
   letter-spacing: -0.01em;
 }
+
+/*
+ * 44 px para el dedo aunque el icono mida 21. El margen negativo de la
+ * izquierda lo devuelve al borde del contenido: sin él, el título entero
+ * aparecería sangrado respecto al resto de la pantalla.
+ */
+.atajo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  /* Izquierda: devuelve el icono al borde del contenido. Derecha: le quita al
+     título el aire de más que dejaría la zona de toque. */
+  margin: 0 -0.4rem 0 -0.7rem;
+  color: var(--suave);
+}
+
+.atajo:hover { color: var(--acento); }
 
 /*
  * Las parejas de campos son un grid de 1fr 1fr, y sus hijos —las etiquetas—

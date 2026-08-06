@@ -48,6 +48,30 @@ export function enModoApp() {
 }
 
 /**
+ * Si la app ya está instalada, aunque ahora mismo la estés viendo en una
+ * pestaña del navegador.
+ *
+ * `enModoApp()` solo sabe cómo la abriste tú, no si existe en la pantalla de
+ * inicio: entrando por la URL diría que no aunque la tengas puesta. Esto lo
+ * pregunta de verdad, y hace falta que el manifiesto se declare a sí mismo en
+ * `related_applications`.
+ *
+ * Es de Chromium y de contextos seguros: en iOS y en Firefox no existe, y
+ * entonces no se sabe. Ante la duda, no se dice nada.
+ */
+export async function instaladaAparte() {
+  const consulta = (navigator as {
+    getInstalledRelatedApps?: () => Promise<unknown[]>
+  }).getInstalledRelatedApps
+  if (!consulta) return false
+  try {
+    return (await consulta.call(navigator)).length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
  * Abre el diálogo del navegador. Devuelve qué contestó el usuario, o
  * 'sin-evento' si el navegador nunca lo ofreció: el evento no se puede
  * fabricar, así que ahí solo queda el menú.

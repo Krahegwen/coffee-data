@@ -95,7 +95,14 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
-El botón de instalar sale **solo con puntero grueso** (`pointer: coarse`), que
+El botón de instalar no sale si ya la tienes puesta, **aunque estés viéndola en
+una pestaña del navegador**. Mirar el `display-mode` solo dice cómo la abriste
+tú; para saber si existe en la pantalla de inicio hace falta
+`getInstalledRelatedApps()`, y para que conteste algo, que el manifiesto se
+declare a sí mismo en `related_applications`. Es de Chromium: en iOS y en
+Firefox no se sabe, y entonces no se dice nada.
+
+El botón sale además **solo con puntero grueso** (`pointer: coarse`), que
 es el móvil o la tablet. No se mira el ancho de la ventana, que miente en
 cuanto encoges el navegador, ni el user agent, que miente siempre. Tampoco
 vale gatearlo por `beforeinstallprompt`: en el Chrome de escritorio también
@@ -125,6 +132,12 @@ abrirla la dejaría «con cambios» sin que nadie haya tocado nada— y el valor
 antes sale de la extracción **inmediatamente anterior a ésa**, no de la última
 de la bolsa: corrigiendo la #2 lo que hay que comparar es la #1, aunque existan
 la #5 y la #6.
+
+De la portada se sale por una sola puerta, **preparar**. El paso previo del
+cronómetro —café, receta, dosis, agua y el guion escalado delante— acaba en dos
+salidas: al reloj, o al alta a mano con todo eso ya puesto. Hasta ahí se llega
+con la misma información en pantalla, y solo entonces se sabe cuál de las dos
+quieres: si el café ya está hecho, el reloj no pinta nada.
 
 El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
 objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la

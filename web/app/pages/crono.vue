@@ -219,6 +219,22 @@ function reiniciar() {
   finGoteo.value = null
 }
 
+/**
+ * Al alta sin pasar por el reloj, con lo elegido aquí ya puesto. Sin tiempo
+ * ni goteo: no se han medido, y ponerlos a cero sería peor que dejarlos.
+ */
+function aMano() {
+  router.push({
+    path: '/nueva',
+    query: {
+      cafe: cafeId.value,
+      receta: recetaId.value,
+      dosis: String(dosis.value),
+      agua: String(agua.value),
+    },
+  })
+}
+
 /** Al alta, con lo que el cronómetro ya sabe. */
 function registrar() {
   router.push({
@@ -267,7 +283,12 @@ onUnmounted(parar)
       </li>
     </ol>
 
+    <!-- Las dos salidas juntas y al final: hasta aquí se llega con lo mismo
+         delante —café, receta, dosis y agua—, y solo mirando el guion se sabe
+         si toca cronometrar o si el café ya está hecho y solo vienes a
+         apuntarlo. -->
     <button @click="alCronometro">Al cronómetro</button>
+    <button class="secundario" @click="aMano">Introducir manualmente</button>
   </section>
 
   <section v-else class="corriendo">

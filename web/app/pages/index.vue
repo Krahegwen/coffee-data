@@ -54,13 +54,12 @@ async function instalar() {
     últimos datos guardados en cuanto la app esté instalada.
   </div>
 
+  <!-- Una sola puerta: preparar. Registrar a mano vive dentro, al lado del
+       cronómetro, porque hasta ahí llegas con la misma información delante
+       —café, receta, dosis y agua— y solo entonces se sabe cuál de las dos
+       quieres. Las bolsas y las recetas se alcanzan desde su sitio. -->
   <div class="acciones">
-    <NuxtLink to="/crono" class="registrar">Preparar · cronómetro</NuxtLink>
-    <div class="pareja">
-      <NuxtLink to="/nueva" class="registrar secundario">Registrar a mano</NuxtLink>
-      <NuxtLink to="/cafes" class="registrar secundario">Bolsas</NuxtLink>
-      <NuxtLink to="/recetas" class="registrar secundario">Recetas</NuxtLink>
-    </div>
+    <NuxtLink to="/crono" class="registrar">Preparar café</NuxtLink>
   </div>
 
   <!-- Solo en el móvil y mientras no esté instalada: instalada sobra, y en el
@@ -77,7 +76,18 @@ async function instalar() {
   </section>
 
   <section>
-    <h2>Bolsas abiertas</h2>
+    <!-- El lápiz es la puerta a las bolsas ahora que no hay botón: desde la
+         portada ves cuáles tienes abiertas, y si quieres tocarlas se entra por
+         aquí. -->
+    <h2>
+      <NuxtLink to="/cafes" class="editar" aria-label="Editar las bolsas">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+        </svg>
+      </NuxtLink>
+      Bolsas abiertas
+    </h2>
     <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
     <NuxtLink
       v-for="cafe in abiertas" :key="cafe.id"
@@ -127,12 +137,29 @@ async function instalar() {
 
 <style scoped>
 h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--suave);
   margin: 1.75rem 0 0.6rem;
 }
+
+/* 44 px para el dedo aunque el lápiz mida 17: el hueco se lo come el margen
+   negativo, si no la fila del título crecería el doble. */
+.editar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -0.7rem -0.6rem -0.7rem -0.75rem;
+  color: var(--suave);
+}
+
+.editar:hover { color: var(--acento); }
 
 .tarjeta {
   background: var(--tarjeta);
@@ -189,7 +216,6 @@ h2 {
 .dias.pasado { color: #c2410c; }
 
 .acciones { display: grid; gap: 0.5rem; }
-.acciones .pareja { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
 
 .registrar {
   display: block;
