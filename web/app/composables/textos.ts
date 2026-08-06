@@ -54,6 +54,17 @@ export type Accion = keyof typeof ACCIONES
 export type Estilo = keyof typeof ESTILOS
 export type Variable = keyof typeof VARIABLES
 
+/**
+ * «2026-08-06» → «6 ago». Desde que la id es un uuid opaco, lo que identifica
+ * una taza para un humano es el café y el día: esto es la mitad de eso.
+ */
+export function fechaCorta(fecha: string | null | undefined): string {
+  if (!fecha) return ''
+  const dia = new Date(`${fecha}T00:00:00Z`)
+  if (Number.isNaN(dia.getTime())) return String(fecha)
+  return dia.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+}
+
 /** Las variables que son de elegir de una lista, no de teclear un número. */
 export type OpcionesDeVariable = Record<string, { valor: string; etiqueta: string }[]>
 

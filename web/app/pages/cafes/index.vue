@@ -34,7 +34,7 @@ function restante(cafeId: string, pesoG: number | null) {
 
   <NuxtLink
     v-for="cafe in porEstado" :key="cafe.id"
-    :to="`/cafes/${cafe.id}`" class="tarjeta"
+    :to="`/cafes/${cafe.slug}`" class="tarjeta"
   >
     <CafeFoto :foto="cafe.foto" :nombre="cafe.nombre" />
     <div class="cuerpo">

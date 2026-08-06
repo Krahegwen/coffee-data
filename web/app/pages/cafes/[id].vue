@@ -7,7 +7,10 @@ const route = useRoute()
 const id = String(route.params.id)
 
 const { data: bolsas } = await useAsyncData(`cafe-${id}`, cafes)
-const original = computed(() => (bolsas.value ?? []).find((c) => c.id === id) ?? null)
+// La URL lleva el slug; los enlaces viejos con uuid también resuelven.
+const original = computed(
+  () => (bolsas.value ?? []).find((c) => c.slug === id || c.id === id) ?? null,
+)
 
 useHead({ title: () => original.value?.nombre ?? 'Bolsa' })
 

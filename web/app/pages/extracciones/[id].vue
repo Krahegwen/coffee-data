@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
-import { DEFECTOS, DRIPPERS, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const router = useRouter()
-const id = Number(route.params.id)
-
-useHead({ title: `Extracción #${id}` })
+const id = String(route.params.id)
 
 const { data: historial } = await useAsyncData(`ext-${id}`, () => extracciones())
 const { data: bolsas } = await useAsyncData('cafes-ext', cafes)
@@ -16,15 +14,28 @@ const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
 
 const original = computed(() => (historial.value ?? []).find((e) => e.id === id) ?? null)
 
+/** «Gary · 6 ago»: la id es un uuid opaco y no se enseña. */
+const titulo = computed(() =>
+  original.value
+    ? `${original.value.cafe_nombre} · ${fechaCorta(original.value.fecha)}`
+    : 'Extracción',
+)
+
+useHead({ title: () => titulo.value })
+
 /**
  * La extracción de antes que ésta, del mismo café. No es la última de la
- * bolsa: corrigiendo la #2 lo que hay que comparar es con la #1, aunque
- * existan la #5 y la #6.
+ * bolsa: corrigiendo la segunda hay que comparar con la primera, aunque
+ * existan la quinta y la sexta. El antes/después lo da `creado_en`, con la
+ * id v7 de desempate para dos del mismo segundo.
  */
 const anterior = computed(() => {
+  const mia = original.value
+  if (!mia) return null
+  const clave = (e: Extraccion) => `${e.creado_en}|${e.id}`
   const propias = (historial.value ?? [])
-    .filter((e) => e.cafe_id === original.value?.cafe_id && e.id < id)
-    .sort((a, b) => b.id - a.id)
+    .filter((e) => e.cafe_id === mia.cafe_id && clave(e) < clave(mia))
+    .sort((a, b) => (clave(a) < clave(b) ? 1 : -1))
   return propias[0] ?? null
 })
 
@@ -192,9 +203,9 @@ async function retirar() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: `Extracción #${id}` }]" />
+  <Migas :ruta="[{ texto: titulo }]" />
 
-  <p v-if="!original" class="meta">No hay ninguna extracción #{{ id }}.</p>
+  <p v-if="!original" class="meta">No hay ninguna extracción con esa dirección.</p>
 
   <template v-else>
     <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
@@ -208,7 +219,8 @@ async function retirar() {
     </section>
 
     <form v-else @submit.prevent="guardar">
-      <h2>Extracción #{{ original.id }} · {{ original.cafe_nombre }}</h2>
+      <!-- El uuid no se enseña: el café y el día ya identifican la taza. -->
+      <h2>{{ titulo }}<template v-if="original.tiempo_total"> · {{ original.tiempo_total }}</template></h2>
 
       <label>
         Café
@@ -298,7 +310,7 @@ async function retirar() {
   </template>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Retirar la extracción #{{ id }}?</h3>
+    <h3>¿Retirar esta extracción?</h3>
     <p>
       No se borra: queda marcada y deja de contar para las sugerencias. Se puede
       restaurar.

@@ -7,7 +7,9 @@
 export const ESTADOS = ['abierto', 'terminado', 'pendiente'] as const
 
 export interface Cafe {
+  /** UUID opaco. Lo que se lee y viaja en la URL es el slug. */
   id: string
+  slug: string
   nombre: string
   tostador: string | null
   origen: string | null
@@ -30,10 +32,14 @@ export interface Cafe {
 }
 
 export interface Extraccion {
-  id: number
+  /** UUID opaco: dejó de haber «extracción #7». */
+  id: string
   fecha: string
+  creado_en: string
   cafe_id: string
   cafe_nombre: string
+  cafe_slug: string
+  receta_slug: string | null
   dosis_g: number
   agua_g: number
   ratio: number
@@ -68,7 +74,9 @@ export interface Paso {
 }
 
 export interface Receta {
+  /** UUID opaco. El slug es lo legible y lo que va en la URL. */
   id: string
+  slug: string
   nombre: string
   ratio: number | null
   notas: string | null
@@ -139,17 +147,17 @@ export function useApi() {
     })
 
   /** Corrige una extracción. Solo se manda lo que cambia. */
-  const editarExtraccion = (id: number, cambios: Record<string, unknown>) =>
+  const editarExtraccion = (id: string, cambios: Record<string, unknown>) =>
     $fetch<{ extraccion: Extraccion; cambiado: string[] }>(`${base}/api/extracciones/${id}`, {
       method: 'PATCH',
       body: cambios,
     })
 
   /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
-  const retirarExtraccion = (id: number) =>
+  const retirarExtraccion = (id: string) =>
     $fetch<{ retirada: boolean }>(`${base}/api/extracciones/${id}`, { method: 'DELETE' })
 
-  const restaurarExtraccion = (id: number) =>
+  const restaurarExtraccion = (id: string) =>
     $fetch<{ extraccion: Extraccion }>(`${base}/api/extracciones/${id}/restaurar`, {
       method: 'POST',
     })

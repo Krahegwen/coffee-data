@@ -452,12 +452,12 @@ describe("validación de extracciones", () => {
 });
 
 describe("alta de bolsas", () => {
-  const nueva = (campos = {}) => ({ id: "etiopia", nombre: "Etiopía Guji", ...campos });
+  const nueva = (campos = {}) => ({ nombre: "Etiopía Guji", ...campos });
 
   it("con lo mínimo, el resto queda vacío y abierta", () => {
     const { valores, errores } = validarCafe(nueva(), { nuevo: true });
     assert.deepEqual(errores, []);
-    assert.equal(valores.id, "etiopia");
+    assert.equal(valores.slug, "etiopia_guji");
     assert.equal(valores.estado, "abierto");
     assert.equal(valores.tostador, null);
     assert.equal(valores.fecha_tueste, null);
@@ -478,20 +478,17 @@ describe("alta de bolsas", () => {
     assert.equal(valores.sca, 87);
   });
 
-  it("exige un id con formato de slug si lo mandas", () => {
-    for (const id of ["Etiopia", "con espacio", "etiopía", "-guion"]) {
-      assert.ok(validarCafe(nueva({ id }), { nuevo: true }).errores.length, `id ${id}`);
-    }
+  it("ni id ni slug entran por el cuerpo: uno es opaco y el otro, derivado", () => {
+    assert.ok(validarCafe(nueva({ id: "etiopia" }), { nuevo: true })
+      .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarCafe(nueva({ slug: "etiopia" }), { nuevo: true })
+      .errores.some((e) => e.includes("desconocidos")));
   });
 
-  it("un id vacío no es error: se deriva del nombre", () => {
-    const { valores, errores } = validarCafe(nueva({ id: "" }), { nuevo: true });
-    assert.deepEqual(errores, []);
-    assert.equal(valores.id, "etiopia_guji");
-  });
-
-  it("exige nombre", () => {
-    assert.ok(validarCafe({ id: "x", nombre: "  " }, { nuevo: true }).errores.length);
+  it("exige nombre, y que de él salga un slug", () => {
+    assert.ok(validarCafe({ nombre: "  " }, { nuevo: true }).errores.length);
+    assert.ok(validarCafe({ nombre: "¡¡¡" }, { nuevo: true })
+      .errores.some((e) => e.includes("slug utilizable")));
   });
 
   it("rechaza fechas que no existen", () => {
@@ -525,9 +522,11 @@ describe("corrección de bolsas", () => {
     assert.equal(valores.url, null);
   });
 
-  it("no deja cambiar el id", () => {
-    const { errores } = validarCafe({ id: "otro" }, { nuevo: false });
-    assert.ok(errores.some((e) => e.includes("no se puede cambiar")));
+  it("no deja tocar la identidad", () => {
+    assert.ok(validarCafe({ id: "otro" }, { nuevo: false })
+      .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarCafe({ slug: "otro" }, { nuevo: false })
+      .errores.some((e) => e.includes("desconocidos")));
   });
 
   it("exige algún campo", () => {
@@ -621,7 +620,6 @@ describe("corrección de extracciones", () => {
 
 describe("recetas", () => {
   const receta = (campos = {}) => ({
-    id: "kasuya-46-fuerte",
     nombre: "4:6 con más cuerpo",
     ratio: 15,
     pasos: [
@@ -725,14 +723,17 @@ describe("recetas", () => {
     assert.ok(errores.some((e) => e.includes("el estilo es de los vertidos")));
   });
 
-  it("exige id con formato y nombre", () => {
-    assert.ok(validarReceta(receta({ id: "Con Mayúsculas" }), { nuevo: true }).errores.length);
+  it("exige nombre, y de él sale el slug", () => {
     assert.ok(validarReceta(receta({ nombre: " " }), { nuevo: true }).errores.length);
+    const { receta: valores } = validarReceta(receta(), { nuevo: true });
+    assert.equal(valores.slug, "4_6_con_mas_cuerpo");
   });
 
-  it("al editar, el id no se toca", () => {
-    const { errores } = validarReceta(receta(), { nuevo: false });
-    assert.ok(errores.some((e) => e.includes("no se puede cambiar")));
+  it("la identidad no entra por el cuerpo", () => {
+    assert.ok(validarReceta(receta({ id: "kasuya-46-fuerte" }), { nuevo: true })
+      .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarReceta(receta({ slug: "otro" }), { nuevo: false })
+      .errores.some((e) => e.includes("desconocidos")));
   });
 });
 
@@ -758,19 +759,14 @@ describe("id derivado del nombre", () => {
     assert.equal(slugDe(""), "");
   });
 
-  it("el alta lo usa cuando no mandas id", () => {
+  it("el alta lo usa siempre: ya no hay id explícito que mande", () => {
     const { valores, errores } = validarCafe({ nombre: "Etiopía Guji" }, { nuevo: true });
     assert.deepEqual(errores, []);
-    assert.equal(valores.id, "etiopia_guji");
+    assert.equal(valores.slug, "etiopia_guji");
   });
 
-  it("un id explícito sigue mandando", () => {
-    const { valores } = validarCafe({ id: "eth-guji", nombre: "Etiopía Guji" }, { nuevo: true });
-    assert.equal(valores.id, "eth-guji");
-  });
-
-  it("si del nombre no sale id, lo dice claro", () => {
+  it("si del nombre no sale slug, lo dice claro", () => {
     const { errores } = validarCafe({ nombre: "···" }, { nuevo: true });
-    assert.ok(errores.some((e) => e.includes("no sale un id utilizable")));
+    assert.ok(errores.some((e) => e.includes("no sale un slug utilizable")));
   });
 });

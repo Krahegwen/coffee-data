@@ -14,9 +14,10 @@ const { data: bolsas } = await useAsyncData('cafes-nueva', cafes)
  * el motor emparejaría extracciones de tuestes distintos como si fueran
  * comparables. Lo que sobraba era volver a teclear la ficha, no la fila.
  */
-const copiaDe = computed(
-  () => (bolsas.value ?? []).find((c) => c.id === String(route.query.de ?? '')) ?? null,
-)
+const copiaDe = computed(() => {
+  const ref = String(route.query.de ?? '')
+  return (bolsas.value ?? []).find((c) => c.slug === ref || c.id === ref) ?? null
+})
 
 useHead({ title: () => (copiaDe.value ? `Otra de ${copiaDe.value.nombre}` : 'Nueva bolsa') })
 
@@ -76,7 +77,7 @@ async function enviar() {
       Object.entries(form).filter(([, v]) => String(v ?? '').trim() !== ''),
     )
     const { cafe } = await crearCafe(datos)
-    await router.push(`/cafes/${cafe.id}`)
+    await router.push(`/cafes/${cafe.slug}`)
   } catch (fallo) {
     errores.value = erroresDe(fallo)
   } finally {

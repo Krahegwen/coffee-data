@@ -499,23 +499,35 @@ campos. El motor empieza de cero igual —empareja por `cafe_id` y este es
 otro—, así que no hay deltas contra la bolsa vieja, ni fila en la tabla, y la
 extracción queda como `basal`.
 
-La familia se reconoce por el id, que es como el servidor los reparte. Es una
+La familia se reconoce por el slug, que es como el servidor los reparte. Es una
 pista y no una verdad: un café llamado «Finca 2» caería en la familia de
 «Finca». Lo único en juego es de dónde parte un formulario que vas a repasar.
 
 **Si compras dos bolsas del mismo tueste**, no las separes: ahí el café es
-literalmente el mismo y partirlo en dos ids rompe las comparaciones sin ganar
-nada. Una ficha y, como mucho, súbele el peso.
+literalmente el mismo y partirlo en dos fichas rompe las comparaciones sin
+ganar nada. Una ficha y, como mucho, súbele el peso.
 
-## El id de las bolsas
+## La identidad: UUID de clave, slug de etiqueta
 
-No se escribe: sale del nombre. `Etiopía Guji` → `etiopia_guji`. Minúsculas,
-acentos fuera, y todo lo que no sea letra o número pasa a guion bajo.
+Camino del modo local y de escribir sin cobertura (está en
+`PLAN-abrir-la-app.md`), las claves de las cuatro tablas son **UUID versión 7**
+—el tiempo delante, así que ordenar por id no desordena— y las pone quien crea
+la fila. Un texto derivado de un nombre no puede ser la clave: dos dispositivos
+sin cobertura inventarían el mismo `gary_2`, y con la id puesta por el cliente
+reintentar un envío no duplica — la misma id choca. El **orden** oficial lo
+manda `creado_en`, que significa algo; la id solo desempata.
 
-Lo calcula el **servidor**, no el formulario, para que salga igual venga de la
-app, de curl o de un script; la app solo enseña cuál va a ser mientras
-escribes.
+El **slug** queda de etiqueta única y legible: sale del nombre —`Etiopía Guji`
+→ `etiopia_guji`, minúsculas, acentos fuera, lo demás a guion bajo—, lo calcula
+el **servidor** para que salga igual venga de la app o de curl, y si choca se
+le añade sufijo (`gary`, `gary_2`), que comprar dos veces el mismo café es
+normal. Es lo que se ve en las URLs de la app.
 
-Si el id ya existe se le añade sufijo —`gary`, `gary_2`— porque comprar dos
-veces el mismo café es normal y no debería ser un callejón sin salida. Mandar
-un `id` explícito sigue siendo posible, y si choca da 409: ahí el error es tuyo.
+Ni `id` ni `slug` se mandan en el cuerpo: la API los rechaza como campo
+desconocido. Y **los endpoints aceptan uuid o slug indistintamente** en rutas y
+filtros —`PATCH /api/cafes/gary` y `?cafe=gary` siguen funcionando—, porque el
+slug es la única identidad que un humano puede teclear.
+
+En pantalla no sale ningún uuid: una taza se identifica por su café y su día
+—«Gary · 6 ago»—, y los ordinales, si algún día hacen falta, se cuentan al
+pintar.

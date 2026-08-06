@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { fechaCorta } from '~/composables/textos'
+
 const { cafes, extracciones } = useApi()
 
 const { data: bolsas, error: errorCafes } = await useAsyncData('cafes', cafes)
@@ -91,7 +93,7 @@ async function instalar() {
     <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
     <NuxtLink
       v-for="cafe in abiertas" :key="cafe.id"
-      :to="`/cafes/${cafe.id}`" class="tarjeta bolsa"
+      :to="`/cafes/${cafe.slug}`" class="tarjeta bolsa"
     >
       <CafeFoto :foto="cafe.foto" :nombre="cafe.nombre" />
       <div class="cuerpo">
@@ -120,13 +122,15 @@ async function instalar() {
   <section>
     <h2>Últimas extracciones</h2>
     <p v-if="!ultimas.length" class="vacio">Todavía ninguna.</p>
+    <!-- La id es un uuid opaco: lo que identifica una taza para un humano es
+         el café y el día. -->
     <NuxtLink v-for="e in ultimas" :key="e.id" :to="`/extracciones/${e.id}`" class="tarjeta enlace">
       <div class="fila">
-        <strong>#{{ e.id }} {{ e.cafe_nombre }}</strong>
+        <strong>{{ e.cafe_nombre }} · {{ fechaCorta(e.fecha) }}</strong>
         <span v-if="e.nota" class="nota">{{ e.nota }}/10</span>
       </div>
       <p class="meta">
-        {{ e.fecha }} · {{ e.temp_c }} °C · {{ e.clics }} clics · 1:{{ e.ratio }}
+        {{ e.temp_c }} °C · {{ e.clics }} clics · 1:{{ e.ratio }}
         <span v-if="e.tiempo_total"> · {{ e.tiempo_total }}</span>
       </p>
       <p v-if="e.variable_cambiada" class="variable">{{ e.variable_cambiada }}</p>

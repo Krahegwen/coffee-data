@@ -39,9 +39,10 @@ export const ESTADOS = ["abierto", "terminado", "pendiente"];
 
 // Las columnas de cafes que se pueden mandar. creado_en y actualizado_en no
 // están: los pone la base. foto tampoco: la gestiona el endpoint de subida,
-// que es quien mantiene la columna y el objeto de R2 a la par.
+// que es quien mantiene la columna y el objeto de R2 a la par. Ni id ni slug:
+// la id la pone quien crea la fila y el slug sale del nombre.
 export const CAMPOS_CAFE = [
-  "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
+  "nombre", "tostador", "origen", "region", "variedad", "proceso",
   "altitud_m", "sca", "fecha_tueste", "consumir_antes", "fecha_apertura",
   "peso_g", "precio_eur", "notas_tostador", "estado", "url", "conservacion",
 ];
@@ -58,13 +59,14 @@ const NUMEROS_CAFE = {
   precio_eur: { min: 0, incluido: true, que: "cero o más" },
 };
 
-// El id viaja en cada extracción y en la URL: sin espacios, sin mayúsculas y
-// sin acentos. Mismo criterio que el CHECK de la base.
-const ID = /^[a-z0-9][a-z0-9_-]*$/;
+// El slug viaja en la URL: sin espacios, sin mayúsculas y sin acentos. Mismo
+// criterio que el CHECK de la base. Desde la migración de identidad es una
+// etiqueta, no la clave: las claves son UUID y las pone quien crea la fila.
+export const SLUG = /^[a-z0-9][a-z0-9_-]*$/;
 
 /**
- * Convierte un nombre en id. Se hace aquí y no en la app para que salga igual
- * venga de donde venga: del formulario, de curl o de un script.
+ * Convierte un nombre en slug. Se hace aquí y no en la app para que salga
+ * igual venga de donde venga: del formulario, de curl o de un script.
  *
  *   "Etiopía Guji"        -> etiopia_guji
  *   "Café  del Día (2)"   -> cafe_del_dia_2
@@ -207,9 +209,10 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
 }
 
 /**
- * Valida una bolsa. Con `nuevo`, exige id y nombre y devuelve la fila entera.
- * Sin él es una corrección: solo entran los campos que vengan, y el id no,
- * porque es la clave a la que apuntan las extracciones.
+ * Valida una bolsa. Con `nuevo`, exige nombre y devuelve la fila entera; el
+ * slug sale del nombre y la id la pone quien crea. Sin él es una corrección:
+ * solo entran los campos que vengan. Ni id ni slug se aceptan del cuerpo —
+ * la primera es opaca y el segundo, derivado.
  */
 export function validarCafe(cuerpo, { nuevo }) {
   const errores = [];
@@ -222,18 +225,13 @@ export function validarCafe(cuerpo, { nuevo }) {
   }
 
   if (nuevo) {
-    // Si no lo mandan, sale del nombre: el id es ruido para quien registra.
-    const id = vacio(entrada.id) ? slugDe(entrada.nombre) : String(entrada.id).trim();
-    if (!ID.test(id)) {
+    const slug = slugDe(entrada.nombre);
+    if (!SLUG.test(slug)) {
       errores.push(
-        vacio(entrada.id)
-          ? `del nombre ${JSON.stringify(entrada.nombre)} no sale un id utilizable: necesita alguna letra o número`
-          : `id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo, empezando por letra o número`,
+        `del nombre ${JSON.stringify(entrada.nombre)} no sale un slug utilizable: necesita alguna letra o número`,
       );
     }
-    valores.id = id;
-  } else if (entrada.id !== undefined) {
-    errores.push("el id no se puede cambiar: es la clave a la que apuntan las extracciones");
+    valores.slug = slug;
   }
 
   if (nuevo || entrada.nombre !== undefined) {
@@ -478,20 +476,21 @@ export const ESTILOS = ["espiral", "centro"];
 export function validarReceta(cuerpo, { nuevo }) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
-  const permitidos = ["id", "nombre", "ratio", "notas", "pasos"];
+  const permitidos = ["nombre", "ratio", "notas", "pasos"];
   const receta = {};
 
   const desconocidos = Object.keys(entrada).filter((c) => !permitidos.includes(c));
   if (desconocidos.length) errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
 
+  // Como en las bolsas: el slug sale del nombre y la id la pone quien crea.
   if (nuevo) {
-    const id = String(entrada.id ?? "").trim();
-    if (!ID.test(id)) {
-      errores.push(`id inválido: ${JSON.stringify(entrada.id)}. Minúsculas, números, guion y guion bajo`);
+    const slug = slugDe(entrada.nombre);
+    if (!SLUG.test(slug)) {
+      errores.push(
+        `del nombre ${JSON.stringify(entrada.nombre)} no sale un slug utilizable: necesita alguna letra o número`,
+      );
     }
-    receta.id = id;
-  } else if (entrada.id !== undefined) {
-    errores.push("el id no se puede cambiar: es la clave a la que apuntan las extracciones");
+    receta.slug = slug;
   }
 
   const nombre = String(entrada.nombre ?? "").trim();

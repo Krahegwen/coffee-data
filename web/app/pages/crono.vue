@@ -12,11 +12,19 @@ const { data: catalogo } = await useAsyncData('recetas-crono', recetas)
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
 
 const cafeId = ref('')
-const recetaId = ref('kasuya-46-base')
+const recetaId = ref('')
 const dosis = ref(20)
 const agua = ref(300)
 
 watchEffect(() => { if (!cafeId.value && abiertas.value.length) cafeId.value = abiertas.value[0]!.id })
+
+// La receta de siempre como arranque. Por slug, que es lo único estable: los
+// uuids cambian entre la base local y la de verdad.
+watchEffect(() => {
+  if (recetaId.value || !catalogo.value?.length) return
+  const base = catalogo.value.find((r) => r.slug === 'kasuya-46-base')
+  recetaId.value = (base ?? catalogo.value[0]!).id
+})
 
 const pasos = ref<PasoGuion[]>([])
 /** En la pantalla del cronómetro; no implica que el reloj vaya. */
@@ -113,6 +121,7 @@ function reloj_mmss(segundos: number) {
 }
 
 async function cargar() {
+  if (!recetaId.value) return
   pasos.value = await guion(recetaId.value, agua.value)
 }
 

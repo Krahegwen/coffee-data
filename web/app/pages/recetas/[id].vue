@@ -19,7 +19,9 @@ const esNueva = computed(() => id === 'nueva')
 const copiaDe = computed(() => (esNueva.value ? String(route.query.de ?? '') : ''))
 
 const { data: catalogo, refresh: recargarCatalogo } = await useAsyncData('recetas-editar', recetas)
-const buscar = (cual: string) => (catalogo.value ?? []).find((r) => r.id === cual) ?? null
+// La URL lleva el slug; los enlaces viejos con uuid también resuelven.
+const buscar = (cual: string) =>
+  (catalogo.value ?? []).find((r) => r.slug === cual || r.id === cual) ?? null
 const original = computed(() => (esNueva.value ? null : buscar(id)))
 const fuente = computed(() => (copiaDe.value ? buscar(copiaDe.value) : null))
 
@@ -30,7 +32,8 @@ useHead({
   },
 })
 
-const form = reactive({ id: '', nombre: '', ratio: 15 as number | '', notas: '' })
+// Sin campo de id: el slug sale del nombre en el servidor, como en las bolsas.
+const form = reactive({ nombre: '', ratio: 15 as number | '', notas: '' })
 const pasos = ref<PasoEditable[]>([
   { accion: 'verter', estilo: '', agua_g: 60, t_inicio_s: 0, notas: '' },
 ])
@@ -90,12 +93,12 @@ async function enviar() {
       })),
     }
     if (esNueva.value) {
-      const { receta } = await crearReceta({ ...cuerpo, id: form.id })
+      const { receta } = await crearReceta(cuerpo)
       // El catálogo se comparte por clave entre las dos pantallas: sin
       // recargarlo, la ficha recién creada aterrizaba en «no hay ninguna
       // receta con ese id».
       await recargarCatalogo()
-      await router.push(`/recetas/${receta.id}`)
+      await router.push(`/recetas/${receta.slug}`)
     } else {
       await guardarReceta(id, cuerpo)
       guardado.value = true
@@ -160,11 +163,8 @@ async function borrar() {
         No hay ninguna receta «{{ copiaDe }}»: el formulario sale vacío.
       </p>
 
-      <label v-if="esNueva">
-        id (minúsculas, sin espacios)
-        <input v-model="form.id" placeholder="kasuya-46-fuerte" required autocapitalize="none">
-      </label>
-
+      <!-- Sin campo de id: el slug de la URL sale del nombre, como en las
+           bolsas, y la clave de verdad es un uuid que no se enseña. -->
       <label>Nombre<input v-model="form.nombre" placeholder="4:6 con más cuerpo" required></label>
 
       <div class="pareja">

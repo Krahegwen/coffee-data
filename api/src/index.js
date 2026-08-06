@@ -9,6 +9,7 @@
  * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
  * es lo que permite cambiar de método de autenticación sin tocar la app.
  */
+import { esUuid, uuidv7 } from "@coffee/nucleo/ids";
 import { guion, repartoDe } from "@coffee/nucleo/recetas";
 import { sugerir, textoCorto } from "@coffee/nucleo/sugerencias";
 import {
@@ -36,9 +37,43 @@ async function pasosDe(env, recetaId) {
   return results;
 }
 
+/*
+ * Los endpoints aceptan el uuid o el slug indistintamente: la app trabaja con
+ * uuids, pero un curl con "gary" tiene que seguir funcionando — el slug es
+ * la única identidad que un humano puede teclear.
+ */
+async function cafePorRef(env, ref) {
+  return await env.DB.prepare("SELECT * FROM cafes WHERE id = ?1 OR slug = ?1")
+    .bind(String(ref ?? ""))
+    .first();
+}
+
+async function recetaPorRef(env, ref) {
+  return await env.DB.prepare("SELECT * FROM recetas WHERE id = ?1 OR slug = ?1")
+    .bind(String(ref ?? ""))
+    .first();
+}
+
+/**
+ * Un slug libre: el derivado del nombre y, si ya existe, con sufijo — gary,
+ * gary_2, gary_3 —, que la segunda bolsa del mismo café es normal.
+ */
+async function slugLibre(env, tabla, base) {
+  let candidato = base;
+  let n = 1;
+  // eslint-disable-next-line no-await-in-loop
+  while (await env.DB.prepare(`SELECT id FROM ${tabla} WHERE slug = ?`).bind(candidato).first()) {
+    n += 1;
+    candidato = `${base}_${n}`;
+  }
+  return candidato;
+}
+
 async function historicoDe(env, cafeId) {
+  // El orden lo manda creado_en, que significa algo; la id v7 desempata a las
+  // filas del mismo segundo sin desordenar.
   const { results } = await env.DB.prepare(
-    "SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY id",
+    "SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY creado_en, id",
   )
     .bind(cafeId)
     .all();
@@ -56,21 +91,27 @@ async function crearExtraccion(request, env) {
   const { valores, errores } = validarExtraccion(cuerpo);
   if (errores.length) return json({ errores }, 422);
 
-  const cafe = await env.DB.prepare("SELECT id, nombre FROM cafes WHERE id = ?")
-    .bind(valores.cafe_id)
-    .first();
+  // cafe_id y receta_id llegan como uuid desde la app o como slug desde curl:
+  // se resuelven aquí y a la fila van siempre los uuid.
+  const cafe = await cafePorRef(env, valores.cafe_id);
   if (!cafe) return json({ errores: [`cafe_id desconocido: ${valores.cafe_id}`] }, 422);
+  valores.cafe_id = cafe.id;
 
-  const pasos = await pasosDe(env, valores.receta_id);
+  const receta = await recetaPorRef(env, valores.receta_id);
+  const pasos = receta ? await pasosDe(env, receta.id) : [];
   if (!pasos.length) {
     return json({ errores: [`la receta ${valores.receta_id} no tiene pasos`] }, 422);
   }
+  valores.receta_id = receta.id;
 
   // El reparto sale de escalar las fases de la receta al agua real, salvo que
   // ese día te desviaras y lo mandes explícito.
   if (!valores.reparto) valores.reparto = repartoDe(pasos, valores.agua_g);
 
-  const columnas = CAMPOS.filter((c) => valores[c] !== undefined);
+  // La id nace aquí de momento; con el modo local la traerá puesta el cliente.
+  valores.id = uuidv7();
+
+  const columnas = ["id", ...CAMPOS.filter((c) => valores[c] !== undefined)];
   const marcadores = columnas.map(() => "?").join(", ");
   let creada;
   try {
@@ -157,29 +198,10 @@ async function crearCafe(request, env) {
   const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
   if (errores.length) return json({ errores }, 422);
 
-  const derivado = cuerpo?.id === undefined || String(cuerpo.id).trim() === "";
-  const existe = await env.DB.prepare("SELECT id FROM cafes WHERE id = ?")
-    .bind(valores.id)
-    .first();
-  if (existe) {
-    // Si el id lo mandaron a propósito, el choque es un error suyo. Si lo
-    // derivamos del nombre, la segunda bolsa del mismo café es normal:
-    // gary, gary_2, gary_3.
-    if (!derivado) {
-      return json({ errores: [`ya existe un café con id '${valores.id}'`] }, 409);
-    }
-    const base = valores.id;
-    let n = 2;
-    let libre = `${base}_${n}`;
-    // eslint-disable-next-line no-await-in-loop
-    while (await env.DB.prepare("SELECT id FROM cafes WHERE id = ?").bind(libre).first()) {
-      n += 1;
-      libre = `${base}_${n}`;
-    }
-    valores.id = libre;
-  }
+  valores.id = uuidv7();
+  valores.slug = await slugLibre(env, "cafes", valores.slug);
 
-  const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
+  const columnas = ["id", "slug", ...CAMPOS_CAFE.filter((c) => valores[c] !== undefined)];
   const marcadores = columnas.map(() => "?").join(", ");
   try {
     await env.DB.prepare(
@@ -196,9 +218,10 @@ async function crearCafe(request, env) {
 }
 
 /** Corrige una ficha ya existente. Solo toca los campos que vengan. */
-async function editarCafe(request, env, id) {
-  const cafe = await env.DB.prepare("SELECT id FROM cafes WHERE id = ?").bind(id).first();
-  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+async function editarCafe(request, env, ref) {
+  const cafe = await cafePorRef(env, ref);
+  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
+  const id = cafe.id;
 
   let cuerpo;
   try {
@@ -234,15 +257,17 @@ async function editarCafe(request, env, id) {
  * nuevo, luego la columna, y la foto anterior se borra al final: en ningún
  * momento la ficha apunta a un objeto que no exista.
  */
-async function subirFoto(request, env, id) {
-  const cafe = await env.DB.prepare("SELECT id, foto FROM cafes WHERE id = ?").bind(id).first();
-  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+async function subirFoto(request, env, ref) {
+  const cafe = await cafePorRef(env, ref);
+  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
+  const id = cafe.id;
 
   const cuerpo = await request.arrayBuffer();
   const foto = validarFoto(request.headers.get("content-type"), cuerpo.byteLength);
   if (foto.error) return json({ errores: [foto.error] }, foto.estado);
 
-  const clave = claveDeFoto(id, foto.extension);
+  // La clave lleva el slug, que se puede leer; el uuid no aporta nada ahí.
+  const clave = claveDeFoto(cafe.slug, foto.extension);
   await env.FOTOS.put(clave, cuerpo, { httpMetadata: { contentType: foto.tipo } });
 
   try {
@@ -258,10 +283,11 @@ async function subirFoto(request, env, id) {
 }
 
 /** Quita la foto de la bolsa: la columna a NULL y el objeto fuera. */
-async function quitarFoto(env, id) {
-  const cafe = await env.DB.prepare("SELECT id, foto FROM cafes WHERE id = ?").bind(id).first();
-  if (!cafe) return json({ errores: [`no existe ningún café con id '${id}'`] }, 404);
+async function quitarFoto(env, ref) {
+  const cafe = await cafePorRef(env, ref);
+  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
   if (!cafe.foto) return json({ quitada: true, ya_estaba: true });
+  const id = cafe.id;
 
   await env.DB.prepare("UPDATE cafes SET foto = NULL WHERE id = ?").bind(id).run();
   await env.FOTOS.delete(cafe.foto);
@@ -299,7 +325,7 @@ async function editarExtraccion(request, env, id) {
   )
     .bind(id)
     .first();
-  if (!guardada) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+  if (!guardada) return json({ errores: [`no existe la extracción ${id}`] }, 404);
 
   let cuerpo;
   try {
@@ -341,7 +367,7 @@ async function retirarExtraccion(env, id) {
   const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
     .bind(id)
     .first();
-  if (!fila) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+  if (!fila) return json({ errores: [`no existe la extracción ${id}`] }, 404);
   if (fila.borrada_en) return json({ retirada: true, ya_estaba: true });
 
   await env.DB.prepare("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = ?")
@@ -354,7 +380,7 @@ async function restaurarExtraccion(env, id) {
   const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
     .bind(id)
     .first();
-  if (!fila) return json({ errores: [`no existe la extracción #${id}`] }, 404);
+  if (!fila) return json({ errores: [`no existe la extracción ${id}`] }, 404);
 
   await env.DB.prepare("UPDATE extracciones SET borrada_en = NULL WHERE id = ?").bind(id).run();
   const devuelta = await env.DB.prepare("SELECT * FROM v_extracciones WHERE id = ?")
@@ -380,15 +406,21 @@ async function guardarReceta(request, env, { id, nuevo }) {
   const { receta, pasos, errores } = validarReceta(cuerpo, { nuevo });
   if (errores.length) return json({ errores }, 422);
 
-  const recetaId = nuevo ? receta.id : id;
-  const existe = await env.DB.prepare("SELECT id FROM recetas WHERE id = ?").bind(recetaId).first();
-  if (nuevo && existe) return json({ errores: [`ya existe una receta con id '${recetaId}'`] }, 409);
-  if (!nuevo && !existe) return json({ errores: [`no existe la receta '${recetaId}'`] }, 404);
+  let recetaId;
+  let slug = null;
+  if (nuevo) {
+    recetaId = uuidv7();
+    slug = await slugLibre(env, "recetas", receta.slug);
+  } else {
+    const existe = await recetaPorRef(env, id);
+    if (!existe) return json({ errores: [`no existe la receta '${id}'`] }, 404);
+    recetaId = existe.id;
+  }
 
   const sentencias = [
     nuevo
-      ? env.DB.prepare("INSERT INTO recetas (id, nombre, ratio, notas) VALUES (?, ?, ?, ?)")
-          .bind(recetaId, receta.nombre, receta.ratio, receta.notas)
+      ? env.DB.prepare("INSERT INTO recetas (id, slug, nombre, ratio, notas) VALUES (?, ?, ?, ?, ?)")
+          .bind(recetaId, slug, receta.nombre, receta.ratio, receta.notas)
       : env.DB.prepare("UPDATE recetas SET nombre = ?, ratio = ?, notas = ? WHERE id = ?")
           .bind(receta.nombre, receta.ratio, receta.notas, recetaId),
     env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(recetaId),
@@ -419,9 +451,10 @@ async function guardarReceta(request, env, { id, nuevo }) {
  * apuntando, y sin la fila no habría forma de saber con qué se preparó
  * aquella taza. Para eso está editarla, o dejarla ahí sin usarla.
  */
-async function borrarReceta(env, id) {
-  const existe = await env.DB.prepare("SELECT id FROM recetas WHERE id = ?").bind(id).first();
-  if (!existe) return json({ errores: [`no existe la receta '${id}'`] }, 404);
+async function borrarReceta(env, ref) {
+  const existe = await recetaPorRef(env, ref);
+  if (!existe) return json({ errores: [`no existe la receta '${ref}'`] }, 404);
+  const id = existe.id;
 
   const usos = await env.DB.prepare(
     "SELECT COUNT(*) AS total FROM extracciones WHERE receta_id = ?",
@@ -434,7 +467,7 @@ async function borrarReceta(env, id) {
     return json(
       {
         errores: [
-          `la receta '${id}' la usan ${cuantas}, retiradas incluidas: no se puede borrar, ` +
+          `la receta '${existe.slug}' la usan ${cuantas}, retiradas incluidas: no se puede borrar, ` +
             "edítala o déjala ahí sin usarla",
         ],
       },
@@ -446,7 +479,7 @@ async function borrarReceta(env, id) {
     env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(id),
     env.DB.prepare("DELETE FROM recetas WHERE id = ?").bind(id),
   ]);
-  return json({ borrada: true, id });
+  return json({ borrada: true, id, slug: existe.slug });
 }
 
 async function enrutar(request, env, url, ruta) {
@@ -476,9 +509,9 @@ async function enrutar(request, env, url, ruta) {
   if (ruta.startsWith("/api/extracciones/")) {
     const resto = ruta.slice("/api/extracciones/".length);
     const [crudo, accion] = resto.split("/");
-    const id = Number(crudo);
-    if (!Number.isInteger(id) || id <= 0) {
-      return json({ error: "id de extracción inválido" }, 400);
+    const id = decodeURIComponent(crudo).toLowerCase();
+    if (!esUuid(id)) {
+      return json({ error: "id de extracción inválido: se espera el uuid" }, 400);
     }
 
     if (accion === "restaurar" && request.method === "POST") {
@@ -507,11 +540,11 @@ async function enrutar(request, env, url, ruta) {
       return await servirFoto(env, ruta.slice("/api/".length));
     }
     if (ruta === "/api/guion") {
-      const recetaId = url.searchParams.get("receta");
+      const receta = await recetaPorRef(env, url.searchParams.get("receta"));
       const agua = Number(url.searchParams.get("agua") || 300);
-      const pasos = await pasosDe(env, recetaId ?? "");
+      const pasos = receta ? await pasosDe(env, receta.id) : [];
       if (!pasos.length) {
-        return json({ error: `la receta ${recetaId} no tiene pasos` }, 404);
+        return json({ error: `la receta ${url.searchParams.get("receta")} no tiene pasos` }, 404);
       }
       try {
         return json(guion(pasos, agua));
@@ -526,7 +559,7 @@ async function enrutar(request, env, url, ruta) {
       return json(results);
     }
     if (ruta === "/api/recetas") {
-      const { results } = await env.DB.prepare("SELECT * FROM recetas ORDER BY id").all();
+      const { results } = await env.DB.prepare("SELECT * FROM recetas ORDER BY slug").all();
       const conPasos = await Promise.all(
         results.map(async (receta) => ({ ...receta, pasos: await pasosDe(env, receta.id) })),
       );
@@ -537,10 +570,16 @@ async function enrutar(request, env, url, ruta) {
       const vista = url.searchParams.get("retiradas")
         ? "v_extracciones_retiradas"
         : "v_extracciones";
-      const cafeId = url.searchParams.get("cafe");
-      const consulta = cafeId
-        ? env.DB.prepare(`SELECT * FROM ${vista} WHERE cafe_id = ? ORDER BY id DESC`).bind(cafeId)
-        : env.DB.prepare(`SELECT * FROM ${vista} ORDER BY id DESC`);
+      const cafeRef = url.searchParams.get("cafe");
+      let consulta;
+      if (cafeRef) {
+        const cafe = await cafePorRef(env, cafeRef);
+        consulta = env.DB.prepare(
+          `SELECT * FROM ${vista} WHERE cafe_id = ? ORDER BY creado_en DESC, id DESC`,
+        ).bind(cafe?.id ?? "");
+      } else {
+        consulta = env.DB.prepare(`SELECT * FROM ${vista} ORDER BY creado_en DESC, id DESC`);
+      }
       const { results } = await consulta.all();
       return json(results);
     }

@@ -24,20 +24,21 @@ API = os.environ.get("COFFEE_API", "https://brew.krahegwen.com")
 # fichero -> (ruta de la API, columnas, clave de orden)
 EXPORTS = [
     ("cafes.csv", "/api/cafes", [
-        "id", "nombre", "tostador", "origen", "region", "variedad", "proceso",
-        "altitud_m", "sca", "fecha_tueste", "consumir_antes", "peso_g",
-        # fecha_compra y fecha_recepcion ya no se piden ni se escriben, pero
-        # siguen en la tabla: el respaldo tiene que reflejar lo que hay.
-        "precio_eur", "notas_tostador", "estado", "fecha_compra",
-        "fecha_recepcion", "fecha_apertura", "foto", "url", "conservacion",
-    ], lambda f: f["id"]),
+        "id", "slug", "nombre", "tostador", "origen", "region", "variedad",
+        "proceso", "altitud_m", "sca", "fecha_tueste", "consumir_antes",
+        "fecha_apertura", "peso_g", "precio_eur", "notas_tostador", "estado",
+        "foto", "url", "conservacion",
+    ], lambda f: f["slug"]),
 ]
 
+# cafe_slug y receta_slug van además de los uuid: el CSV lo lee un humano, y
+# un humano no resuelve uuids de cabeza.
 COLUMNAS_EXTRACCIONES = [
-    "id", "fecha", "cafe_id", "dias_tueste", "dosis_g", "agua_g", "ratio",
-    "temp_c", "molinillo", "clics", "metodo", "reparto", "tiempo_total",
-    "extraido_g", "variable_cambiada", "defecto", "notas_cata", "nota",
-    "siguiente_ajuste", "receta_id", "drawdown_s", "dripper", "borrada_en",
+    "id", "fecha", "creado_en", "cafe_id", "cafe_slug", "dias_tueste",
+    "dias_abierta", "dosis_g", "agua_g", "ratio", "temp_c", "molinillo",
+    "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
+    "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
+    "receta_id", "receta_slug", "drawdown_s", "dripper", "borrada_en",
 ]
 
 
@@ -100,21 +101,22 @@ def exportar_extracciones():
     el sentido del borrado lógico era que se pudiera recuperar.
     """
     filas = traer("/api/extracciones") + traer("/api/extracciones?retiradas=1")
-    filas.sort(key=lambda f: int(f["id"]))
+    # El orden cronológico lo da creado_en; la id v7 desempata.
+    filas.sort(key=lambda f: (f["creado_en"], f["id"]))
     return [("extracciones.csv", como_csv(filas, COLUMNAS_EXTRACCIONES))]
 
 
 def exportar_recetas():
     """recetas.csv y pasos.csv salen de la misma llamada."""
     recetas = traer("/api/recetas")
-    filas_recetas = sorted(recetas, key=lambda r: r["id"])
+    filas_recetas = sorted(recetas, key=lambda r: r["slug"])
     pasos = [
         paso
         for receta in filas_recetas
         for paso in sorted(receta.get("pasos", []), key=lambda p: int(p["orden"]))
     ]
     return [
-        ("recetas.csv", como_csv(filas_recetas, ["id", "nombre", "ratio", "notas"])),
+        ("recetas.csv", como_csv(filas_recetas, ["id", "slug", "nombre", "ratio", "notas"])),
         ("pasos.csv", como_csv(pasos, [
             "receta_id", "orden", "t_inicio_s", "accion", "estilo", "agua_g",
             "notas",

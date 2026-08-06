@@ -3,7 +3,7 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 useHead({ title: 'Registrar extracción' })
 
-import { DEFECTOS, DRIPPERS, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -25,7 +25,7 @@ const form = reactive<Record<string, unknown>>({
   agua_g: numero(q.agua, 300),
   temp_c: 92,
   clics: 28,
-  receta_id: String(q.receta ?? 'kasuya-46-base'),
+  receta_id: String(q.receta ?? ''),
   dripper: 'v60-02-plastico',
   tiempo_total: String(q.tiempo ?? ''),
   drawdown_s: (q.drawdown === undefined ? '' : Number(q.drawdown)) as number | '',
@@ -34,6 +34,14 @@ const form = reactive<Record<string, unknown>>({
   defecto: 'equilibrado',
   notas_cata: '',
   nota: 7,
+})
+
+// Sin receta en la URL, la de siempre. Por slug, que los uuids no son de fiar
+// entre bases.
+watchEffect(() => {
+  if (form.receta_id || !catalogo.value?.length) return
+  const base = catalogo.value.find((r) => r.slug === 'kasuya-46-base')
+  form.receta_id = (base ?? catalogo.value[0]!).id
 })
 
 /** La última de este café: de ahí salen los valores «de antes». */
@@ -48,18 +56,20 @@ const anterior = computed(
  * Sirve para arrancar la basal donde lo dejaste y no en los valores de
  * fábrica: la bolsa es nueva, pero el café y tu molinillo son los mismos.
  *
- * La familia se reconoce por el id, que es como el servidor los reparte al
+ * La familia se reconoce por el slug, que es como el servidor los reparte al
  * duplicar: `gary`, `gary_2`, `gary_3`. Es una pista, no una verdad —un café
  * que se llamara «Finca 2» caería en la familia de «Finca»—, pero lo único que
  * está en juego es de dónde parte un formulario que vas a repasar igual.
  */
-const familia = (id: string) => id.replace(/_\d+$/, '')
+const familia = (slug: string) => slug.replace(/_\d+$/, '')
 
 const bolsaPrevia = computed(() => {
   if (!form.cafe_id || anterior.value) return null
-  const base = familia(String(form.cafe_id))
+  const mia = (bolsas.value ?? []).find((c) => c.id === form.cafe_id)
+  if (!mia) return null
+  const base = familia(mia.slug)
   return (historial.value ?? []).find(
-    (e) => e.cafe_id !== form.cafe_id && familia(e.cafe_id) === base,
+    (e) => e.cafe_id !== form.cafe_id && familia(e.cafe_slug) === base,
   ) ?? null
 })
 
@@ -328,7 +338,7 @@ async function enviar() {
   </section>
 
   <section v-if="resultado" class="tarjeta exito">
-    <strong>Guardada la #{{ resultado.extraccion.id }} · {{ resultado.cafe }}</strong>
+    <strong>Guardada · {{ resultado.cafe }}, {{ fechaCorta(resultado.extraccion.fecha) }}</strong>
     <p class="meta">
       reparto {{ resultado.extraccion.reparto }} · 1:{{ resultado.extraccion.ratio }}
       <span v-if="resultado.extraccion.dias_tueste !== null">

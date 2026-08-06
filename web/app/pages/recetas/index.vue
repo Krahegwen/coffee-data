@@ -23,7 +23,7 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 
   <NuxtLink
     v-for="r in catalogo ?? []" :key="r.id"
-    :to="`/recetas/${r.id}`" class="tarjeta"
+    :to="`/recetas/${r.slug}`" class="tarjeta"
   >
     <strong>{{ r.nombre }}</strong>
     <p class="meta">{{ reparto(r.pasos) }} sobre {{ referencia(r.pasos) }} g · {{ r.pasos.length }} pasos</p>

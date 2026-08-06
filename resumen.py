@@ -75,9 +75,10 @@ def main():
     print()
 
     print("HISTÓRICO")
-    for e in sorted(ext, key=lambda e: e["id"]):
+    # El uuid no aporta a la vista: identifican la fila el día y el café.
+    for e in sorted(ext, key=lambda e: (e["creado_en"], e["id"])):
         dias = e.get("dias_tueste")
-        print(f"  #{e['id']:<3} {e['fecha']}  {e.get('cafe_nombre') or e['cafe_id']:<14}"
+        print(f"  {e['fecha']}  {e.get('cafe_nombre') or e['cafe_slug']:<14}"
               f" {e['temp_c']}°C  {e['clics']} clics  {e['reparto']:<12}"
               f" nota {e['nota']:<4} [{e['variable_cambiada']}]"
               f"{'' if dias is None else f'  {dias}d'}")

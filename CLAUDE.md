@@ -85,9 +85,12 @@ curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bear
   -H 'content-type: application/json' -d '{"estado":"terminado"}'
 ```
 
-**No mandes `id`**: sale del nombre (minúsculas, sin acentos, espacios a guion
-bajo). Si ya existe, se le pone sufijo — `gary`, `gary_2` — porque la segunda
-bolsa del mismo café es normal. Un `id` explícito que choque sigue dando 409.
+**No mandes `id` ni `slug`**: la API los rechaza. La clave es un UUIDv7 que
+pone el servidor (y pondrá el cliente en el modo local); el slug sale del
+nombre (minúsculas, sin acentos, espacios a guion bajo) y si ya existe se le
+pone sufijo — `gary`, `gary_2` — porque la segunda bolsa del mismo café es
+normal. **Los endpoints aceptan uuid o slug indistintamente**: `gary` sigue
+valiendo en rutas, filtros y cuerpos (`cafe_id`, `receta_id`).
 
 La frescura tiene **dos relojes**: `fecha_tueste` mientras la bolsa está
 precintada y `fecha_apertura` desde que la abres. La vista deriva
@@ -130,10 +133,13 @@ Los pasos se mandan **enteros y reemplazan** a los que hubiera; el orden lo da
 la posición en la lista.
 
 ```bash
-curl -X POST https://brew.krahegwen.com/api/recetas -H "Authorization: Bearer $COFFEE_TOKEN"   -H 'content-type: application/json' -d '{"id":"kasuya-46-agitado","nombre":"4:6 con agitado",
+curl -X POST https://brew.krahegwen.com/api/recetas -H "Authorization: Bearer $COFFEE_TOKEN"   -H 'content-type: application/json' -d '{"nombre":"4:6 con agitado",
   "ratio":15,"pasos":[{"accion":"verter","agua_g":60,"t_inicio_s":0},
   {"accion":"agitar","t_inicio_s":20},{"accion":"verter","agua_g":240,"t_inicio_s":45}]}'
 ```
+
+Sin `id`: como en las bolsas, la clave es un UUID del servidor y el slug sale
+del nombre. Editar y borrar aceptan el slug: `PUT /api/recetas/4_6_con_agitado`.
 
 Solo `verter` lleva gramos; el resto van a 0. La suma de los vertidos es el
 agua de referencia. Los tiempos tienen que ir en aumento, y toda receta
@@ -197,12 +203,15 @@ palancas de ajuste están en la tabla del README; úsala para sugerir el
 
 ## Corregir y retirar extracciones
 
+Las extracciones van por su uuid — no hay slug que teclear, así que primero se
+localiza con un GET (por ejemplo `?cafe=gary`) y se copia el `id`:
+
 ```bash
-curl -X PATCH https://brew.krahegwen.com/api/extracciones/3 -H "Authorization: Bearer $COFFEE_TOKEN" \
+curl -X PATCH https://brew.krahegwen.com/api/extracciones/<uuid> -H "Authorization: Bearer $COFFEE_TOKEN" \
   -H 'content-type: application/json' -d '{"nota":8}'
 
-curl -X DELETE https://brew.krahegwen.com/api/extracciones/3 -H "Authorization: Bearer $COFFEE_TOKEN"
-curl -X POST https://brew.krahegwen.com/api/extracciones/3/restaurar -H "Authorization: Bearer $COFFEE_TOKEN"
+curl -X DELETE https://brew.krahegwen.com/api/extracciones/<uuid> -H "Authorization: Bearer $COFFEE_TOKEN"
+curl -X POST https://brew.krahegwen.com/api/extracciones/<uuid>/restaurar -H "Authorization: Bearer $COFFEE_TOKEN"
 ```
 
 El borrado es lógico: marca `borrada_en` y la fila se queda. **Si el usuario
