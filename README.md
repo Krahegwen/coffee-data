@@ -73,7 +73,8 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | Fichero | Qué es |
 |---|---|
 | `api/migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
-| `api/src/` | La API: rutas, validación, escalado de recetas y sugerencias. |
+| `nucleo/` | La lógica sin saber dónde corre: recetas, sugerencias, validación y derivados. Cero dependencias. |
+| `api/src/` | La API: enrutado, autorización y D1. La lógica la importa de `nucleo/`. |
 | `web/` | La app: Nuxt estático, instalable en el móvil. |
 | `datos/` | Exportación legible de lo que hay en D1. **No es la fuente.** |
 | `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |
@@ -266,7 +267,7 @@ se rompería:
 | `esperar` | Meseta | La meseta **es** el fin del goteo: de ahí sale `drawdown_s` |
 | `retirar` | **Cae de golpe** | La caída marca el fin de la extracción |
 
-`guion(pasos, agua)` en `api/src/recetas.js` devuelve todo eso ya resuelto: agua
+`guion(pasos, agua)` en `nucleo/src/recetas.js` devuelve todo eso ya resuelto: agua
 escalada, acumulado y si la lectura es fiable en cada paso.
 
 ## Qué garantiza la base
@@ -341,7 +342,7 @@ escribas manda siempre; el automático solo rellena el hueco, que es el campo
 que le da continuidad a la bitácora y el que se quedaba vacío.
 
 Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
-`api/src/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
+`nucleo/src/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
 tengas extracciones suficientes para saber cuáles son los tuyos.
 
 ## Registrar una extracción

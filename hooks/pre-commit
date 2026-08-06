@@ -27,16 +27,18 @@ if ! "$PYTHON" -m pytest -q; then
     exit 1
 fi
 
-# La API se prueba con el runner que trae Node, sin dependencias.
-if [ -f api/test/logica.test.js ]; then
+# El núcleo y la API se prueban con el runner que trae Node, sin dependencias.
+if [ -d nucleo/test ] || [ -d api/test ]; then
     if ! command -v node >/dev/null 2>&1; then
-        echo "pre-commit: hay api/ pero no se encuentra Node. Commit abortado." >&2
+        echo "pre-commit: hay tests de Node pero no se encuentra Node. Commit abortado." >&2
         exit 1
     fi
-    echo "pre-commit: ejecutando los tests de la API..."
-    if ! node --test api/test/logica.test.js >/dev/null; then
-        echo "pre-commit: los tests de la API fallan. Commit abortado." >&2
-        node --test --test-reporter=spec api/test/logica.test.js >&2
+    echo "pre-commit: ejecutando los tests del núcleo y de la API..."
+    # Como globs y no como directorios: a node --test un directorio suelto le
+    # parece un módulo que ejecutar, y revienta.
+    if ! node --test "nucleo/test/*.test.js" "api/test/*.test.js" >/dev/null; then
+        echo "pre-commit: los tests de Node fallan. Commit abortado." >&2
+        node --test --test-reporter=spec "nucleo/test/*.test.js" "api/test/*.test.js" >&2
         exit 1
     fi
 fi

@@ -9,13 +9,14 @@
  * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
  * es lo que permite cambiar de método de autenticación sin tocar la app.
  */
-import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
-import { guion, repartoDe } from "./recetas.js";
-import { sugerir, textoCorto } from "./sugerencias.js";
+import { guion, repartoDe } from "@coffee/nucleo/recetas";
+import { sugerir, textoCorto } from "@coffee/nucleo/sugerencias";
 import {
   CAMPOS, CAMPOS_CAFE, claveDeFoto, extraidoImposible, validarCafe,
   validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
-} from "./validacion.js";
+} from "@coffee/nucleo/validacion";
+
+import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 

@@ -1,0 +1,16 @@
+{
+  "name": "@coffee/nucleo",
+  "version": "0.1.21",
+  "private": true,
+  "type": "module",
+  "description": "La lógica de la bitácora, sin saber dónde corre: recetas, sugerencias, validación y derivados",
+  "exports": {
+    "./recetas": "./src/recetas.js",
+    "./sugerencias": "./src/sugerencias.js",
+    "./validacion": "./src/validacion.js",
+    "./derivar": "./src/derivar.js"
+  },
+  "scripts": {
+    "test": "node --test --test-reporter=spec \"test/*.test.js\""
+  }
+}

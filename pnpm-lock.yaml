@@ -9,10 +9,16 @@ importers:
   .: {}
 
   api:
+    dependencies:
+      '@coffee/nucleo':
+        specifier: workspace:*
+        version: link:../nucleo
     devDependencies:
       wrangler:
         specifier: ^4.0.0
         version: 4.118.0
+
+  nucleo: {}
 
   web:
     dependencies:

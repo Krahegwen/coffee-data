@@ -155,15 +155,19 @@ curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
 
 ## Estructura
 
-Workspace de pnpm con dos paquetes: `api/` (el Worker) y `web/` (Nuxt). En la
-raíz, documentación, el hook y las herramientas de Python. `datos/` son los CSV
-exportados.
+Workspace de pnpm con tres paquetes: `nucleo/` (la lógica, sin dependencias),
+`api/` (el Worker) y `web/` (Nuxt). En la raíz, documentación, el hook y las
+herramientas de Python. `datos/` son los CSV exportados.
 
 ## Si tocas el código
 
-- `api/src/` es la API. Lógica pura en `recetas.js`, `sugerencias.js`,
-  `validacion.js` y `auth.js`, probada con `pnpm test` (el runner de Node, sin
-  dependencias). `index.js` solo enruta y habla con D1.
+- `nucleo/` es la lógica de la bitácora sin saber dónde corre: `recetas.js`,
+  `sugerencias.js`, `validacion.js` y `derivar.js` (el equivalente JS de la
+  vista SQL, para el almacén local). Cero dependencias; si una función no
+  puede correr en un navegador, no va aquí.
+- `api/src/` es la API: `index.js` enruta y habla con D1, `auth.js` decide
+  quién escribe. Todo lo demás lo importa de `@coffee/nucleo`.
+- Las dos suites van con `pnpm test` (el runner de Node, sin dependencias).
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
