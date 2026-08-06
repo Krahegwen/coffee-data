@@ -133,10 +133,9 @@ async function quitarFoto() {
   <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
 
   <template v-else>
-    <!-- Nombre y foto van antes del muro de sesión: mirar la bolsa no es
-         editarla, y en un móvil recién instalado no habría sesión todavía. -->
-    <h2>{{ original.nombre }}</h2>
-
+    <!-- La foto va antes del muro de sesión: mirar la bolsa no es editarla, y
+         en un móvil recién instalado no habría sesión todavía. El nombre no se
+         repite aquí, que ya lo dice la última miga. -->
     <section class="tarjeta">
       <img
         v-if="original.foto"

@@ -151,13 +151,9 @@ async function borrar() {
     </section>
 
     <form v-else @submit.prevent="enviar">
-      <div class="cabecera">
-        <h2 v-if="!esNueva">{{ original!.nombre }}</h2>
-        <h2 v-else-if="fuente">Copia de «{{ fuente.nombre }}»</h2>
-        <h2 v-else>Nueva receta</h2>
-        <NuxtLink v-if="!esNueva" :to="`/recetas/nueva?de=${id}`" class="secundario">
-          Duplicar
-        </NuxtLink>
+      <!-- Sin título: el nombre de la receta ya está en la última miga. -->
+      <div v-if="!esNueva" class="cabecera">
+        <NuxtLink :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>
       </div>
 
       <p v-if="copiaDe && !fuente" class="fallo">
@@ -225,7 +221,8 @@ async function borrar() {
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0; }
 
-.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+/* Solo queda Duplicar, que se va a la derecha él solo. */
+.cabecera { display: flex; justify-content: flex-end; align-items: center; }
 
 .secundario {
   display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap;

@@ -229,20 +229,18 @@ async function enviar() {
       Se queda {{ retencion.toFixed(1) }} g de agua por gramo de café
     </p>
 
-    <h3>Variable cambiada</h3>
+    <h3>Variable(s) cambiada(s)</h3>
     <VariablesCambiadas
       v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
       @cambia="(clave, valor) => (form[clave] = valor)"
     />
-    <label>
-      <!-- Con variables elegidas el texto lo escribe la lista de arriba; sin
-           ellas queda libre, que hay cambios que no son una columna: la
-           báscula nueva, el agua de otra botella, la primera de la bolsa. -->
-      Queda como
-      <input
-        v-model="form.variable_cambiada" :readonly="cambiadas.length > 0"
-        placeholder="basal" required
-      >
+    <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
+         repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay
+         cambios que no son una columna —la báscula nueva, el agua de otra
+         botella— y la primera de una bolsa no cambia nada, es la basal. -->
+    <label v-if="!cambiadas.length">
+      Variable cambiada
+      <input v-model="form.variable_cambiada" placeholder="basal" required>
     </label>
 
     <label>
@@ -303,10 +301,12 @@ async function enviar() {
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 
+/* Del tamaño y el color de una etiqueta: encabeza un bloque de campos, no una
+   sección aparte, así que no tiene por qué gritar. */
 h3 {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 400;
   color: var(--suave);
   margin: 0.5rem 0 0;
 }

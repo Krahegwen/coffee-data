@@ -16,8 +16,8 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 <template>
   <Migas :ruta="[{ texto: 'Recetas' }]" />
 
+  <!-- Sin título: lo dice la última miga. -->
   <div class="cabecera">
-    <h2>Recetas</h2>
     <NuxtLink to="/recetas/nueva" class="boton">Nueva</NuxtLink>
   </div>
 
@@ -32,8 +32,8 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 </template>
 
 <style scoped>
-.cabecera { display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0 0.75rem; }
-h2 { font-size: 1.05rem; margin: 0; }
+/* Solo queda el botón, que se va a la derecha él solo. */
+.cabecera { display: flex; justify-content: flex-end; align-items: center; margin: 0.5rem 0 0.75rem; }
 
 .boton {
   display: inline-flex; align-items: center; min-height: 44px;

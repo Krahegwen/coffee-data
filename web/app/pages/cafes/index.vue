@@ -26,8 +26,9 @@ function restante(cafeId: string, pesoG: number | null) {
 <template>
   <Migas :ruta="[{ texto: 'Bolsas' }]" />
 
+  <!-- Sin título: lo dice la última miga, y repetirlo aquí era leer «Bolsas»
+       dos veces seguidas. -->
   <div class="cabecera">
-    <h2>Bolsas</h2>
     <NuxtLink to="/cafes/nueva" class="boton">Nueva</NuxtLink>
   </div>
 
@@ -61,14 +62,13 @@ function restante(cafeId: string, pesoG: number | null) {
 </template>
 
 <style scoped>
+/* Solo queda el botón, que se va a la derecha él solo. */
 .cabecera {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin: 1.5rem 0 0.75rem;
+  margin: 0.5rem 0 0.75rem;
 }
-
-h2 { font-size: 1.05rem; margin: 0; }
 
 .boton {
   display: inline-flex;

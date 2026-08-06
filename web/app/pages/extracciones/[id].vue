@@ -192,14 +192,17 @@ async function retirar() {
 
       <label>Reparto<input v-model="form.reparto" placeholder="60-60-90-90"></label>
 
-      <h3 class="apartado">Variable cambiada</h3>
+      <h3 class="apartado">Variable(s) cambiada(s)</h3>
       <VariablesCambiadas
         v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
         @cambia="(clave, valor) => (form[clave] = valor)"
       />
-      <label>
-        Queda como
-        <input v-model="form.variable_cambiada" :readonly="cambiadas.length > 0">
+      <!-- Mientras no haya filas, este campo es el texto guardado y se puede
+           corregir a mano. En cuanto las hay, lo escribe la lista y enseñarlo
+           sería repetir lo de arriba. -->
+      <label v-if="!cambiadas.length">
+        Variable cambiada
+        <input v-model="form.variable_cambiada">
       </label>
 
       <label>
@@ -326,11 +329,14 @@ dialog {
 }
 
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
-/* El del formulario, no el del modal, que es un título de verdad. */
+/*
+ * El del formulario, no el del modal, que es un título de verdad. Del tamaño
+ * y el color de una etiqueta: encabeza un bloque de campos, no una sección.
+ */
 .apartado {
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 400;
   color: var(--suave);
   margin: 0.5rem 0 0;
 }
