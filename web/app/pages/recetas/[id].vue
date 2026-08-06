@@ -130,7 +130,12 @@ async function borrar() {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/recetas">‹ Recetas</NuxtLink></p>
+  <Migas
+    :ruta="[
+      { texto: 'Recetas', a: '/recetas' },
+      { texto: esNueva ? (fuente ? `Copia de ${fuente.nombre}` : 'Nueva') : original?.nombre ?? id },
+    ]"
+  />
 
   <p v-if="!esNueva && !original" class="meta">No hay ninguna receta «{{ id }}».</p>
 

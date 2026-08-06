@@ -128,7 +128,7 @@ async function retirar() {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <Migas :ruta="[{ texto: `Extracción #${id}` }]" />
 
   <p v-if="!original" class="meta">No hay ninguna extracción #{{ id }}.</p>
 

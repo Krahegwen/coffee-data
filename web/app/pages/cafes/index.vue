@@ -24,7 +24,7 @@ function restante(cafeId: string, pesoG: number | null) {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Bolsas' }]" />
 
   <div class="cabecera">
     <h2>Bolsas</h2>

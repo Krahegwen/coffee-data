@@ -49,7 +49,7 @@ async function enviar() {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Bolsas', a: '/cafes' }, { texto: 'Nueva' }]" />
 
   <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 

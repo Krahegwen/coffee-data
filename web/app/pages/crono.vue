@@ -238,7 +238,7 @@ onUnmounted(parar)
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Cronómetro' }]" />
 
   <section v-if="!enCrono">
     <h2>Preparar</h2>

@@ -160,7 +160,7 @@ async function enviar() {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Registrar extracción' }]" />
 
   <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 

@@ -128,7 +128,7 @@ async function quitarFoto() {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/cafes">‹ Bolsas</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Bolsas', a: '/cafes' }, { texto: original?.nombre ?? id }]" />
 
   <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
 

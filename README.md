@@ -104,7 +104,11 @@ justo donde hace falta el botón para poder explicar dónde está la opción en 
 menú.
 
 Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`), recetas
-(`/recetas`) y corrección de extracciones (`/extracciones/<id>`).
+(`/recetas`) y corrección de extracciones (`/extracciones/<id>`). Se navega con
+migas de pan y no con un «volver»: desde la ficha de una bolsa, «volver» podía
+ser el listado o la portada según por dónde hubieras entrado. Cada pantalla
+declara su ruta en vez de deducirla de la URL, porque los tramos dinámicos son
+ids —`gary`, `3`— y lo que hay que leer es el nombre de la bolsa.
 
 El alta arranca con la extracción anterior de esa bolsa ya puesta, porque el
 protocolo es repetir y mover una sola cosa: lo que teclees debería ser justo

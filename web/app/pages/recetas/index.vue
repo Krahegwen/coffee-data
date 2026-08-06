@@ -14,7 +14,7 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 </script>
 
 <template>
-  <p class="volver"><NuxtLink to="/">‹ Volver</NuxtLink></p>
+  <Migas :ruta="[{ texto: 'Recetas' }]" />
 
   <div class="cabecera">
     <h2>Recetas</h2>

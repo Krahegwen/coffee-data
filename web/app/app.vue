@@ -25,7 +25,6 @@ useHead({
   <div class="marco">
     <header>
       <h1>Bitácora de café</h1>
-      <p class="lema">V60 · 4:6 Kasuya</p>
     </header>
     <main>
       <NuxtPage />
@@ -105,31 +104,13 @@ body {
   padding: 1.25rem 1rem 3rem;
 }
 
+/* El hueco lo ponía el lema, que ya no está: ahora lo pone la cabecera. */
+header { margin-bottom: 1rem; }
+
 header h1 {
   margin: 0;
   font-size: 1.4rem;
   letter-spacing: -0.01em;
-}
-
-.lema {
-  margin: 0.15rem 0 1.5rem;
-  color: var(--suave);
-  font-size: 0.85rem;
-}
-
-/*
- * El «‹ Volver» de cada pantalla. Es un enlace de texto, así que de alto
- * daba 21 px: la mitad de los 44 que pide un dedo. Crece por dentro con la
- * caja, no con la tipografía, y el párrafo cede su margen para que la
- * cabecera no se separe.
- */
-.volver { margin: 0 0 0.5rem; }
-
-.volver a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding-right: 0.75rem;
 }
 
 /*
