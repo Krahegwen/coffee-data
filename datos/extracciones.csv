@@ -1,2 +1,2 @@
 id,fecha,cafe_id,dias_tueste,dosis_g,agua_g,ratio,temp_c,molinillo,clics,metodo,reparto,tiempo_total,variable_cambiada,defecto,notas_cata,nota,siguiente_ajuste,receta_id,drawdown_s,dripper,borrada_en
-1,2026-08-05,gary,77,20,300,15.0,94,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:25,basal,amargor,"Amargor agradable, nada de acidez, buen cuerpo",7,Bajar a 91 °C manteniendo 28 clics,kasuya-46-base,,v60-02-plastico,
+1,2026-08-05,gary,77,20,300,15.0,94,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:25,basal,amargor,"Amargor agradable, nada de acidez, buen cuerpo",7,Bajar a 91 °C manteniendo 28 clics,kasuya-46-base,30,v60-02-plastico,
