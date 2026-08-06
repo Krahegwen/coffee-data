@@ -285,7 +285,9 @@ async function servirFoto(env, clave) {
       "content-type": objeto.httpMetadata?.contentType || "application/octet-stream",
       etag: objeto.httpEtag,
       // La clave cambia con cada subida, así que este contenido no caduca.
-      "cache-control": "public, max-age=31536000, immutable",
+      // `private` desde que las fotos van tras el portero: que las guarde el
+      // navegador de quien tiene sesión, no una caché compartida.
+      "cache-control": "private, max-age=31536000, immutable",
     },
   });
 }
@@ -450,19 +452,24 @@ async function borrarReceta(env, id) {
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
 
+  /*
+   * Un solo portero para todo lo demás, lecturas incluidas. Los GET fueron
+   * públicos mientras esto era una bitácora que enseñar; camino de abrir la
+   * app a más gente es al revés: la app será de cualquiera y los datos de
+   * este servidor son míos. Solo /api/sesion queda fuera, que es la puerta.
+   */
+  if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
+
   if (ruta === "/api/recetas" && request.method === "POST") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await guardarReceta(request, env, { nuevo: true });
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "PUT") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     const id = decodeURIComponent(ruta.slice("/api/recetas/".length));
     return await guardarReceta(request, env, { id, nuevo: false });
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "DELETE") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await borrarReceta(env, decodeURIComponent(ruta.slice("/api/recetas/".length)));
   }
 
@@ -473,7 +480,6 @@ async function enrutar(request, env, url, ruta) {
     if (!Number.isInteger(id) || id <= 0) {
       return json({ error: "id de extracción inválido" }, 400);
     }
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
 
     if (accion === "restaurar" && request.method === "POST") {
       return await restaurarExtraccion(env, id);
@@ -483,19 +489,16 @@ async function enrutar(request, env, url, ruta) {
   }
 
   if (ruta === "/api/cafes" && request.method === "POST") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await crearCafe(request, env);
   }
 
   if (ruta.startsWith("/api/cafes/") && ruta.endsWith("/foto")) {
     const id = decodeURIComponent(ruta.slice("/api/cafes/".length, -"/foto".length));
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     if (request.method === "PUT") return await subirFoto(request, env, id);
     if (request.method === "DELETE") return await quitarFoto(env, id);
   }
 
   if (ruta.startsWith("/api/cafes/") && request.method === "PATCH") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await editarCafe(request, env, decodeURIComponent(ruta.slice("/api/cafes/".length)));
   }
 
@@ -544,7 +547,6 @@ async function enrutar(request, env, url, ruta) {
   }
 
   if (request.method === "POST" && ruta === "/api/extracciones") {
-    if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
     return await crearExtraccion(request, env);
   }
 

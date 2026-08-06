@@ -53,8 +53,12 @@ Lo que calcula el servidor y no debes mandar: el `id`, el `reparto` (sale de
 escalar la receta al agua real, salvo que lo mandes explícito porque ese día te
 desviaste), y `ratio` y `dias_tueste`, que los deriva la vista.
 
-Escribir exige el mismo secreto por una de dos vías: `Authorization: Bearer
-<TOKEN_ESCRITURA>` para curl y scripts, o la **cookie de sesión** para la app.
+**Toda la API exige el secreto, leer incluido** — solo `/api/sesion` queda
+fuera, que es la puerta. Los GET fueron públicos mientras esto era una bitácora
+que enseñar; camino de abrir la app es al revés: la app será de cualquiera y
+los datos de este servidor son míos. Va por una de dos vías:
+`Authorization: Bearer <TOKEN_ESCRITURA>` para curl y scripts (los de Python lo
+leen de la variable `COFFEE_TOKEN`), o la **cookie de sesión** para la app.
 En local el secreto va en `.dev.vars`; en producción, `wrangler secret put`.
 Sin secreto configurado el Worker **falla cerrado**: no autoriza a nadie.
 

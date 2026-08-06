@@ -46,10 +46,25 @@ AGENTE = "coffee-data (+https://github.com/Krahegwen/coffee-data)"
 
 
 def traer(ruta):
-    peticion = urllib.request.Request(f"{API}{ruta}", headers={"User-Agent": AGENTE})
+    """GET con token: desde que la bitácora es privada, leer también lo pide."""
+    cabeceras = {"User-Agent": AGENTE}
+    token = os.environ.get("COFFEE_TOKEN", "").strip()
+    if token:
+        cabeceras["Authorization"] = f"Bearer {token}"
+    peticion = urllib.request.Request(f"{API}{ruta}", headers=cabeceras)
     try:
         with urllib.request.urlopen(peticion, timeout=15) as respuesta:
             return json.load(respuesta)
+    except urllib.error.HTTPError as error:
+        if error.code == 401:
+            print(
+                "La API pide el token también para leer. Ponlo en la variable "
+                "de entorno COFFEE_TOKEN.",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
+        print(f"No se pudo leer {API}{ruta}: {error}", file=sys.stderr)
+        raise SystemExit(1)
     except urllib.error.URLError as error:
         print(f"No se pudo leer {API}{ruta}: {error}", file=sys.stderr)
         raise SystemExit(1)

@@ -13,6 +13,38 @@ const APP = 'Bitácora de café'
  */
 const { version } = useRuntimeConfig().public
 
+/**
+ * El portero de toda la app: desde que los GET van protegidos, sin sesión no
+ * hay ni una pantalla que pueda pintar datos, así que se pregunta una vez
+ * aquí en vez de repetir la tarjeta en cada pantalla.
+ *
+ * Es la situación de esta fase del plan, no la final: cuando exista el modo
+ * local, quien no tenga sesión trabajará contra su navegador y esta tarjeta
+ * quedará detrás del gesto del pie.
+ */
+const { activa, comprobada, comprobar, abrir } = useSesion()
+const tokenVisible = ref('')
+const errorSesion = ref('')
+const abriendo = ref(false)
+
+onMounted(comprobar)
+
+async function iniciarSesion() {
+  errorSesion.value = ''
+  abriendo.value = true
+  try {
+    await abrir(tokenVisible.value)
+    tokenVisible.value = ''
+    // Las pantallas ya dispararon sus cargas y recibieron 401: se repiten
+    // ahora que la cookie existe.
+    await refreshNuxtData()
+  } catch {
+    errorSesion.value = 'Ese token no es'
+  } finally {
+    abriendo.value = false
+  }
+}
+
 useHead({
   // El título estático del HTML ya es el nombre de la app: si se colase por
   // la plantilla saldría repetido en la portada.
@@ -38,7 +70,26 @@ useHead({
       </NuxtLink>
     </header>
     <main>
-      <NuxtPage />
+      <p v-if="!comprobada" class="meta-sesion">Comprobando sesión…</p>
+
+      <section v-else-if="!activa" class="portero">
+        <h2>Abrir sesión</h2>
+        <p>
+          La bitácora es privada: hace falta el token también para mirar. Se
+          pide una vez por dispositivo y se cambia por una cookie que este
+          código no puede leer.
+        </p>
+        <input
+          v-model="tokenVisible" type="password" placeholder="token"
+          autocomplete="off" @keyup.enter="iniciarSesion"
+        >
+        <p v-if="errorSesion" class="fallo-sesion">{{ errorSesion }}</p>
+        <button type="button" :disabled="abriendo || !tokenVisible.trim()" @click="iniciarSesion">
+          {{ abriendo ? 'Abriendo…' : 'Entrar' }}
+        </button>
+      </section>
+
+      <NuxtPage v-else />
     </main>
     <footer>
       <p>v{{ version }}</p>
@@ -183,4 +234,33 @@ footer {
 }
 
 footer p { margin: 0.15rem 0; }
+
+/* El portero de sesión. Mismo aire que las tarjetas de las pantallas. */
+.portero {
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: 0.7rem;
+  padding: 0.9rem;
+  margin-top: 1.25rem;
+}
+
+.portero h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+.portero p { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
+
+.portero input {
+  font: inherit; font-size: 16px; width: 100%; margin: 0.5rem 0; min-height: 44px;
+  color: var(--tinta); background: var(--fondo);
+  border: 1px solid var(--linea); border-radius: 0.5rem; padding: 0.6rem 0.65rem;
+}
+
+.portero button {
+  font: inherit; font-weight: 600; width: 100%; min-height: 3rem;
+  color: #fff; background: var(--acento); border: 0; border-radius: 0.6rem;
+  padding: 0.85rem 1rem; cursor: pointer;
+}
+
+.portero button:disabled { opacity: 0.5; cursor: default; }
+.portero .fallo-sesion { color: #c2410c; }
+
+.meta-sesion { color: var(--suave); font-size: 0.85rem; }
 </style>

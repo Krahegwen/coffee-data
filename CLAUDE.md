@@ -47,6 +47,10 @@ El token está en la variable de entorno `COFFEE_TOKEN` del usuario. Si el shell
 no la ve, se lee del registro de Windows sin imprimirla:
 `(Get-ItemProperty HKCU:\Environment -Name COFFEE_TOKEN).COFFEE_TOKEN`.
 
+**Leer también pide token** desde que la bitácora es privada: cualquier `GET`
+a `/api/*` (salvo `/api/sesion`) va con la misma cabecera. `resumen.py` y
+`exportar_csv.py` lo cogen solos de `COFFEE_TOKEN`.
+
 No mandes `id`, `ratio`, `dias_tueste` ni `reparto`: los calcula el servidor.
 El `reparto` sale de escalar la receta al agua real, así que solo se manda si
 ese día te desviaste de la receta.
