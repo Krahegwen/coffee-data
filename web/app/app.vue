@@ -112,7 +112,7 @@ body {
 .marco {
   max-width: 46rem;
   margin: 0 auto;
-  padding: 1.25rem 1rem 3rem;
+  padding: 1.25rem 1rem 1rem;
 }
 
 /* El hueco lo ponía el lema, que ya no está: ahora lo pone la cabecera. */
@@ -175,7 +175,7 @@ input[type="password"] { min-height: 44px; }
  */
 footer {
   margin-top: 3rem;
-  padding-top: 0.9rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--linea);
   color: var(--suave);
   font-size: 0.75rem;
