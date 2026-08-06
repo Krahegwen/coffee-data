@@ -3,7 +3,6 @@ import type { Extraccion } from '~/composables/useApi'
 import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
-const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
@@ -56,8 +55,6 @@ const form = reactive<Record<string, any>>({})
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const guardado = ref<string[] | null>(null)
-const tokenVisible = ref('')
-const errorSesion = ref('')
 const dialogo = ref<HTMLDialogElement | null>(null)
 const retirando = ref(false)
 
@@ -136,18 +133,6 @@ const textoVariables = computed(() =>
     : String(form.variable_cambiada ?? ''),
 )
 
-onMounted(comprobar)
-
-async function iniciarSesion() {
-  errorSesion.value = ''
-  try {
-    await abrir(tokenVisible.value)
-    tokenVisible.value = ''
-  } catch {
-    errorSesion.value = 'Ese token no es'
-  }
-}
-
 const cambios = computed(() => {
   if (!original.value) return {}
   const salida: Record<string, unknown> = {}
@@ -208,17 +193,7 @@ async function retirar() {
   <p v-if="!original" class="meta">No hay ninguna extracción con esa dirección.</p>
 
   <template v-else>
-    <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
-
-    <section v-else-if="!activa" class="tarjeta">
-      <h2>Abrir sesión</h2>
-      <p class="meta">Hace falta para corregir.</p>
-      <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
-      <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
-      <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
-    </section>
-
-    <form v-else @submit.prevent="guardar">
+    <form @submit.prevent="guardar">
       <!-- El uuid no se enseña: el café y el día ya identifican la taza. -->
       <h2>{{ titulo }}<template v-if="original.tiempo_total"> · {{ original.tiempo_total }}</template></h2>
 

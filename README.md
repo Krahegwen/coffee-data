@@ -79,12 +79,12 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | `api/migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
 | `nucleo/` | La lógica sin saber dónde corre, **manejadores de la API incluidos**: hablan con un puerto de almacén y devuelven `{estado, datos}`. Cero dependencias. |
 | `api/src/` | Lo que es del servidor: enrutado, autorización, fotos en R2 y el adaptador D1 del puerto. |
-| `web/` | La app: Nuxt estático, instalable en el móvil. |
+| `web/` | La app: Nuxt estático, instalable en el móvil. Trae su almacén IndexedDB para el modo local. |
 | `datos/` | Exportación legible de lo que hay en D1. **No es la fuente.** |
 | `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |
 | `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
 | `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
-| `herramientas/subir_version.py` | Sube el parche en los tres `package.json`. Lo llama el hook. |
+| `herramientas/subir_version.py` | Sube el parche en los cuatro `package.json`. Lo llama el hook. |
 
 Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
 
@@ -99,6 +99,26 @@ Esa puerta abierta es la razón de elegir Nuxt y no Vue pelado.
 Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
+
+### Dos modos, una API
+
+Por defecto la app trabaja **en local**: los datos viven en el IndexedDB del
+navegador y no tocan el servidor. Quien entre por la URL puede usar la
+bitácora entera —bolsas, recetas, cronómetro, sugerencias, fotos— sin cuenta y
+sin que sus datos salgan de su navegador. El modo local arranca con las tres
+recetas base sembradas: sin una receta el cronómetro no tendría qué guiar.
+
+El árbitro vive en `useApi()`: **con sesión abierta**, cada llamada va por
+`fetch` al Worker, como siempre; **sin ella**, la misma llamada ejecuta el
+mismo manejador del núcleo en proceso, contra el adaptador de IndexedDB.
+Mismos códigos de estado, mismos mensajes de error, otro cajón — y el
+adaptador pasa la misma suite de contrato que los de memoria y D1. Las fotos
+en local son `Blob` en IndexedDB servidos con `createObjectURL`.
+
+La puerta a la sesión son **cinco toques en la versión del pie**. No es
+seguridad, es discreción: a quien la app le funciona en local no le sale un
+formulario de token que no le sirve; lo que protege sigue siendo el token. El
+pie dice el modo — con sesión añade «en el servidor».
 
 El botón de instalar no sale si ya la tienes puesta, **aunque estés viéndola en
 una pestaña del navegador**. Mirar el `display-mode` solo dice cómo la abriste

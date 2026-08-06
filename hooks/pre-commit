@@ -27,18 +27,21 @@ if ! "$PYTHON" -m pytest -q; then
     exit 1
 fi
 
-# El núcleo y la API se prueban con el runner que trae Node, sin dependencias.
-if [ -d nucleo/test ] || [ -d api/test ]; then
+# El núcleo, la API y el almacén de la web se prueban con el runner que trae
+# Node. Los de la web necesitan fake-indexeddb, que instala pnpm; Node lo
+# resuelve subiendo desde el propio fichero de test, así que el glob funciona
+# desde la raíz.
+if [ -d nucleo/test ] || [ -d api/test ] || [ -d web/test ]; then
     if ! command -v node >/dev/null 2>&1; then
         echo "pre-commit: hay tests de Node pero no se encuentra Node. Commit abortado." >&2
         exit 1
     fi
-    echo "pre-commit: ejecutando los tests del núcleo y de la API..."
+    echo "pre-commit: ejecutando los tests del núcleo, la API y el almacén..."
     # Como globs y no como directorios: a node --test un directorio suelto le
     # parece un módulo que ejecutar, y revienta.
-    if ! node --test "nucleo/test/*.test.js" "api/test/*.test.js" >/dev/null; then
+    if ! node --test "nucleo/test/*.test.js" "api/test/*.test.js" "web/test/*.test.js" >/dev/null; then
         echo "pre-commit: los tests de Node fallan. Commit abortado." >&2
-        node --test --test-reporter=spec "nucleo/test/*.test.js" "api/test/*.test.js" >&2
+        node --test --test-reporter=spec "nucleo/test/*.test.js" "api/test/*.test.js" "web/test/*.test.js" >&2
         exit 1
     fi
 fi

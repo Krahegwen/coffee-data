@@ -6,7 +6,6 @@ useHead({ title: 'Registrar extracción' })
 import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, crear } = useApi()
-const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
@@ -152,22 +151,8 @@ const desdeCrono = computed(() => q.tiempo !== undefined)
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const resultado = ref<Creada | null>(null)
-const tokenVisible = ref('')
-const errorSesion = ref('')
-
-onMounted(comprobar)
 
 watchEffect(() => { if (!form.cafe_id && abiertas.value.length) form.cafe_id = abiertas.value[0]!.id })
-
-async function iniciarSesion() {
-  errorSesion.value = ''
-  try {
-    await abrir(tokenVisible.value)
-    tokenVisible.value = ''
-  } catch {
-    errorSesion.value = 'Ese token no es'
-  }
-}
 
 const ratio = computed(() =>
   Number(form.dosis_g) > 0 ? (Number(form.agua_g) / Number(form.dosis_g)).toFixed(1) : '—',
@@ -218,20 +203,7 @@ async function enviar() {
 <template>
   <Migas :ruta="[{ texto: 'Registrar extracción' }]" />
 
-  <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
-
-  <section v-else-if="!activa" class="tarjeta">
-    <h2>Abrir sesión</h2>
-    <p class="meta">
-      Una vez por dispositivo. El token no se guarda aquí: se cambia por una
-      cookie que este código no puede leer.
-    </p>
-    <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
-    <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
-    <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
-  </section>
-
-  <form v-else @submit.prevent="enviar">
+  <form @submit.prevent="enviar">
     <h2>Nueva extracción</h2>
 
     <p v-if="desdeCrono" class="delcrono">

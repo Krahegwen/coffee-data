@@ -172,9 +172,9 @@ Cada una deja el repo funcionando y desplegable.
 | 2 ✔ | Proteger los `GET`. Arreglar `resumen.py` y `exportar_csv.py`, que hoy leen sin token. | Bajo |
 | 3 ✔ | **Identidad**: UUIDv7 en las tres tablas, slug a columna, orden por `creado_en`, URLs y pantallas al día. | Medio |
 | 4 ✔ | Puerto de almacén y adaptador D1. El Worker sigue igual por fuera. | Medio |
-| 5 | Adaptador IndexedDB + el árbitro en `useApi()`. **Aquí está el trabajo.** | Alto |
+| 5 ✔ | Adaptador IndexedDB + el árbitro en `useApi()`. **Aquí está el trabajo.** | Alto |
 | 6 | Cola de salida: escribir en local y encolar para la red, con reintento. | Alto |
-| 7 | El gesto del pie y el modo local por defecto. | Bajo |
+| 7 ✔ | El gesto del pie y el modo local por defecto. Absorbida por la 5: el árbitro no se podía probar sin la puerta. | Bajo |
 | 8 | Respaldo y restauración en ZIP. | Medio |
 | 9 | Estreno para desconocidos: recetas base sembradas, estado vacío, aviso de instalar y de respaldo viejo. Ko-fi. | Bajo |
 
@@ -500,8 +500,9 @@ se guarda: es una vista, no un dato.
 1. ¿Los CSV de `datos/` se quedan en el repo público? Hoy son la única red de
    seguridad si D1 se cae, así que quitarlos obliga a buscarle otro sitio al
    respaldo.
-2. Al llegar a la fase 5, si el modo local arranca con las recetas base
-   sembradas o con la casa vacía.
+2. ~~Al llegar a la fase 5, si el modo local arranca con las recetas base
+   sembradas o con la casa vacía.~~ **Sembradas** (fase 5): sin una receta el
+   cronómetro no tiene qué guiar, y la app se estrenaría inservible.
 
 ## Contraindicación nueva, por ir a offline-first
 

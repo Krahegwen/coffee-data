@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const { cafes, crearCafe } = useApi()
-const { activa, comprobada, comprobar, abrir } = useSesion()
 const router = useRouter()
 const route = useRoute()
 
@@ -52,20 +51,6 @@ watchEffect(() => {
 
 const enviando = ref(false)
 const errores = ref<string[]>([])
-const tokenVisible = ref('')
-const errorSesion = ref('')
-
-onMounted(comprobar)
-
-async function iniciarSesion() {
-  errorSesion.value = ''
-  try {
-    await abrir(tokenVisible.value)
-    tokenVisible.value = ''
-  } catch {
-    errorSesion.value = 'Ese token no es'
-  }
-}
 
 async function enviar() {
   errores.value = []
@@ -94,20 +79,7 @@ async function enviar() {
     ]"
   />
 
-  <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
-
-  <section v-else-if="!activa" class="tarjeta">
-    <h2>Abrir sesión</h2>
-    <p class="meta">
-      Una vez por dispositivo. El token no se guarda aquí: se cambia por una
-      cookie que este código no puede leer.
-    </p>
-    <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
-    <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
-    <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
-  </section>
-
-  <form v-else @submit.prevent="enviar">
+  <form @submit.prevent="enviar">
     <p v-if="copiaDe" class="pista">
       Copiado de <strong>{{ copiaDe.nombre }}</strong>: falta lo que cambia en
       cada bolsa —tueste, compra, precio y foto—. El id lo pone el servidor.

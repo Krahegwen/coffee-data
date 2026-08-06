@@ -184,16 +184,24 @@ herramientas de Python. `datos/` son los CSV exportados.
 - **Si añades un endpoint, el manejador va en `nucleo/src/api.js`** con su
   test en `nucleo/test/api.test.js` contra el almacén en memoria; en el Worker
   solo se añade la ruta.
-- Las dos suites van con `pnpm test` (el runner de Node, sin dependencias).
+- Las suites de Node van con `pnpm test` (el runner de Node; la única
+  dependencia de test es fake-indexeddb, en `web/`).
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
 - `web/` es la app. `ssr: false` a propósito. Todo el acceso a la API pasa por
-  `useApi()`: si añades una llamada, va ahí y con su tipo. La sesión vive en
-  `useSesion()` y **no guarda el token en ninguna parte**: lo cambia por una
-  cookie `HttpOnly` que este código no puede leer.
+  `useApi()`: si añades una llamada, va ahí y con su tipo — **y con sus dos
+  caminos**, que `useApi()` es el árbitro: con sesión, `$fetch` al Worker; sin
+  ella, el mismo manejador del núcleo en proceso contra IndexedDB
+  (`web/app/almacen/idb.js`). La sesión vive en `useSesion()` y **no guarda el
+  token en ninguna parte**: lo cambia por una cookie `HttpOnly` que este código
+  no puede leer. La puerta a la sesión son cinco toques en la versión del pie.
+- El adaptador de IndexedDB se prueba con la **misma suite de contrato** que
+  los demás (`nucleo/test/contrato.js`), con fake-indexeddb; el modo local
+  arranca sembrando las tres recetas base (`web/app/almacen/semilla.js`).
 - La app **no reimplementa reglas del servidor**. El escalado de recetas lo da
-  `GET /api/guion`; si necesitas otra lógica de dominio, hazle un endpoint.
+  el manejador `guion` del núcleo — por la red o en proceso, según el modo —;
+  si necesitas otra lógica de dominio, hazle un manejador al núcleo.
 - Al desplegar, comprueba que subieron **script y assets**. Ha pasado dos veces
   que wrangler suba solo uno y lo dé por bueno: verifica una ruta nueva antes
   de dar el despliegue por hecho.

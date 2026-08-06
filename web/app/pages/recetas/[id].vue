@@ -10,7 +10,6 @@ import type { PasoEditable } from '~/components/RecetaPasos.vue'
  * ninguno, el POST de siempre ya recibe la receta entera con sus pasos.
  */
 const { recetas, crearReceta, guardarReceta, borrarReceta } = useApi()
-const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const router = useRouter()
 
@@ -41,8 +40,6 @@ const pasos = ref<PasoEditable[]>([
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const guardado = ref(false)
-const tokenVisible = ref('')
-const errorSesion = ref('')
 const dialogoBorrar = ref<HTMLDialogElement | null>(null)
 const borrando = ref(false)
 
@@ -62,18 +59,6 @@ watchEffect(() => {
     notas: p.notas ?? '',
   }))
 })
-
-onMounted(comprobar)
-
-async function iniciarSesion() {
-  errorSesion.value = ''
-  try {
-    await abrir(tokenVisible.value)
-    tokenVisible.value = ''
-  } catch {
-    errorSesion.value = 'Ese token no es'
-  }
-}
 
 async function enviar() {
   errores.value = []
@@ -143,17 +128,7 @@ async function borrar() {
   <p v-if="!esNueva && !original" class="meta">No hay ninguna receta «{{ id }}».</p>
 
   <template v-else>
-    <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
-
-    <section v-else-if="!activa" class="tarjeta">
-      <h2>Abrir sesión</h2>
-      <p class="meta">Hace falta para tocar recetas.</p>
-      <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
-      <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
-      <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
-    </section>
-
-    <form v-else @submit.prevent="enviar">
+    <form @submit.prevent="enviar">
       <!-- Sin título: el nombre de la receta ya está en la última miga. -->
       <div v-if="!esNueva" class="cabecera">
         <NuxtLink :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>

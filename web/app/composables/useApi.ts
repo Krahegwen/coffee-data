@@ -4,6 +4,28 @@
  * autenticación del servidor sin tocar nada de aquí.
  */
 
+import * as nucleo from '@coffee/nucleo/api'
+import { claveDeFoto, validarFoto } from '@coffee/nucleo/validacion'
+
+import { almacenIDB } from '~/almacen/idb'
+import { sembrar } from '~/almacen/semilla'
+
+type AlmacenLocal = ReturnType<typeof almacenIDB>
+
+/*
+ * El cajón del modo local, uno por pestaña y perezoso: no se abre IndexedDB
+ * ni se siembra nada hasta la primera llamada que de verdad va a local.
+ */
+let cajon: AlmacenLocal | null = null
+let sembrado: Promise<void> | null = null
+
+async function almacenLocal(): Promise<AlmacenLocal> {
+  cajon ??= almacenIDB()
+  sembrado ??= sembrar(cajon)
+  await sembrado
+  return cajon
+}
+
 export const ESTADOS = ['abierto', 'terminado', 'pendiente'] as const
 
 export interface Cafe {
@@ -138,94 +160,221 @@ export interface NuevaExtraccion {
 
 export function useApi() {
   const base = useRuntimeConfig().public.apiBase
+  const { activa } = useSesion()
 
-  const cafes = () => $fetch<Cafe[]>(`${base}/api/cafes`)
-  const recetas = () => $fetch<Receta[]>(`${base}/api/recetas`)
+  /*
+   * El árbitro. Con sesión abierta, la app habla con el Worker por fetch,
+   * como siempre. Sin ella, llama a los mismos manejadores del núcleo en
+   * proceso, contra IndexedDB: mismos códigos, mismos mensajes, otro cajón.
+   * Se decide en cada llamada, no al montar: abrir o cerrar sesión cambia de
+   * camino sin recargar.
+   */
+  const servidor = () => activa.value
+
+  /** Un {estado, datos} del núcleo, con la forma de error de $fetch. */
+  async function local<T>(fn: (a: AlmacenLocal) => Promise<{ estado: number; datos: unknown }>): Promise<T> {
+    const { estado, datos } = await fn(await almacenLocal())
+    if (estado >= 400) {
+      const cuerpo = datos as { error?: string; errores?: string[] }
+      throw Object.assign(new Error(cuerpo.error ?? cuerpo.errores?.[0] ?? `HTTP ${estado}`), {
+        data: datos,
+        statusCode: estado,
+      })
+    }
+    return datos as T
+  }
+
+  const cafes = () =>
+    servidor()
+      ? $fetch<Cafe[]>(`${base}/api/cafes`)
+      : local<Cafe[]>((a) => nucleo.listaCafes(a)).then(async (filas) => {
+          await refrescarFotosLocales()
+          return filas
+        })
+
+  const recetas = () =>
+    servidor()
+      ? $fetch<Receta[]>(`${base}/api/recetas`)
+      : local<Receta[]>((a) => nucleo.listaRecetas(a))
+
   const extracciones = (cafeId?: string) =>
-    $fetch<Extraccion[]>(`${base}/api/extracciones`, {
-      query: cafeId ? { cafe: cafeId } : undefined,
-    })
+    servidor()
+      ? $fetch<Extraccion[]>(`${base}/api/extracciones`, {
+          query: cafeId ? { cafe: cafeId } : undefined,
+        })
+      : local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { cafe: cafeId }))
 
   /** Corrige una extracción. Solo se manda lo que cambia. */
   const editarExtraccion = (id: string, cambios: Record<string, unknown>) =>
-    $fetch<{ extraccion: Extraccion; cambiado: string[] }>(`${base}/api/extracciones/${id}`, {
-      method: 'PATCH',
-      body: cambios,
-    })
+    servidor()
+      ? $fetch<{ extraccion: Extraccion; cambiado: string[] }>(`${base}/api/extracciones/${id}`, {
+          method: 'PATCH',
+          body: cambios,
+        })
+      : local<{ extraccion: Extraccion; cambiado: string[] }>((a) => nucleo.editarExtraccion(a, id, cambios))
 
   /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
   const retirarExtraccion = (id: string) =>
-    $fetch<{ retirada: boolean }>(`${base}/api/extracciones/${id}`, { method: 'DELETE' })
+    servidor()
+      ? $fetch<{ retirada: boolean }>(`${base}/api/extracciones/${id}`, { method: 'DELETE' })
+      : local<{ retirada: boolean }>((a) => nucleo.retirarExtraccion(a, id))
 
   const restaurarExtraccion = (id: string) =>
-    $fetch<{ extraccion: Extraccion }>(`${base}/api/extracciones/${id}/restaurar`, {
-      method: 'POST',
-    })
+    servidor()
+      ? $fetch<{ extraccion: Extraccion }>(`${base}/api/extracciones/${id}/restaurar`, {
+          method: 'POST',
+        })
+      : local<{ extraccion: Extraccion }>((a) => nucleo.restaurarExtraccion(a, id))
 
   /** La papelera. */
   const retiradas = () =>
-    $fetch<Extraccion[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } })
+    servidor()
+      ? $fetch<Extraccion[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } })
+      : local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { retiradas: true }))
 
   /** Crea una receta con sus pasos. */
   const crearReceta = (datos: Record<string, unknown>) =>
-    $fetch<{ receta: Receta }>(`${base}/api/recetas`, { method: 'POST', body: datos })
+    servidor()
+      ? $fetch<{ receta: Receta }>(`${base}/api/recetas`, { method: 'POST', body: datos })
+      : local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { nuevo: true }, datos))
 
   /** Guarda una receta: los pasos reemplazan a los que hubiera. */
   const guardarReceta = (id: string, datos: Record<string, unknown>) =>
-    $fetch<{ receta: Receta }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: datos,
-    })
+    servidor()
+      ? $fetch<{ receta: Receta }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
+          method: 'PUT',
+          body: datos,
+        })
+      : local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { ref: id, nuevo: false }, datos))
 
   /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
   const borrarReceta = (id: string) =>
-    $fetch<{ borrada: boolean; id: string }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    })
+    servidor()
+      ? $fetch<{ borrada: boolean; id: string }>(`${base}/api/recetas/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        })
+      : local<{ borrada: boolean; id: string }>((a) => nucleo.borrarReceta(a, id))
 
   /** Da de alta una bolsa. */
   const crearCafe = (datos: Record<string, unknown>) =>
-    $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
+    servidor()
+      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes`, { method: 'POST', body: datos })
+      : local<{ cafe: Cafe }>((a) => nucleo.crearCafe(a, datos))
 
   /** Corrige una ficha. Solo se manda lo que cambia. */
   const editarCafe = (id: string, cambios: Record<string, unknown>) =>
-    $fetch<{ cafe: Cafe; cambiado: string[] }>(`${base}/api/cafes/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      body: cambios,
-    })
+    servidor()
+      ? $fetch<{ cafe: Cafe; cambiado: string[] }>(`${base}/api/cafes/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          body: cambios,
+        })
+      : local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios))
 
-  /** Sube o reemplaza la foto de la bolsa. La imagen va en binario, tal cual. */
+  /**
+   * Sube o reemplaza la foto de la bolsa. En el servidor va en binario a R2;
+   * en local el Blob se queda en IndexedDB, con la misma validación y el
+   * mismo esquema de claves, y la URL sale de createObjectURL.
+   */
   const subirFotoCafe = (id: string, fichero: File) =>
-    $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
-      method: 'PUT',
-      body: fichero,
-      headers: { 'content-type': fichero.type },
-    })
+    servidor()
+      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
+          method: 'PUT',
+          body: fichero,
+          headers: { 'content-type': fichero.type },
+        })
+      : subirFotoLocal(id, fichero)
 
   const quitarFotoCafe = (id: string) =>
-    $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
-      method: 'DELETE',
-    })
+    servidor()
+      ? $fetch<{ cafe: Cafe }>(`${base}/api/cafes/${encodeURIComponent(id)}/foto`, {
+          method: 'DELETE',
+        })
+      : quitarFotoLocal(id)
 
   /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
   const guion = (recetaId: string, aguaG: number) =>
-    $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
+    servidor()
+      ? $fetch<PasoGuion[]>(`${base}/api/guion`, { query: { receta: recetaId, agua: aguaG } })
+      : local<PasoGuion[]>((a) => nucleo.guionDe(a, recetaId, String(aguaG)))
 
   /**
-   * Registra una extracción. Entera o ninguna: si el servidor rechaza algo,
-   * no se escribe nada y devuelve la lista de errores.
+   * Registra una extracción. Entera o ninguna: si algo se rechaza, no se
+   * escribe nada y llega la lista de errores.
    *
-   * No lleva token: la sesión va en una cookie HttpOnly que manda el navegador.
+   * En el servidor no lleva token: la sesión va en una cookie HttpOnly.
    */
-  async function crear(datos: NuevaExtraccion): Promise<Creada> {
-    return await $fetch<Creada>(`${base}/api/extracciones`, {
-      method: 'POST',
-      body: datos,
+  const crear = (datos: NuevaExtraccion): Promise<Creada> =>
+    servidor()
+      ? $fetch<Creada>(`${base}/api/extracciones`, { method: 'POST', body: datos })
+      : local<Creada>((a) => nucleo.crearExtraccion(a, datos as unknown as Record<string, unknown>))
+
+  /**
+   * La URL de una foto. En el servidor, /api/ + la clave; en local, un
+   * object URL del Blob, en un estado reactivo para que la imagen aparezca
+   * cuando el Blob ya está leído.
+   */
+  const urlsLocales = useState<Record<string, string>>('fotos-locales', () => ({}))
+  const urlFoto = (foto: string | null) => {
+    if (!foto) return null
+    return servidor() ? `${base}/api/${foto}` : urlsLocales.value[foto] ?? null
+  }
+
+  async function refrescarFotosLocales() {
+    const guardadas = await (await almacenLocal()).fotos.listar()
+    const mapa: Record<string, string> = { ...urlsLocales.value }
+    for (const f of guardadas) {
+      if (!mapa[f.clave]) mapa[f.clave] = URL.createObjectURL(f.blob)
+    }
+    urlsLocales.value = mapa
+  }
+
+  function noExiste(ref: string): never {
+    throw Object.assign(new Error('no existe'), {
+      data: { errores: [`no existe ningún café '${ref}'`] },
+      statusCode: 404,
     })
   }
 
-  /** La URL pública de una foto: /api/ + la clave que guarda la ficha. */
-  const urlFoto = (foto: string | null) => (foto ? `${base}/api/${foto}` : null)
+  async function subirFotoLocal(ref: string, fichero: File) {
+    const almacen = await almacenLocal()
+    const cafe = nucleo.porRef(await almacen.cafes.listar(), ref) as Cafe | null
+    if (!cafe) noExiste(ref)
+    const foto = validarFoto(fichero.type, fichero.size) as {
+      tipo?: string; extension?: string; error?: string; estado?: number
+    }
+    if (foto.error) {
+      throw Object.assign(new Error(foto.error), {
+        data: { errores: [foto.error] },
+        statusCode: foto.estado,
+      })
+    }
+
+    const clave = claveDeFoto(cafe.slug, foto.extension!) as string
+    await almacen.fotos.poner(clave, fichero, foto.tipo!)
+    await almacen.cafes.actualizar(cafe.id, { foto: clave, actualizado_en: nucleo.ahoraSQL() })
+    if (cafe.foto && cafe.foto !== clave) {
+      await almacen.fotos.quitar(cafe.foto)
+      const vieja = urlsLocales.value[cafe.foto]
+      if (vieja) URL.revokeObjectURL(vieja)
+    }
+    await refrescarFotosLocales()
+    const actualizado = nucleo.porRef(await almacen.cafes.listar(), cafe.id) as Cafe
+    return { cafe: actualizado }
+  }
+
+  async function quitarFotoLocal(ref: string) {
+    const almacen = await almacenLocal()
+    const cafe = nucleo.porRef(await almacen.cafes.listar(), ref) as Cafe | null
+    if (!cafe) noExiste(ref)
+    if (cafe.foto) {
+      await almacen.fotos.quitar(cafe.foto)
+      const vieja = urlsLocales.value[cafe.foto]
+      if (vieja) URL.revokeObjectURL(vieja)
+      await almacen.cafes.actualizar(cafe.id, { foto: null, actualizado_en: nucleo.ahoraSQL() })
+    }
+    const actualizado = nucleo.porRef(await almacen.cafes.listar(), cafe.id) as Cafe
+    return { cafe: actualizado }
+  }
 
   return {
     base, cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,

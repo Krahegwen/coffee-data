@@ -9,7 +9,9 @@
  * Aquí no se guarda el token en ninguna parte: se manda y se olvida.
  */
 export function useSesion() {
-  const { base } = useApi()
+  // Directo de la config y no de useApi(): desde que useApi() pregunta a la
+  // sesión para elegir camino, tirar de él desde aquí sería un ciclo.
+  const base = useRuntimeConfig().public.apiBase
   const activa = useState('sesion', () => false)
   const comprobada = useState('sesion-comprobada', () => false)
 

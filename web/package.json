@@ -1,6 +1,6 @@
 {
   "name": "@coffee/web",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "private": true,
   "type": "module",
   "description": "Bitácora de café: app instalable",
@@ -9,13 +9,15 @@
     "build": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "test": "echo \"sin tests todavía\" && exit 0"
+    "test": "node --test --test-reporter=spec \"test/*.test.js\""
   },
   "dependencies": {
+    "@coffee/nucleo": "workspace:*",
     "nuxt": "^4.0.0",
     "vue": "^3.5.0"
   },
   "devDependencies": {
-    "@vite-pwa/nuxt": "^1.0.0"
+    "@vite-pwa/nuxt": "^1.0.0",
+    "fake-indexeddb": "^6.2.5"
   }
 }

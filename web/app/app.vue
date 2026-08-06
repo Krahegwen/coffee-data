@@ -14,18 +14,38 @@ const APP = 'Bitácora de café'
 const { version } = useRuntimeConfig().public
 
 /**
- * El portero de toda la app: desde que los GET van protegidos, sin sesión no
- * hay ni una pantalla que pueda pintar datos, así que se pregunta una vez
- * aquí en vez de repetir la tarjeta en cada pantalla.
+ * El modo lo decide la sesión, y la sesión vive detrás del pie.
  *
- * Es la situación de esta fase del plan, no la final: cuando exista el modo
- * local, quien no tenga sesión trabajará contra su navegador y esta tarjeta
- * quedará detrás del gesto del pie.
+ * Por defecto la app trabaja **en local**: los datos en el IndexedDB de este
+ * navegador, sin servidor de por medio. Con sesión abierta —la cookie de
+ * siempre— todo va al Worker, como antes. La comprobación se hace una vez
+ * aquí y se espera antes de pintar nada: si las pantallas dispararan sus
+ * cargas antes de saber el modo, mezclarían cajones.
+ *
+ * La puerta a la sesión son cinco toques en el número de versión. No es
+ * seguridad, es discreción: a quien la app le funciona en local no le sale
+ * un formulario de token que no le sirve, y lo que protege de verdad sigue
+ * siendo el token.
  */
-const { activa, comprobada, comprobar, abrir } = useSesion()
+const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
+const panelSesion = ref(false)
+
+let toques = 0
+let ultimoToque = 0
+
+function tocarVersion() {
+  const ahora = Date.now()
+  if (ahora - ultimoToque > 2000) toques = 0
+  ultimoToque = ahora
+  toques += 1
+  if (toques >= 5) {
+    toques = 0
+    panelSesion.value = !panelSesion.value
+  }
+}
 
 onMounted(comprobar)
 
@@ -35,14 +55,22 @@ async function iniciarSesion() {
   try {
     await abrir(tokenVisible.value)
     tokenVisible.value = ''
-    // Las pantallas ya dispararon sus cargas y recibieron 401: se repiten
-    // ahora que la cookie existe.
+    panelSesion.value = false
+    // Las pantallas cargaron del cajón local: se repite todo contra el
+    // servidor ahora que hay cookie.
     await refreshNuxtData()
   } catch {
     errorSesion.value = 'Ese token no es'
   } finally {
     abriendo.value = false
   }
+}
+
+async function cerrarSesion() {
+  await cerrar()
+  panelSesion.value = false
+  // Y de vuelta al cajón local de este navegador.
+  await refreshNuxtData()
 }
 
 useHead({
@@ -70,30 +98,38 @@ useHead({
       </NuxtLink>
     </header>
     <main>
-      <p v-if="!comprobada" class="meta-sesion">Comprobando sesión…</p>
-
-      <section v-else-if="!activa" class="portero">
-        <h2>Abrir sesión</h2>
-        <p>
-          La bitácora es privada: hace falta el token también para mirar. Se
-          pide una vez por dispositivo y se cambia por una cookie que este
-          código no puede leer.
-        </p>
-        <input
-          v-model="tokenVisible" type="password" placeholder="token"
-          autocomplete="off" @keyup.enter="iniciarSesion"
-        >
-        <p v-if="errorSesion" class="fallo-sesion">{{ errorSesion }}</p>
-        <button type="button" :disabled="abriendo || !tokenVisible.trim()" @click="iniciarSesion">
-          {{ abriendo ? 'Abriendo…' : 'Entrar' }}
-        </button>
-      </section>
-
+      <p v-if="!comprobada" class="meta-sesion">Un momento…</p>
       <NuxtPage v-else />
     </main>
     <footer>
-      <p>v{{ version }}</p>
+      <!-- Cinco toques abren el panel de sesión. La coletilla dice el modo:
+           sin nada, tus datos viven en este navegador. -->
+      <p @click="tocarVersion">v{{ version }}<template v-if="activa"> · en el servidor</template></p>
       <p>© 2026 Krahegwen · MIT</p>
+
+      <section v-if="panelSesion" class="portero">
+        <template v-if="!activa">
+          <h2>Abrir sesión</h2>
+          <p>
+            Con sesión, la bitácora se lee y se escribe en el servidor. Sin
+            ella, todo vive en este navegador. El token se pide una vez y se
+            cambia por una cookie que este código no puede leer.
+          </p>
+          <input
+            v-model="tokenVisible" type="password" placeholder="token"
+            autocomplete="off" @keyup.enter="iniciarSesion"
+          >
+          <p v-if="errorSesion" class="fallo-sesion">{{ errorSesion }}</p>
+          <button type="button" :disabled="abriendo || !tokenVisible.trim()" @click="iniciarSesion">
+            {{ abriendo ? 'Abriendo…' : 'Entrar' }}
+          </button>
+        </template>
+        <template v-else>
+          <h2>Sesión abierta</h2>
+          <p>La bitácora está trabajando contra el servidor.</p>
+          <button type="button" class="cerrar" @click="cerrarSesion">Cerrar sesión</button>
+        </template>
+      </section>
     </footer>
   </div>
 </template>
@@ -235,14 +271,18 @@ footer {
 
 footer p { margin: 0.15rem 0; }
 
-/* El portero de sesión. Mismo aire que las tarjetas de las pantallas. */
+/* El panel de sesión, detrás de los cinco toques. Alineado a la izquierda:
+   dentro del pie centrado parecería un aviso y es un formulario. */
 .portero {
   background: var(--tarjeta);
   border: 1px solid var(--linea);
   border-radius: 0.7rem;
   padding: 0.9rem;
   margin-top: 1.25rem;
+  text-align: left;
 }
+
+.portero .cerrar { background: transparent; color: #c2410c; border: 1px solid #c2410c; }
 
 .portero h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
 .portero p { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }

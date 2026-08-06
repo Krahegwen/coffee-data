@@ -2,7 +2,6 @@
 import type { Cafe } from '~/composables/useApi'
 
 const { cafes, editarCafe, subirFotoCafe, quitarFotoCafe, urlFoto } = useApi()
-const { activa, comprobada, comprobar, abrir } = useSesion()
 const route = useRoute()
 const id = String(route.params.id)
 
@@ -18,8 +17,6 @@ const form = reactive<Record<string, any>>({})
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const guardado = ref<string[] | null>(null)
-const tokenVisible = ref('')
-const errorSesion = ref('')
 
 // Los null de la API pasan a cadena vacía: un input no sabe qué hacer con null.
 const EDITABLES = [
@@ -35,18 +32,6 @@ watchEffect(() => {
     form[campo] = (original.value as Cafe)[campo] ?? ''
   }
 })
-
-onMounted(comprobar)
-
-async function iniciarSesion() {
-  errorSesion.value = ''
-  try {
-    await abrir(tokenVisible.value)
-    tokenVisible.value = ''
-  } catch {
-    errorSesion.value = 'Ese token no es'
-  }
-}
 
 /** Solo lo que de verdad cambió: así el PATCH dice la verdad de lo tocado. */
 const cambios = computed(() => {
@@ -65,10 +50,11 @@ const hayCambios = computed(() => Object.keys(cambios.value).length > 0)
 /**
  * La ficha que devuelve el servidor pisa a la de la lista cargada. El array
  * se reasigna entero: `bolsas` es un shallowRef y mutarlo por índice no
- * despierta a nadie.
+ * despierta a nadie. Se compara contra el uuid de la ficha devuelta, no
+ * contra el parámetro de la URL: la URL lleva el slug y nunca casaría.
  */
 function reemplazaBolsa(cafe: Cafe) {
-  bolsas.value = (bolsas.value ?? []).map((c) => (c.id === id ? cafe : c))
+  bolsas.value = (bolsas.value ?? []).map((c) => (c.id === cafe.id ? cafe : c))
 }
 
 async function enviar() {
@@ -164,7 +150,7 @@ async function quitarFoto() {
         Encogida antes de subir: {{ pesoLegible(encogida.antes) }} →
         {{ pesoLegible(encogida.despues) }}.
       </p>
-      <div v-if="activa" class="botones-foto">
+      <div class="botones-foto">
         <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
           <!-- Corto a propósito: una etiqueta más larga parte en dos líneas y
                el botón pega un salto en mitad de la subida. -->
@@ -199,17 +185,7 @@ async function quitarFoto() {
       </div>
     </dialog>
 
-    <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
-
-    <section v-else-if="!activa" class="tarjeta">
-      <h2>Abrir sesión</h2>
-      <p class="meta">Hace falta para corregir la ficha.</p>
-      <input v-model="tokenVisible" type="password" placeholder="token" autocomplete="off">
-      <p v-if="errorSesion" class="fallo">{{ errorSesion }}</p>
-      <button :disabled="!tokenVisible.trim()" @click="iniciarSesion">Entrar</button>
-    </section>
-
-    <form v-else @submit.prevent="enviar">
+    <form @submit.prevent="enviar">
       <p class="meta">
         id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
         que apuntan las extracciones.
