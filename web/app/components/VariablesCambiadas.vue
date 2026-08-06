@@ -62,12 +62,31 @@ function anadir() {
   emit('toca')
 }
 
+/**
+ * Devuelve una variable al valor que tenía en la anterior.
+ *
+ * Quitar una fila es decir «esto no cambió», así que el valor tiene que
+ * volver: si no, la columna se queda cambiada y la tabla ya no la menciona,
+ * que es la única forma de que las dos se contradigan.
+ *
+ * Sin extracción anterior no hay a dónde volver y se deja como está.
+ */
+function deshacer(clave: string | undefined) {
+  if (!clave) return
+  const previo = props.anterior?.[clave]
+  if (previo === undefined || previo === null) return
+  emit('cambia', clave, previo)
+}
+
 function quitar(i: number) {
+  deshacer(elegidas.value[i])
   elegidas.value = elegidas.value.filter((_, n) => n !== i)
   emit('toca')
 }
 
 function cambiarVariable(i: number, clave: string) {
+  // La que había en esa fila deja de estar en la tabla: mismo trato.
+  deshacer(elegidas.value[i])
   elegidas.value = elegidas.value.map((c, n) => (n === i ? clave : c))
   emit('toca')
 }

@@ -137,6 +137,12 @@ La etiqueta se compone **al guardar**, nunca mientras editas, y solo si has
 tocado la tabla. Reescribirla en caliente tenía un efecto feo: abrir una ficha
 con dos variables y añadir una fila la truncaba a una sola.
 
+**Quitar una fila deshace el cambio**: el valor vuelve al de la extracción
+anterior. La tabla es la lista de lo que cambió, así que borrar una línea es
+decir «esto no pasó»; si solo desapareciera del texto, la columna se quedaría
+cambiada y las dos se contradirían. Sin extracción anterior no hay a dónde
+volver y el valor se queda como está.
+
 De la portada se sale por una sola puerta, **preparar**. El paso previo del
 cronómetro —café, receta, dosis, agua y el guion escalado delante— acaba en dos
 salidas: al reloj, o al alta a mano con todo eso ya puesto. Hasta ahí se llega
