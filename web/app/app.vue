@@ -24,17 +24,18 @@ useHead({
 <template>
   <div class="marco">
     <header>
+      <h1>Bitácora de café</h1>
       <!-- Las recetas se consultan a menudo y se editan poco, así que viven
            arriba y siempre a la misma altura en vez de ocupar un botón en la
            portada. -->
-      <NuxtLink to="/recetas" class="atajo" aria-label="Recetas">
-        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <NuxtLink to="/recetas" class="atajo">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
           <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
           <path d="M8 7.5h7M8 11h5" />
         </svg>
+        Recetas
       </NuxtLink>
-      <h1>Bitácora de café</h1>
     </header>
     <main>
       <NuxtPage />
@@ -118,7 +119,8 @@ body {
 header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
@@ -129,21 +131,21 @@ header h1 {
 }
 
 /*
- * 44 px para el dedo aunque el icono mida 21. El margen negativo de la
- * izquierda lo devuelve al borde del contenido: sin él, el título entero
- * aparecería sangrado respecto al resto de la pantalla.
+ * 44 px de alto para el dedo, y el margen negativo de la derecha cancela su
+ * relleno: así el texto acaba a ras del borde del contenido y no medio
+ * centímetro antes que todo lo demás.
  */
 .atajo {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.35rem;
   flex: none;
-  width: 44px;
-  height: 44px;
-  /* Izquierda: devuelve el icono al borde del contenido. Derecha: le quita al
-     título el aire de más que dejaría la zona de toque. */
-  margin: 0 -0.4rem 0 -0.7rem;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  margin-right: -0.7rem;
   color: var(--suave);
+  font-size: 0.85rem;
+  text-decoration: none;
 }
 
 .atajo:hover { color: var(--acento); }

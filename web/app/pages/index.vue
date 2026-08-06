@@ -80,13 +80,13 @@ async function instalar() {
          portada ves cuáles tienes abiertas, y si quieres tocarlas se entra por
          aquí. -->
     <h2>
+      Bolsas abiertas
       <NuxtLink to="/cafes" class="editar" aria-label="Editar las bolsas">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
         </svg>
       </NuxtLink>
-      Bolsas abiertas
     </h2>
     <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
     <NuxtLink
@@ -147,15 +147,22 @@ h2 {
   margin: 1.75rem 0 0.6rem;
 }
 
-/* 44 px para el dedo aunque el lápiz mida 17: el hueco se lo come el margen
-   negativo, si no la fila del título crecería el doble. */
+/*
+ * Al final de la fila, a ras del borde derecho como el atajo de la cabecera.
+ * 44 px para el dedo aunque el lápiz mida 17: los negativos de arriba y abajo
+ * evitan que la fila del título crezca el doble, y el de la derecha cancela el
+ * relleno de la zona de toque.
+ */
 .editar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: -0.7rem -0.6rem -0.7rem -0.75rem;
+  /* -0.85rem y no -0.75: el lápiz va centrado en sus 44 px, así que hay que
+     descontar también ese medio hueco para que la punta acabe donde acaba el
+     texto de «Recetas» y donde acaban las tarjetas. */
+  margin: -0.7rem -0.85rem -0.7rem auto;
   color: var(--suave);
 }
 
