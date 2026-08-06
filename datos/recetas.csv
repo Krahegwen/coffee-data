@@ -1,2 +1,2 @@
-id,nombre,ratio,notas
-kasuya-46-base,4:6 Kasuya base,15.0,Receta base del repo
+id,slug,nombre,ratio,notas
+019fd22f-3911-7861-8da0-a40a329f2f35,kasuya-46-base,4:6 Kasuya base,15.0,Receta base

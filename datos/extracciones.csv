@@ -1,4 +1,4 @@
-id,fecha,cafe_id,dias_tueste,dosis_g,agua_g,ratio,temp_c,molinillo,clics,metodo,reparto,tiempo_total,extraido_g,variable_cambiada,defecto,notas_cata,nota,siguiente_ajuste,receta_id,drawdown_s,dripper,borrada_en
-1,2026-08-05,gary,77,20,300,15.0,94,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:25,260,basal,amargor,"Amargor agradable, nada de acidez, buen cuerpo",7,Bajar a 91 °C manteniendo 28 clics,kasuya-46-base,30,v60-02-plastico,
-2,2026-08-06,gary,78,20,300,15.0,91,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:37,260,Temperatura 94 → 91,equilibrado,"Extraídos ~260ml
-No sé si algo menos amargo que ayer",7,Bajar a 88 °C manteniendo 28 clics,kasuya-46-base,47,v60-02-plastico,
+id,fecha,creado_en,cafe_id,cafe_slug,dias_tueste,dias_abierta,dosis_g,agua_g,ratio,temp_c,molinillo,clics,metodo,reparto,tiempo_total,extraido_g,variable_cambiada,defecto,notas_cata,nota,siguiente_ajuste,receta_id,receta_slug,drawdown_s,dripper,borrada_en
+019fd22f-3911-7573-891e-a0c64f1158ab,2026-08-05,2026-08-05 13:48:58,019fd22f-3911-7fa2-8a44-b8d2ce4d50bc,gary,77,77,20,300,15.0,94,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:25,260,basal,amargor,"Amargor agradable, nada de acidez, buen cuerpo",7,Bajar a 91 °C manteniendo 28 clics,019fd22f-3911-7861-8da0-a40a329f2f35,kasuya-46-base,30,v60-02-plastico,
+019fd647-0372-7820-852d-de47dea5efba,2026-08-06,2026-08-06 08:53:26,019fd22f-3911-7fa2-8a44-b8d2ce4d50bc,gary,78,78,20,300,15.0,91,Comandante C40,28,V60 4:6 Kasuya,60-60-90-90,3:37,260,Temperatura 94 → 91,equilibrado,"Extraídos ~260ml
+No sé si algo menos amargo que ayer",7,Bajar a 88 °C manteniendo 28 clics,019fd22f-3911-7861-8da0-a40a329f2f35,kasuya-46-base,47,v60-02-plastico,
