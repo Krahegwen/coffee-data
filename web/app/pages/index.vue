@@ -120,7 +120,7 @@ async function instalar() {
         <span v-if="e.tiempo_total"> · {{ e.tiempo_total }}</span>
       </p>
       <p v-if="e.variable_cambiada" class="variable">{{ e.variable_cambiada }}</p>
-      <p v-if="e.notas_cata" class="cata">{{ e.notas_cata }}</p>
+      <p v-if="e.notas_cata" class="cata copiable">{{ e.notas_cata }}</p>
     </NuxtLink>
   </section>
 </template>

@@ -202,7 +202,8 @@ async function enviar() {
 
     <template v-if="resultado.sugerencias.cambios.length">
       <p class="meta">Cambia <strong>una sola</strong> cosa:</p>
-      <ol>
+      <!-- Seleccionable: la sugerencia es lo que uno copia para apuntársela. -->
+      <ol class="copiable">
         <li v-for="c in resultado.sugerencias.cambios" :key="c.variable">
           <code>{{ c.variable }} {{ c.cambio }}</code> — {{ c.porque }}
         </li>

@@ -51,6 +51,33 @@ useHead({
 
 * { box-sizing: border-box; }
 
+/*
+ * Nada de selección accidental. Esto se usa a dedo y con las manos ocupadas:
+ * un pulsado un poco largo en el cronómetro o en un botón sacaba el resaltado
+ * y el menú de copiar justo encima de lo que estabas mirando, y en el círculo
+ * de pausa, que ahora se pulsa a menudo, pasaba en cuanto el dedo se movía un
+ * milímetro.
+ *
+ * Se deja seleccionable lo que uno querría copiar de verdad: lo que hay en un
+ * campo y los textos libres marcados como `.copiable`.
+ */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  /* El destello azul del navegador al tocar: los botones ya tienen su propio
+     estado de pulsado. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+input, textarea, select, .copiable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Sin esto, dos toques seguidos en el mismo sitio —pausar y reanudar— los
+   toma el navegador como doble toque y hace zoom. */
+button, a, label, select { touch-action: manipulation; }
+
 body {
   margin: 0;
   background: var(--fondo);
