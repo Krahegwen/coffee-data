@@ -1,3 +1,12 @@
+import { readFileSync } from 'node:fs'
+
+// La versión sale del package.json de la raíz, que es el que sube el hook de
+// pre-commit. Se lee aquí, en construcción, y viaja dentro del bundle: la app
+// no tiene que preguntársela a nadie.
+const paquete = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+) as { version: string }
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-05',
@@ -16,6 +25,10 @@ export default defineNuxtConfig({
       // Vacío: la API vive en el mismo origen, servida por el mismo Worker.
       // COFFEE_API solo hace falta para apuntar a otro sitio a propósito.
       apiBase: process.env.COFFEE_API || '',
+      version: paquete.version,
+      // El día que se construyó. Con la versión sola bastaría casi siempre,
+      // pero esto delata un bundle viejo aunque el número no se haya movido.
+      construida: new Date().toISOString().slice(0, 10),
     },
   },
 

@@ -19,7 +19,10 @@ Los datos viven en **Cloudflare D1** y se registran por la **API**
   JSON al endpoint. Ese contrato es lo que permite cambiar de autenticación sin
   tocar la app, y toda la decisión de auth vive en `api/src/auth.js`.
 - **Nada de GitHub Actions.** La verificación vive en el hook de `pre-commit`,
-  que ejecuta pytest y los tests del Worker.
+  que ejecuta pytest y los tests del Worker, y al final —solo si pasan— sube
+  el parche de la versión en los tres `package.json` y lo mete en el commit.
+  Esa versión es la que sale en el pie de la app: no la toques a mano salvo
+  para subir mayor o menor, que eso sí es una decisión.
 - **Repo público**: ni datos personales ni credenciales en el código, en los
   mensajes de commit o en la configuración. Y ojo con las URL: el subdominio
   `workers.dev` de la cuenta lleva el nombre real dentro, por eso el Worker

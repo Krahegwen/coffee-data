@@ -40,3 +40,12 @@ if [ -f api/test/logica.test.js ]; then
         exit 1
     fi
 fi
+
+# Al final y no al principio: un commit que no llega a hacerse no gasta
+# versión. La sube el parche y entra en este mismo commit, que es lo que
+# permite mirar el pie de la app y saber qué código tiene el móvil delante.
+if ! "$PYTHON" herramientas/subir_version.py; then
+    echo "pre-commit: commit abortado." >&2
+    exit 1
+fi
+git add package.json api/package.json web/package.json

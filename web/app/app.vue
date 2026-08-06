@@ -6,6 +6,21 @@
  */
 const APP = 'Bitácora de café'
 
+/**
+ * La versión la sube el hook de pre-commit y viaja dentro del bundle. En el
+ * pie porque, instalada como PWA, es la única forma de saber si el service
+ * worker ya te ha dado el despliegue nuevo o sigues con el de ayer.
+ */
+const { version, construida } = useRuntimeConfig().public
+
+const fechaLegible = computed(() => {
+  const fecha = new Date(`${construida}T00:00:00Z`)
+  if (Number.isNaN(fecha.getTime())) return construida
+  return fecha.toLocaleDateString('es-ES', {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
+  })
+})
+
 useHead({
   // El título estático del HTML ya es el nombre de la app: si se colase por
   // la plantilla saldría repetido en la portada.
@@ -23,6 +38,13 @@ useHead({
     <main>
       <NuxtPage />
     </main>
+    <footer>
+      <p>v{{ version }} · {{ fechaLegible }}</p>
+      <p>
+        © 2026 Krahegwen · MIT ·
+        <a href="https://github.com/Krahegwen/coffee-data" rel="noreferrer">código</a>
+      </p>
+    </footer>
   </div>
 </template>
 
@@ -138,4 +160,30 @@ header h1 {
  * móvil, y era el más pequeño de la app.
  */
 input[type="password"] { min-height: 44px; }
+
+/*
+ * El pie. Va callado a propósito —esto se abre para hacer café, no para leer
+ * el copyright— pero la versión tiene que estar a mano: es lo que se mira
+ * cuando dudas de si la app instalada es la última.
+ */
+footer {
+  margin-top: 3rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--linea);
+  color: var(--suave);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+footer p { margin: 0.15rem 0; }
+footer a { color: inherit; }
+
+/* El enlace al repo es el único de aquí y se pulsa con el dedo. */
+footer a {
+  display: inline-block;
+  min-height: 44px;
+  line-height: 44px;
+  padding: 0 0.35rem;
+  vertical-align: middle;
+}
 </style>

@@ -79,6 +79,7 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |
 | `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
 | `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
+| `herramientas/subir_version.py` | Sube el parche en los tres `package.json`. Lo llama el hook. |
 
 Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
 
@@ -332,6 +333,13 @@ python -m pip install pytest
 **las dos suites** —pytest para el esquema y el runner de Node para el Worker—
 y aborta el commit si fallan. Hay que ejecutarlo una vez por clon: git no
 activa los hooks solo.
+
+El hook hace una cosa más al final, y solo si los tests pasan: **sube el
+parche de la versión** en los tres `package.json` y la mete en ese mismo
+commit. Va al final para que un commit que no llega a hacerse no gaste número.
+La versión sale en el pie de la app, y no es cosmética: instalada como PWA es
+lo único que responde a «¿ya tengo el despliegue nuevo o el service worker me
+está sirviendo el de ayer?».
 
 | Comando | Qué hace |
 |---|---|
