@@ -8,8 +8,10 @@ import type { BeforeInstallPromptEvent } from '~/composables/instalar'
 export default defineNuxtPlugin(() => {
   const puedeInstalar = usePuedeInstalar()
   const yaInstalada = useYaInstalada()
+  const enTactilAhora = useEnTactil()
 
   yaInstalada.value = enModoApp()
+  enTactilAhora.value = enTactil()
 
   window.addEventListener('beforeinstallprompt', (evento) => {
     // Sin esto, el navegador puede sacar su propio cartel cuando le parezca

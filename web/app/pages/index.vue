@@ -22,7 +22,19 @@ function restante(cafeId: string, pesoG: number | null) {
 
 const puedeInstalar = usePuedeInstalar()
 const yaInstalada = useYaInstalada()
+const enTactilAhora = useEnTactil()
 const comoInstalar = ref(false)
+
+/**
+ * El botón dice «en el móvil» y solo sale ahí.
+ *
+ * No basta con `puedeInstalar`: en el Chrome de escritorio el evento también
+ * llega —una PWA se instala igual en un PC— y el botón aparecía en medio de
+ * la portada prometiendo algo que no era. Y al revés, en iOS el evento no
+ * llega nunca, así que gatearlo por él dejaría sin botón justo al sitio donde
+ * más falta hace la ayuda del menú.
+ */
+const ofrecerInstalar = computed(() => enTactilAhora.value && !yaInstalada.value)
 
 async function instalar() {
   // Que no quede colgada la ayuda de un intento anterior si ahora sí hay
@@ -51,8 +63,9 @@ async function instalar() {
     </div>
   </div>
 
-  <!-- Solo mientras no esté instalada: una vez lo está, sobra. -->
-  <section v-if="!yaInstalada" class="instalacion">
+  <!-- Solo en el móvil y mientras no esté instalada: instalada sobra, y en el
+       PC nunca fue para él. -->
+  <section v-if="ofrecerInstalar" class="instalacion">
     <button type="button" class="instalar" @click="instalar">
       Instalar en el móvil
     </button>

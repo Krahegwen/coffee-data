@@ -19,9 +19,23 @@ export interface BeforeInstallPromptEvent extends Event {
 
 export const usePuedeInstalar = () => useState('puede-instalar', () => false)
 export const useYaInstalada = () => useState('ya-instalada', () => false)
+export const useEnTactil = () => useState('en-tactil', () => false)
 
 export function guardarEvento(evento: BeforeInstallPromptEvent | null) {
   guardado = evento
+}
+
+/**
+ * Un cacharro donde instalar la app signifique lo que promete el botón:
+ * un icono en la pantalla de inicio.
+ *
+ * Se mira el puntero y no el ancho de la ventana ni el user agent. El ancho
+ * miente en cuanto encoges el navegador del portátil, y el user agent miente
+ * siempre. `pointer: coarse` es el puntero principal: en un portátil táctil
+ * con ratón sale `fine`, que es lo que queremos —ahí el botón sobra—.
+ */
+export function enTactil() {
+  return window.matchMedia('(pointer: coarse)').matches
 }
 
 /** Corriendo desde el icono, no desde el navegador. */

@@ -94,6 +94,14 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
+El botón de instalar sale **solo con puntero grueso** (`pointer: coarse`), que
+es el móvil o la tablet. No se mira el ancho de la ventana, que miente en
+cuanto encoges el navegador, ni el user agent, que miente siempre. Tampoco
+vale gatearlo por `beforeinstallprompt`: en el Chrome de escritorio también
+llega —una PWA se instala igual en un PC— y en iOS no llega nunca, que es
+justo donde hace falta el botón para poder explicar dónde está la opción en el
+menú.
+
 Pantallas: listado, **cronómetro**, alta, bolsas (`/cafes`), recetas
 (`/recetas`) y corrección de extracciones (`/extracciones/<id>`).
 
