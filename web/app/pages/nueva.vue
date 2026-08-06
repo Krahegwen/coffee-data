@@ -41,6 +41,28 @@ const anterior = computed(
   () => (historial.value ?? []).find((e) => e.cafe_id === form.cafe_id) ?? null,
 )
 
+/**
+ * La última extracción de la bolsa **anterior del mismo café**, cuando la de
+ * ahora está estrenada.
+ *
+ * Sirve para arrancar la basal donde lo dejaste y no en los valores de
+ * fábrica: la bolsa es nueva, pero el café y tu molinillo son los mismos.
+ *
+ * La familia se reconoce por el id, que es como el servidor los reparte al
+ * duplicar: `gary`, `gary_2`, `gary_3`. Es una pista, no una verdad —un café
+ * que se llamara «Finca 2» caería en la familia de «Finca»—, pero lo único que
+ * está en juego es de dónde parte un formulario que vas a repasar igual.
+ */
+const familia = (id: string) => id.replace(/_\d+$/, '')
+
+const bolsaPrevia = computed(() => {
+  if (!form.cafe_id || anterior.value) return null
+  const base = familia(String(form.cafe_id))
+  return (historial.value ?? []).find(
+    (e) => e.cafe_id !== form.cafe_id && familia(e.cafe_id) === base,
+  ) ?? null
+})
+
 const cambiadas = ref<string[]>([])
 
 /** Las variables que son de elegir, no de teclear. */
@@ -58,7 +80,18 @@ const DESDE_LA_URL: Record<string, string> = {
   dosis_g: 'dosis', agua_g: 'agua', receta_id: 'receta',
 }
 
-watch(anterior, (previa) => {
+/**
+ * De dónde parte el formulario: la última de esta bolsa y, si está estrenada,
+ * la última de la bolsa anterior del mismo café.
+ *
+ * Lo segundo **solo rellena campos**. El motor de sugerencias empieza de cero
+ * igual, porque empareja por `cafe_id` y este es otro: no habrá deltas contra
+ * la bolsa vieja ni fila en la tabla, y la extracción queda como «basal». Y
+ * tiene que ser así — el tueste es nuevo, así que la taza no es comparable.
+ */
+const arranque = computed(() => anterior.value ?? bolsaPrevia.value)
+
+watch(arranque, (previa) => {
   if (!previa) return
   for (const clave of Object.keys(VARIABLES)) {
     const enUrl = DESDE_LA_URL[clave]
@@ -247,6 +280,11 @@ async function enviar() {
       v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
       @cambia="(clave, valor) => (form[clave] = valor)"
     />
+    <p v-if="bolsaPrevia" class="meta">
+      Los valores vienen de la última de la bolsa anterior
+      ({{ bolsaPrevia.fecha }}). El tueste es otro, así que esta cuenta como
+      basal y no se compara con aquélla.
+    </p>
     <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
          repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay
          cambios que no son una columna —la báscula nueva, el agua de otra

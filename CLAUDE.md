@@ -85,6 +85,13 @@ curl -X PATCH https://brew.krahegwen.com/api/cafes/abbie -H "Authorization: Bear
 bajo). Si ya existe, se le pone sufijo — `gary`, `gary_2` — porque la segunda
 bolsa del mismo café es normal. Un `id` explícito que choque sigue dando 409.
 
+Una fila es **una bolsa**, no un café: el tueste es lo que hace la taza, y dos
+bolsas con el mismo `cafe_id` harían que el motor emparejase extracciones de
+lotes distintos. La app duplica la ficha desde la bolsa vieja («Otra bolsa») y
+arranca la basal con los valores de la última extracción de aquélla, pero el
+motor empieza de cero igual. **Si compras dos bolsas del mismo tueste, es una
+sola ficha.**
+
 El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
 del usuario no son un banco de pruebas**: para verificar, usa la base local
 (`pnpm dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.

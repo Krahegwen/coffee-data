@@ -133,6 +133,12 @@ async function quitarFoto() {
   <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
 
   <template v-else>
+    <!-- Duplicar arriba y sin sesión: enseñar el botón no es escribir, y quien
+         acaba de comprar otra bolsa entra aquí a mirarla, no a editarla. -->
+    <div class="cabecera">
+      <NuxtLink :to="`/cafes/nueva?de=${id}`" class="secundario">Otra bolsa</NuxtLink>
+    </div>
+
     <!-- La foto va antes del muro de sesión: mirar la bolsa no es editarla, y
          en un móvil recién instalado no habría sesión todavía. El nombre no se
          repite aquí, que ya lo dice la última miga. -->
@@ -299,6 +305,22 @@ dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
   background: transparent;
   color: var(--tinta);
   border: 1px solid var(--linea);
+}
+
+/* Solo lleva «Otra bolsa», que se va a la derecha como el resto de atajos. */
+.cabecera { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+
+.cabecera a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid var(--linea);
+  border-radius: 0.5rem;
+  color: var(--acento);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0 0.9rem; }
 .fallo { color: #c2410c; font-size: 0.85rem; }

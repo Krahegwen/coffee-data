@@ -1,15 +1,52 @@
 <script setup lang="ts">
-useHead({ title: 'Nueva bolsa' })
-
-const { crearCafe } = useApi()
+const { cafes, crearCafe } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
 const router = useRouter()
+const route = useRoute()
+
+const { data: bolsas } = await useAsyncData('cafes-nueva', cafes)
+
+/**
+ * De qué bolsa se copia, si vienes de duplicar una.
+ *
+ * Una fila por bolsa y no por café es deliberado: lo que hace la taza no es
+ * «Gary», es este Gary tostado el 20 de mayo. Si dos bolsas compartieran id,
+ * el motor emparejaría extracciones de tuestes distintos como si fueran
+ * comparables. Lo que sobraba era volver a teclear la ficha, no la fila.
+ */
+const copiaDe = computed(
+  () => (bolsas.value ?? []).find((c) => c.id === String(route.query.de ?? '')) ?? null,
+)
+
+useHead({ title: () => (copiaDe.value ? `Otra de ${copiaDe.value.nombre}` : 'Nueva bolsa') })
 
 const form = reactive<Record<string, any>>({
   nombre: '', tostador: '', origen: '', region: '', variedad: '',
   proceso: '', altitud_m: '', sca: '', fecha_tueste: '', consumir_antes: '',
   peso_g: '', precio_eur: '', notas_tostador: '', estado: 'abierto',
   fecha_compra: '', fecha_recepcion: '', url: '', conservacion: '',
+})
+
+/**
+ * Lo que describe al café y se repite en cada bolsa. El peso entra porque casi
+ * siempre compras el mismo formato, y la conservación porque es tu bote.
+ *
+ * Fuera quedan las fechas, el precio y la foto: eso es de *esta* bolsa, y
+ * heredarlo sería mentir sobre el tueste, que es justo el dato del que cuelga
+ * todo lo demás.
+ */
+const DEL_CAFE = [
+  'nombre', 'tostador', 'origen', 'region', 'variedad', 'proceso', 'altitud_m',
+  'sca', 'notas_tostador', 'url', 'conservacion', 'peso_g',
+]
+
+watchEffect(() => {
+  const origen = copiaDe.value as Record<string, unknown> | null
+  if (!origen) return
+  for (const campo of DEL_CAFE) {
+    const valor = origen[campo]
+    if (valor !== null && valor !== undefined) form[campo] = valor
+  }
 })
 
 const enviando = ref(false)
@@ -49,7 +86,12 @@ async function enviar() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Bolsas', a: '/cafes' }, { texto: 'Nueva' }]" />
+  <Migas
+    :ruta="[
+      { texto: 'Bolsas', a: '/cafes' },
+      { texto: copiaDe ? `Otra de ${copiaDe.nombre}` : 'Nueva' },
+    ]"
+  />
 
   <p v-if="!comprobada" class="meta">Comprobando sesión…</p>
 
@@ -65,7 +107,10 @@ async function enviar() {
   </section>
 
   <form v-else @submit.prevent="enviar">
-    <h2>Nueva bolsa</h2>
+    <p v-if="copiaDe" class="pista">
+      Copiado de <strong>{{ copiaDe.nombre }}</strong>: falta lo que cambia en
+      cada bolsa —tueste, compra, precio y foto—. El id lo pone el servidor.
+    </p>
     <CafeCampos v-model="form" nuevo />
     <button type="submit" :disabled="enviando">
       {{ enviando ? 'Guardando…' : 'Dar de alta' }}
@@ -79,7 +124,11 @@ async function enviar() {
 </template>
 
 <style scoped>
-h2 { font-size: 1.05rem; margin: 0 0 0.9rem; }
+.pista {
+  color: var(--suave);
+  font-size: 0.82rem;
+  margin: 0 0 0.9rem;
+}
 
 button {
   font: inherit;
