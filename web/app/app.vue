@@ -11,15 +11,7 @@ const APP = 'Bitácora de café'
  * pie porque, instalada como PWA, es la única forma de saber si el service
  * worker ya te ha dado el despliegue nuevo o sigues con el de ayer.
  */
-const { version, construida } = useRuntimeConfig().public
-
-const fechaLegible = computed(() => {
-  const fecha = new Date(`${construida}T00:00:00Z`)
-  if (Number.isNaN(fecha.getTime())) return construida
-  return fecha.toLocaleDateString('es-ES', {
-    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC',
-  })
-})
+const { version } = useRuntimeConfig().public
 
 useHead({
   // El título estático del HTML ya es el nombre de la app: si se colase por
@@ -39,11 +31,8 @@ useHead({
       <NuxtPage />
     </main>
     <footer>
-      <p>v{{ version }} · {{ fechaLegible }}</p>
-      <p>
-        © 2026 Krahegwen · MIT ·
-        <a href="https://github.com/Krahegwen/coffee-data" rel="noreferrer">código</a>
-      </p>
+      <p>v{{ version }}</p>
+      <p>© 2026 Krahegwen · MIT</p>
     </footer>
   </div>
 </template>
@@ -176,14 +165,4 @@ footer {
 }
 
 footer p { margin: 0.15rem 0; }
-footer a { color: inherit; }
-
-/* El enlace al repo es el único de aquí y se pulsa con el dedo. */
-footer a {
-  display: inline-block;
-  min-height: 44px;
-  line-height: 44px;
-  padding: 0 0.35rem;
-  vertical-align: middle;
-}
 </style>

@@ -54,6 +54,41 @@ export type Accion = keyof typeof ACCIONES
 export type Estilo = keyof typeof ESTILOS
 export type Variable = keyof typeof VARIABLES
 
+/** Las variables que son de elegir de una lista, no de teclear un número. */
+export type OpcionesDeVariable = Record<string, { valor: string; etiqueta: string }[]>
+
+/** «Temperatura (°C)» → «Temperatura»: dentro de una frase la unidad estorba. */
+export function nombreDeVariable(clave: string): string {
+  return (VARIABLES[clave as Variable] ?? clave).replace(/\s*\(.*\)$/, '')
+}
+
+/** El valor tal y como se lee: la etiqueta si la variable es de una lista. */
+export function valorDeVariable(
+  clave: string, valor: unknown, opciones?: OpcionesDeVariable,
+): string {
+  if (valor === null || valor === undefined || valor === '') return '—'
+  const lista = opciones?.[clave]
+  return lista?.find((o) => o.valor === String(valor))?.etiqueta ?? String(valor)
+}
+
+/**
+ * «Temperatura 91 → 88 · Clics 28 → 26».
+ *
+ * Vive aquí y no en cada pantalla porque lo escriben dos —el alta y la
+ * corrección— y dos versiones del mismo texto acabarían diciendo cosas
+ * distintas de lo mismo.
+ */
+export function textoDeCambios(
+  claves: string[],
+  antes: Record<string, unknown> | null,
+  ahora: Record<string, unknown>,
+  opciones?: OpcionesDeVariable,
+): string {
+  return claves
+    .map((c) => `${nombreDeVariable(c)} ${valorDeVariable(c, antes?.[c], opciones)} → ${valorDeVariable(c, ahora[c], opciones)}`)
+    .join(' · ')
+}
+
 /**
  * Lo que se lee del paso: «Verter en espiral».
  *

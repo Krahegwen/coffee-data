@@ -3,7 +3,7 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 useHead({ title: 'Registrar extracción' })
 
-import { DEFECTOS, DRIPPERS, VARIABLES } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -68,20 +68,9 @@ watch(anterior, (previa) => {
   }
 }, { immediate: true })
 
-const nombreCorto = (clave: string) =>
-  (VARIABLES[clave as keyof typeof VARIABLES] ?? clave).replace(/\s*\(.*\)$/, '')
-
-function comoTexto(clave: string, valor: unknown) {
-  if (valor === null || valor === undefined || valor === '') return '—'
-  const lista = (opciones.value as Record<string, { valor: string; etiqueta: string }[]>)[clave]
-  return lista?.find((o) => o.valor === String(valor))?.etiqueta ?? String(valor)
-}
-
 /** «Temperatura 91 → 88». Sale de los valores, nunca al revés. */
 const textoVariables = computed(() =>
-  cambiadas.value
-    .map((c) => `${nombreCorto(c)} ${comoTexto(c, anterior.value?.[c as keyof typeof anterior.value])} → ${comoTexto(c, form[c])}`)
-    .join(' · '),
+  textoDeCambios(cambiadas.value, anterior.value, form, opciones.value),
 )
 
 watchEffect(() => {

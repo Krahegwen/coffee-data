@@ -26,9 +26,6 @@ export default defineNuxtConfig({
       // COFFEE_API solo hace falta para apuntar a otro sitio a propósito.
       apiBase: process.env.COFFEE_API || '',
       version: paquete.version,
-      // El día que se construyó. Con la versión sola bastaría casi siempre,
-      // pero esto delata un bundle viejo aunque el número no se haya movido.
-      construida: new Date().toISOString().slice(0, 10),
     },
   },
 

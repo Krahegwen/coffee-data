@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
-import { DEFECTOS, DRIPPERS } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, textoDeCambios } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -15,6 +15,25 @@ const { data: bolsas } = await useAsyncData('cafes-ext', cafes)
 const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
 
 const original = computed(() => (historial.value ?? []).find((e) => e.id === id) ?? null)
+
+/**
+ * La extracción de antes que ésta, del mismo café. No es la última de la
+ * bolsa: corrigiendo la #2 lo que hay que comparar es con la #1, aunque
+ * existan la #5 y la #6.
+ */
+const anterior = computed(() => {
+  const propias = (historial.value ?? [])
+    .filter((e) => e.cafe_id === original.value?.cafe_id && e.id < id)
+    .sort((a, b) => b.id - a.id)
+  return propias[0] ?? null
+})
+
+const cambiadas = ref<string[]>([])
+
+const opciones = computed(() => ({
+  receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
+  dripper: Object.entries(DRIPPERS).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+}))
 
 const EDITABLES = [
   'fecha', 'cafe_id', 'dosis_g', 'agua_g', 'temp_c', 'clics', 'receta_id',
@@ -34,6 +53,19 @@ const retirando = ref(false)
 watchEffect(() => {
   if (!original.value) return
   for (const campo of EDITABLES) form[campo] = (original.value as Extraccion)[campo] ?? ''
+})
+
+/*
+ * Aquí la lista empieza vacía, al revés que en el alta: esto es una ficha ya
+ * escrita y regenerarle el texto al abrirla la dejaría «con cambios» sin que
+ * nadie haya tocado nada. En cuanto añades una fila, manda la lista.
+ */
+watchEffect(() => {
+  if (cambiadas.value.length) {
+    form.variable_cambiada = textoDeCambios(
+      cambiadas.value, anterior.value, form, opciones.value,
+    )
+  }
 })
 
 onMounted(comprobar)
@@ -159,7 +191,16 @@ async function retirar() {
       </div>
 
       <label>Reparto<input v-model="form.reparto" placeholder="60-60-90-90"></label>
-      <label>Variable cambiada<input v-model="form.variable_cambiada"></label>
+
+      <h3 class="apartado">Variable cambiada</h3>
+      <VariablesCambiadas
+        v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
+        @cambia="(clave, valor) => (form[clave] = valor)"
+      />
+      <label>
+        Queda como
+        <input v-model="form.variable_cambiada" :readonly="cambiadas.length > 0">
+      </label>
 
       <label>
         Defecto
@@ -285,6 +326,18 @@ dialog {
 }
 
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+/* El del formulario, no el del modal, que es un título de verdad. */
+.apartado {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--suave);
+  margin: 0.5rem 0 0;
+}
+
+/* Lo escribe la lista de arriba: se enseña, no se teclea. */
+input[readonly] { color: var(--suave); background: transparent; }
+
 dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
 dialog .ojo { color: #c2410c; }

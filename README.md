@@ -115,6 +115,13 @@ sale de las columnas y nunca al revés, que si no acaban contándose cosas
 distintas. Si añades una segunda fila, el formulario avisa de que ese par ya no
 va a decir nada.
 
+La corrección de una extracción lleva el mismo editor, con dos diferencias: la
+lista **empieza vacía** —es una ficha ya escrita, y regenerarle el texto al
+abrirla la dejaría «con cambios» sin que nadie haya tocado nada— y el valor de
+antes sale de la extracción **inmediatamente anterior a ésa**, no de la última
+de la bolsa: corrigiendo la #2 lo que hay que comparar es la #1, aunque existan
+la #5 y la #6.
+
 El cronómetro pide el guion a la API —no reimplementa el escalado—, muestra el
 objetivo **acumulado** de cada vertido, avisa cuando no hay que fiarse de la
 báscula y mantiene la pantalla encendida. Al marcar «dejó de gotear» calcula el
