@@ -73,13 +73,17 @@ const textoVariables = computed(() =>
   textoDeCambios(cambiadas.value, anterior.value, form, opciones.value),
 )
 
+/*
+ * El texto no se escribe en el formulario mientras editas: se compone al
+ * enviar. Reescribirlo en caliente hacía que la etiqueta cambiara sola cada
+ * vez que se añadía o se quitaba una fila.
+ *
+ * «basal» sí se pone y se quita solo, porque ese sí se teclea: solo es verdad
+ * mientras no haya nada anterior con lo que comparar, así que si cambias de
+ * bolsa se va con ella.
+ */
 watchEffect(() => {
-  if (cambiadas.value.length) {
-    form.variable_cambiada = textoVariables.value
-    return
-  }
-  // «basal» se pone y se quita solo: solo es verdad mientras no haya nada
-  // anterior con lo que comparar. Si cambias de bolsa, se va con ella.
+  if (cambiadas.value.length) return
   if (!anterior.value && !form.variable_cambiada) form.variable_cambiada = 'basal'
   if (anterior.value && form.variable_cambiada === 'basal') form.variable_cambiada = ''
 })
@@ -129,7 +133,9 @@ async function enviar() {
       temp_c: Number(form.temp_c),
       clics: Number(form.clics),
       tiempo_total: String(form.tiempo_total),
-      variable_cambiada: String(form.variable_cambiada),
+      variable_cambiada: cambiadas.value.length
+        ? textoVariables.value
+        : String(form.variable_cambiada),
       defecto: String(form.defecto),
       nota: Number(form.nota),
       dosis_g: Number(form.dosis_g),

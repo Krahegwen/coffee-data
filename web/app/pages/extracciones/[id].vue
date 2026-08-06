@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
-import { DEFECTOS, DRIPPERS, textoDeCambios } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -55,17 +55,54 @@ watchEffect(() => {
   for (const campo of EDITABLES) form[campo] = (original.value as Extraccion)[campo] ?? ''
 })
 
-/*
- * Aquí la lista empieza vacía, al revés que en el alta: esto es una ficha ya
- * escrita y regenerarle el texto al abrirla la dejaría «con cambios» sin que
- * nadie haya tocado nada. En cuanto añades una fila, manda la lista.
+/**
+ * Lo que de verdad cambió respecto a la anterior, mirando las columnas.
+ *
+ * No se lee del texto guardado: el texto es una etiqueta y las columnas son el
+ * dato. Si alguna vez discrepan, mandan las columnas.
  */
+const derivadas = computed(() => {
+  if (!anterior.value || !original.value) return []
+  const antes = anterior.value as Record<string, unknown>
+  const ahora = original.value as unknown as Record<string, unknown>
+  return Object.keys(VARIABLES).filter(
+    (c) => String(antes[c] ?? '') !== String(ahora[c] ?? ''),
+  )
+})
+
+// La tabla sale puesta al abrir la ficha, y sale de ahí. Sembrar una sola vez:
+// a partir de entonces la lista es del usuario y lo que quite no debe volver.
+let sembrada = false
 watchEffect(() => {
-  if (cambiadas.value.length) {
-    form.variable_cambiada = textoDeCambios(
-      cambiadas.value, anterior.value, form, opciones.value,
-    )
-  }
+  if (sembrada || !original.value) return
+  cambiadas.value = derivadas.value
+  sembrada = true
+})
+
+/**
+ * Si la tabla ya no describe lo que describía al abrir: o se ha añadido o
+ * quitado una fila, o se ha cambiado el valor de alguna variable.
+ *
+ * Hace falta para no reescribir la etiqueta por las buenas. Una ficha vieja
+ * puede tener un texto que no cuadre con sus columnas —porque se escribió a
+ * mano, o porque se corrigió una columna sin tocarlo— y abrirla no debería
+ * marcarla como cambiada. Se regenera cuando de verdad cambia algo.
+ */
+const tocada = computed(() => {
+  if (!original.value) return false
+  if (JSON.stringify(cambiadas.value) !== JSON.stringify(derivadas.value)) return true
+  const fila = original.value as unknown as Record<string, unknown>
+  return Object.keys(VARIABLES).some((c) => String(form[c] ?? '') !== String(fila[c] ?? ''))
+})
+
+/**
+ * El texto que se guardará. Se compone al vuelo, y nada lo reescribe mientras
+ * editas: eso era lo que hacía que añadir una fila truncase la etiqueta de una
+ * ficha que tenía dos variables.
+ */
+const textoVariables = computed(() => {
+  if (!tocada.value || !cambiadas.value.length) return String(form.variable_cambiada ?? '')
+  return textoDeCambios(cambiadas.value, anterior.value, form, opciones.value)
 })
 
 onMounted(comprobar)
@@ -85,7 +122,8 @@ const cambios = computed(() => {
   const salida: Record<string, unknown> = {}
   for (const campo of EDITABLES) {
     const antes = (original.value as Extraccion)[campo] ?? ''
-    const ahora = form[campo] ?? ''
+    // La etiqueta sale de la tabla, no de un campo que se teclee.
+    const ahora = campo === 'variable_cambiada' ? textoVariables.value : form[campo] ?? ''
     if (String(antes) !== String(ahora)) salida[campo] = ahora === '' ? null : ahora
   }
   return salida
@@ -197,13 +235,13 @@ async function retirar() {
         v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
         @cambia="(clave, valor) => (form[clave] = valor)"
       />
-      <!-- Mientras no haya filas, este campo es el texto guardado y se puede
-           corregir a mano. En cuanto las hay, lo escribe la lista y enseñarlo
-           sería repetir lo de arriba. -->
-      <label v-if="!cambiadas.length">
-        Variable cambiada
-        <input v-model="form.variable_cambiada">
-      </label>
+      <!-- Sin campo de texto: lo que se guarda sale de la tabla. Cuando no hay
+           nada que tabular —la primera de una bolsa, o un cambio que no es una
+           columna— se enseña lo que quedó escrito, para leerlo y no para
+           teclearlo. -->
+      <p v-if="!cambiadas.length && form.variable_cambiada" class="guardado">
+        Anotado como «{{ form.variable_cambiada }}»
+      </p>
 
       <label>
         Defecto
@@ -343,6 +381,8 @@ dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 
 /* Lo escribe la lista de arriba: se enseña, no se teclea. */
 input[readonly] { color: var(--suave); background: transparent; }
+
+.guardado { color: var(--suave); font-size: 0.82rem; margin: 0; }
 
 dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }

@@ -126,12 +126,16 @@ sale de las columnas y nunca al revés, que si no acaban contándose cosas
 distintas. Si añades una segunda fila, el formulario avisa de que ese par ya no
 va a decir nada.
 
-La corrección de una extracción lleva el mismo editor, con dos diferencias: la
-lista **empieza vacía** —es una ficha ya escrita, y regenerarle el texto al
-abrirla la dejaría «con cambios» sin que nadie haya tocado nada— y el valor de
-antes sale de la extracción **inmediatamente anterior a ésa**, no de la última
-de la bolsa: corrigiendo la #2 lo que hay que comparar es la #1, aunque existan
-la #5 y la #6.
+La corrección de una extracción lleva el mismo editor, y ahí la tabla **sale
+puesta**: se deduce comparando las columnas con las de la extracción
+**inmediatamente anterior a ésa**, no con la última de la bolsa —corrigiendo la
+#2 hay que comparar con la #1 aunque existan la #5 y la #6—. No se lee del
+texto guardado: el texto es una etiqueta y las columnas son el dato; si alguna
+vez discrepan, mandan las columnas.
+
+La etiqueta se compone **al guardar**, nunca mientras editas, y solo si has
+tocado la tabla. Reescribirla en caliente tenía un efecto feo: abrir una ficha
+con dos variables y añadir una fila la truncaba a una sola.
 
 De la portada se sale por una sola puerta, **preparar**. El paso previo del
 cronómetro —café, receta, dosis, agua y el guion escalado delante— acaba en dos
