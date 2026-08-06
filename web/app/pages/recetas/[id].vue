@@ -4,6 +4,10 @@ import type { PasoEditable } from '~/components/RecetaPasos.vue'
 /**
  * Alta y edición de recetas. Comparten pantalla porque el formulario es el
  * mismo: la única diferencia es si el id se escribe o ya está puesto.
+ *
+ * Duplicar es un alta con el formulario relleno desde otra receta
+ * (`/recetas/nueva?de=<id>`): no hay endpoint de copia porque no hace falta
+ * ninguno, el POST de siempre ya recibe la receta entera con sus pasos.
  */
 const { recetas, crearReceta, guardarReceta } = useApi()
 const { activa, comprobada, comprobar, abrir } = useSesion()
@@ -12,13 +16,19 @@ const router = useRouter()
 
 const id = String(route.params.id)
 const esNueva = computed(() => id === 'nueva')
+const copiaDe = computed(() => (esNueva.value ? String(route.query.de ?? '') : ''))
 
 const { data: catalogo } = await useAsyncData('recetas-editar', recetas)
-const original = computed(() =>
-  esNueva.value ? null : (catalogo.value ?? []).find((r) => r.id === id) ?? null,
-)
+const buscar = (cual: string) => (catalogo.value ?? []).find((r) => r.id === cual) ?? null
+const original = computed(() => (esNueva.value ? null : buscar(id)))
+const fuente = computed(() => (copiaDe.value ? buscar(copiaDe.value) : null))
 
-useHead({ title: () => (esNueva.value ? 'Nueva receta' : original.value?.nombre ?? 'Receta') })
+useHead({
+  title: () => {
+    if (!esNueva.value) return original.value?.nombre ?? 'Receta'
+    return fuente.value ? `Copia de ${fuente.value.nombre}` : 'Nueva receta'
+  },
+})
 
 const form = reactive({ id: '', nombre: '', ratio: 15 as number | '', notas: '' })
 const pasos = ref<PasoEditable[]>([
@@ -32,11 +42,14 @@ const tokenVisible = ref('')
 const errorSesion = ref('')
 
 watchEffect(() => {
-  if (!original.value) return
-  form.nombre = original.value.nombre
-  form.ratio = original.value.ratio ?? ''
-  form.notas = original.value.notas ?? ''
-  pasos.value = original.value.pasos.map((p) => ({
+  // Al duplicar se copia todo menos la identidad: el id no se puede cambiar
+  // luego, así que se elige a mano, y el nombre avisa de que es una copia.
+  const modelo = original.value ?? fuente.value
+  if (!modelo) return
+  form.nombre = fuente.value ? `${modelo.nombre} (copia)` : modelo.nombre
+  form.ratio = modelo.ratio ?? ''
+  form.notas = modelo.notas ?? ''
+  pasos.value = modelo.pasos.map((p) => ({
     accion: p.accion,
     agua_g: p.accion === 'verter' ? p.agua_g : '',
     t_inicio_s: p.t_inicio_s ?? '',
@@ -104,7 +117,18 @@ async function enviar() {
     </section>
 
     <form v-else @submit.prevent="enviar">
-      <h2>{{ esNueva ? 'Nueva receta' : original!.nombre }}</h2>
+      <div class="cabecera">
+        <h2 v-if="!esNueva">{{ original!.nombre }}</h2>
+        <h2 v-else-if="fuente">Copia de «{{ fuente.nombre }}»</h2>
+        <h2 v-else>Nueva receta</h2>
+        <NuxtLink v-if="!esNueva" :to="`/recetas/nueva?de=${id}`" class="secundario">
+          Duplicar
+        </NuxtLink>
+      </div>
+
+      <p v-if="copiaDe && !fuente" class="fallo">
+        No hay ninguna receta «{{ copiaDe }}»: el formulario sale vacío.
+      </p>
 
       <label v-if="esNueva">
         id (minúsculas, sin espacios)
@@ -141,7 +165,15 @@ async function enviar() {
 </template>
 
 <style scoped>
-h2 { font-size: 1.05rem; margin: 0 0 0.9rem; }
+h2 { font-size: 1.05rem; margin: 0; }
+
+.cabecera { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+
+.secundario {
+  display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap;
+  border: 1px solid var(--linea); border-radius: 0.5rem; padding: 0.5rem 0.85rem;
+  color: var(--acento); font-size: 0.9rem; font-weight: 600; text-decoration: none;
+}
 h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--suave); margin: 1.25rem 0 0.6rem; }
 
 form { display: flex; flex-direction: column; gap: 0.85rem; }
