@@ -5,18 +5,21 @@
  * app (binding ASSETS). Al compartir origen no hace falta CORS en ninguna
  * parte, y el token puede acabar en una cookie httpOnly.
  *
- * La app nunca habla con la base directamente ni sabe de SQL: manda una
- * extracción en JSON y aquí se valida, se compone y se inserta. Ese contrato
- * es lo que permite cambiar de método de autenticación sin tocar la app.
+ * Desde la fase del puerto, aquí queda solo lo que es del servidor: la
+ * autorización, la sesión, las fotos en R2 y el enrutado. Los manejadores
+ * viven en @coffee/nucleo/api y hablan con un almacén — este los enchufa a D1
+ * y envuelve sus {estado, datos} en Response; el modo local los enchufará a
+ * IndexedDB con el mismo contrato.
  */
-import { esUuid, uuidv7 } from "@coffee/nucleo/ids";
-import { guion, repartoDe } from "@coffee/nucleo/recetas";
-import { sugerir, textoCorto } from "@coffee/nucleo/sugerencias";
 import {
-  CAMPOS, CAMPOS_CAFE, claveDeFoto, extraidoImposible, validarCafe,
-  validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
-} from "@coffee/nucleo/validacion";
+  ahoraSQL, borrarReceta, crearCafe, crearExtraccion, editarCafe,
+  editarExtraccion, guardarReceta, guionDe, listaCafes, listaExtracciones,
+  listaRecetas, porRef, restaurarExtraccion, retirarExtraccion,
+} from "@coffee/nucleo/api";
+import { esUuid } from "@coffee/nucleo/ids";
+import { claveDeFoto, validarFoto } from "@coffee/nucleo/validacion";
 
+import { almacenD1 } from "./almacen-d1.js";
 import { autorizado, cabeceraDeCierre, cabeceraDeSesion, coincide } from "./auth.js";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
@@ -28,132 +31,21 @@ function json(datos, estado = 200, cabeceras = {}) {
   });
 }
 
-async function pasosDe(env, recetaId) {
-  const { results } = await env.DB.prepare(
-    "SELECT * FROM pasos WHERE receta_id = ? ORDER BY orden",
-  )
-    .bind(recetaId)
-    .all();
-  return results;
-}
+/** Un {estado, datos} del núcleo, envuelto en Response. */
+const respuesta = ({ estado, datos }) => json(datos, estado);
 
-/*
- * Los endpoints aceptan el uuid o el slug indistintamente: la app trabaja con
- * uuids, pero un curl con "gary" tiene que seguir funcionando — el slug es
- * la única identidad que un humano puede teclear.
- */
-async function cafePorRef(env, ref) {
-  return await env.DB.prepare("SELECT * FROM cafes WHERE id = ?1 OR slug = ?1")
-    .bind(String(ref ?? ""))
-    .first();
-}
-
-async function recetaPorRef(env, ref) {
-  return await env.DB.prepare("SELECT * FROM recetas WHERE id = ?1 OR slug = ?1")
-    .bind(String(ref ?? ""))
-    .first();
-}
-
-/**
- * Un slug libre: el derivado del nombre y, si ya existe, con sufijo — gary,
- * gary_2, gary_3 —, que la segunda bolsa del mismo café es normal.
- */
-async function slugLibre(env, tabla, base) {
-  let candidato = base;
-  let n = 1;
-  // eslint-disable-next-line no-await-in-loop
-  while (await env.DB.prepare(`SELECT id FROM ${tabla} WHERE slug = ?`).bind(candidato).first()) {
-    n += 1;
-    candidato = `${base}_${n}`;
-  }
-  return candidato;
-}
-
-async function historicoDe(env, cafeId) {
-  // El orden lo manda creado_en, que significa algo; la id v7 desempata a las
-  // filas del mismo segundo sin desordenar.
-  const { results } = await env.DB.prepare(
-    "SELECT * FROM v_extracciones WHERE cafe_id = ? ORDER BY creado_en, id",
-  )
-    .bind(cafeId)
-    .all();
-  return results;
-}
-
-async function crearExtraccion(request, env) {
-  let cuerpo;
+/** El cuerpo JSON, o null si no lo es: el 400 lo pone quien llama. */
+async function cuerpoDe(request) {
   try {
-    cuerpo = await request.json();
+    return await request.json();
   } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
+    return null;
   }
-
-  const { valores, errores } = validarExtraccion(cuerpo);
-  if (errores.length) return json({ errores }, 422);
-
-  // cafe_id y receta_id llegan como uuid desde la app o como slug desde curl:
-  // se resuelven aquí y a la fila van siempre los uuid.
-  const cafe = await cafePorRef(env, valores.cafe_id);
-  if (!cafe) return json({ errores: [`cafe_id desconocido: ${valores.cafe_id}`] }, 422);
-  valores.cafe_id = cafe.id;
-
-  const receta = await recetaPorRef(env, valores.receta_id);
-  const pasos = receta ? await pasosDe(env, receta.id) : [];
-  if (!pasos.length) {
-    return json({ errores: [`la receta ${valores.receta_id} no tiene pasos`] }, 422);
-  }
-  valores.receta_id = receta.id;
-
-  // El reparto sale de escalar las fases de la receta al agua real, salvo que
-  // ese día te desviaras y lo mandes explícito.
-  if (!valores.reparto) valores.reparto = repartoDe(pasos, valores.agua_g);
-
-  // La id nace aquí de momento; con el modo local la traerá puesta el cliente.
-  valores.id = uuidv7();
-
-  const columnas = ["id", ...CAMPOS.filter((c) => valores[c] !== undefined)];
-  const marcadores = columnas.map(() => "?").join(", ");
-  let creada;
-  try {
-    creada = await env.DB.prepare(
-      `INSERT INTO extracciones (${columnas.join(", ")}) VALUES (${marcadores}) RETURNING id`,
-    )
-      .bind(...columnas.map((c) => valores[c]))
-      .first();
-  } catch (error) {
-    return json({ errores: [`la base rechazó la fila: ${error.message}`] }, 422);
-  }
-
-  const historico = await historicoDe(env, valores.cafe_id);
-  const fila = historico.find((e) => e.id === creada.id) ?? { ...valores, id: creada.id };
-  const sugerencia = sugerir(fila, historico);
-  const resumen = textoCorto(sugerencia);
-
-  /*
-   * Si no dijiste qué tocar en la siguiente, se guarda lo que propone el
-   * motor. Antes se calculaba, se devolvía y ahí moría: quien no la copiaba a
-   * mano se quedaba con el campo vacío, que es justo el que da continuidad a
-   * la bitácora.
-   *
-   * Solo cuando el campo viene vacío: lo que tú escribes manda siempre, que
-   * para eso lo escribiste.
-   */
-  if (!fila.siguiente_ajuste && resumen) {
-    await env.DB.prepare("UPDATE extracciones SET siguiente_ajuste = ? WHERE id = ?")
-      .bind(resumen, creada.id)
-      .run();
-    fila.siguiente_ajuste = resumen;
-  }
-
-  return json(
-    {
-      extraccion: fila,
-      cafe: cafe.nombre,
-      sugerencias: { ...sugerencia, resumen },
-    },
-    201,
-  );
 }
+
+// Función y no constante: workerd no deja construir un Response en el ámbito
+// global, solo dentro de un manejador.
+const sinJson = () => json({ error: "el cuerpo debe ser JSON" }, 400);
 
 /**
  * Abre o cierra la sesión. El token viaja una sola vez, en el cuerpo, y a
@@ -170,12 +62,8 @@ async function sesion(request, env, url) {
     return json({ activa: false }, 200, { "set-cookie": cabeceraDeCierre({ seguro }) });
   }
 
-  let cuerpo;
-  try {
-    cuerpo = await request.json();
-  } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
-  }
+  const cuerpo = await cuerpoDe(request);
+  if (cuerpo === null) return sinJson();
 
   const token = String(cuerpo?.token || "").trim();
   const esperado = String(env.TOKEN_ESCRITURA || "").trim();
@@ -186,81 +74,19 @@ async function sesion(request, env, url) {
   return json({ activa: true }, 200, { "set-cookie": cabeceraDeSesion(token, { seguro }) });
 }
 
-/** Da de alta una bolsa. */
-async function crearCafe(request, env) {
-  let cuerpo;
-  try {
-    cuerpo = await request.json();
-  } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
-  }
-
-  const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
-  if (errores.length) return json({ errores }, 422);
-
-  valores.id = uuidv7();
-  valores.slug = await slugLibre(env, "cafes", valores.slug);
-
-  const columnas = ["id", "slug", ...CAMPOS_CAFE.filter((c) => valores[c] !== undefined)];
-  const marcadores = columnas.map(() => "?").join(", ");
-  try {
-    await env.DB.prepare(
-      `INSERT INTO cafes (${columnas.join(", ")}) VALUES (${marcadores})`,
-    )
-      .bind(...columnas.map((c) => valores[c]))
-      .run();
-  } catch (error) {
-    return json({ errores: [`la base rechazó la bolsa: ${error.message}`] }, 422);
-  }
-
-  const cafe = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(valores.id).first();
-  return json({ cafe }, 201);
-}
-
-/** Corrige una ficha ya existente. Solo toca los campos que vengan. */
-async function editarCafe(request, env, ref) {
-  const cafe = await cafePorRef(env, ref);
-  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
-  const id = cafe.id;
-
-  let cuerpo;
-  try {
-    cuerpo = await request.json();
-  } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
-  }
-
-  const { valores, errores } = validarCafe(cuerpo, { nuevo: false });
-  if (errores.length) return json({ errores }, 422);
-
-  // Los nombres de columna salen de una lista blanca; los valores van atados.
-  const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
-  const asignaciones = columnas.map((c) => `${c} = ?`).join(", ");
-  try {
-    await env.DB.prepare(`UPDATE cafes SET ${asignaciones} WHERE id = ?`)
-      .bind(...columnas.map((c) => valores[c]), id)
-      .run();
-  } catch (error) {
-    return json({ errores: [`la base rechazó el cambio: ${error.message}`] }, 422);
-  }
-
-  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
-  return json({ cafe: actualizado, cambiado: columnas });
-}
-
 /**
  * Sube o reemplaza la foto de la bolsa. El cuerpo es la imagen tal cual, sin
  * JSON ni multipart; el tipo va en la cabecera content-type.
  *
- * La columna `foto` guarda la clave del objeto y la URL pública es
- * `/api/` + clave. Cada subida estrena clave, así que primero entra el objeto
- * nuevo, luego la columna, y la foto anterior se borra al final: en ningún
- * momento la ficha apunta a un objeto que no exista.
+ * Las fotos son del Worker y no del núcleo a propósito: R2 no existe en el
+ * modo local. La columna `foto` guarda la clave del objeto y la URL pública
+ * es `/api/` + clave. Cada subida estrena clave, así que primero entra el
+ * objeto nuevo, luego la columna, y la foto anterior se borra al final: en
+ * ningún momento la ficha apunta a un objeto que no exista.
  */
-async function subirFoto(request, env, ref) {
-  const cafe = await cafePorRef(env, ref);
+async function subirFoto(request, env, almacen, ref) {
+  const cafe = porRef(await almacen.cafes.listar(), ref);
   if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
-  const id = cafe.id;
 
   const cuerpo = await request.arrayBuffer();
   const foto = validarFoto(request.headers.get("content-type"), cuerpo.byteLength);
@@ -271,35 +97,33 @@ async function subirFoto(request, env, ref) {
   await env.FOTOS.put(clave, cuerpo, { httpMetadata: { contentType: foto.tipo } });
 
   try {
-    await env.DB.prepare("UPDATE cafes SET foto = ? WHERE id = ?").bind(clave, id).run();
+    await almacen.cafes.actualizar(cafe.id, { foto: clave, actualizado_en: ahoraSQL() });
   } catch (error) {
     await env.FOTOS.delete(clave); // que la base diga que no, sin dejar huérfano
     return json({ errores: [`la base rechazó la foto: ${error.message}`] }, 422);
   }
   if (cafe.foto && cafe.foto !== clave) await env.FOTOS.delete(cafe.foto);
 
-  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
+  const actualizado = porRef(await almacen.cafes.listar(), cafe.id);
   return json({ cafe: actualizado }, 201);
 }
 
 /** Quita la foto de la bolsa: la columna a NULL y el objeto fuera. */
-async function quitarFoto(env, ref) {
-  const cafe = await cafePorRef(env, ref);
+async function quitarFoto(env, almacen, ref) {
+  const cafe = porRef(await almacen.cafes.listar(), ref);
   if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
   if (!cafe.foto) return json({ quitada: true, ya_estaba: true });
-  const id = cafe.id;
 
-  await env.DB.prepare("UPDATE cafes SET foto = NULL WHERE id = ?").bind(id).run();
+  await almacen.cafes.actualizar(cafe.id, { foto: null, actualizado_en: ahoraSQL() });
   await env.FOTOS.delete(cafe.foto);
 
-  const actualizado = await env.DB.prepare("SELECT * FROM cafes WHERE id = ?").bind(id).first();
+  const actualizado = porRef(await almacen.cafes.listar(), cafe.id);
   return json({ cafe: actualizado, quitada: true });
 }
 
 // Claves tal y como las genera claveDeFoto: ni escapes ni subcarpetas.
 const CLAVE_FOTO = /^fotos\/[a-z0-9_-]+-\d+\.(jpg|png|webp)$/;
 
-/** Sirve la foto desde R2. Lectura abierta, como el resto de los GET. */
 async function servirFoto(env, clave) {
   if (!CLAVE_FOTO.test(clave)) return json({ error: "ruta no encontrada" }, 404);
 
@@ -318,170 +142,6 @@ async function servirFoto(env, clave) {
   });
 }
 
-/** Corrige una extracción. Solo toca los campos que lleguen. */
-async function editarExtraccion(request, env, id) {
-  const guardada = await env.DB.prepare(
-    "SELECT id, agua_g, extraido_g FROM extracciones WHERE id = ?",
-  )
-    .bind(id)
-    .first();
-  if (!guardada) return json({ errores: [`no existe la extracción ${id}`] }, 404);
-
-  let cuerpo;
-  try {
-    cuerpo = await request.json();
-  } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
-  }
-
-  const { valores, errores } = validarCambiosExtraccion(cuerpo);
-  if (errores.length) return json({ errores }, 422);
-
-  // Aquí hace falta la fila: el agua puede venir en este PATCH o llevar
-  // guardada desde el alta, y cualquiera de las dos manda sobre lo extraído.
-  const imposible = extraidoImposible(
-    valores.extraido_g !== undefined ? valores.extraido_g : guardada.extraido_g,
-    valores.agua_g !== undefined ? valores.agua_g : guardada.agua_g,
-  );
-  if (imposible) return json({ errores: [imposible] }, 422);
-
-  const columnas = CAMPOS.filter((c) => valores[c] !== undefined);
-  const asignaciones = columnas.map((c) => `${c} = ?`).join(", ");
-  try {
-    await env.DB.prepare(`UPDATE extracciones SET ${asignaciones} WHERE id = ?`)
-      .bind(...columnas.map((c) => valores[c]), id)
-      .run();
-  } catch (error) {
-    return json({ errores: [`la base rechazó el cambio: ${error.message}`] }, 422);
-  }
-
-  const fila = await env.DB.prepare("SELECT * FROM v_extracciones WHERE id = ?").bind(id).first();
-  return json({ extraccion: fila, cambiado: columnas });
-}
-
-/**
- * Retira una extracción. Borrado lógico: la fila se queda, marcada con la
- * fecha, y deja de contar para las sugerencias. Se puede restaurar.
- */
-async function retirarExtraccion(env, id) {
-  const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
-    .bind(id)
-    .first();
-  if (!fila) return json({ errores: [`no existe la extracción ${id}`] }, 404);
-  if (fila.borrada_en) return json({ retirada: true, ya_estaba: true });
-
-  await env.DB.prepare("UPDATE extracciones SET borrada_en = datetime('now') WHERE id = ?")
-    .bind(id)
-    .run();
-  return json({ retirada: true, id });
-}
-
-async function restaurarExtraccion(env, id) {
-  const fila = await env.DB.prepare("SELECT id, borrada_en FROM extracciones WHERE id = ?")
-    .bind(id)
-    .first();
-  if (!fila) return json({ errores: [`no existe la extracción ${id}`] }, 404);
-
-  await env.DB.prepare("UPDATE extracciones SET borrada_en = NULL WHERE id = ?").bind(id).run();
-  const devuelta = await env.DB.prepare("SELECT * FROM v_extracciones WHERE id = ?")
-    .bind(id)
-    .first();
-  return json({ extraccion: devuelta });
-}
-
-/**
- * Guarda una receta con sus pasos. Los pasos se reemplazan enteros, no se
- * parchean uno a uno: es como se editan en la app, viendo la lista completa.
- *
- * Todo en un batch: si un paso falla, no queda una receta a medias.
- */
-async function guardarReceta(request, env, { id, nuevo }) {
-  let cuerpo;
-  try {
-    cuerpo = await request.json();
-  } catch {
-    return json({ error: "el cuerpo debe ser JSON" }, 400);
-  }
-
-  const { receta, pasos, errores } = validarReceta(cuerpo, { nuevo });
-  if (errores.length) return json({ errores }, 422);
-
-  let recetaId;
-  let slug = null;
-  if (nuevo) {
-    recetaId = uuidv7();
-    slug = await slugLibre(env, "recetas", receta.slug);
-  } else {
-    const existe = await recetaPorRef(env, id);
-    if (!existe) return json({ errores: [`no existe la receta '${id}'`] }, 404);
-    recetaId = existe.id;
-  }
-
-  const sentencias = [
-    nuevo
-      ? env.DB.prepare("INSERT INTO recetas (id, slug, nombre, ratio, notas) VALUES (?, ?, ?, ?, ?)")
-          .bind(recetaId, slug, receta.nombre, receta.ratio, receta.notas)
-      : env.DB.prepare("UPDATE recetas SET nombre = ?, ratio = ?, notas = ? WHERE id = ?")
-          .bind(receta.nombre, receta.ratio, receta.notas, recetaId),
-    env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(recetaId),
-    ...pasos.map((p) =>
-      env.DB.prepare(
-        "INSERT INTO pasos (receta_id, orden, t_inicio_s, accion, agua_g, notas, estilo) " +
-          "VALUES (?, ?, ?, ?, ?, ?, ?)",
-      ).bind(recetaId, p.orden, p.t_inicio_s, p.accion, p.agua_g, p.notas, p.estilo),
-    ),
-  ];
-
-  try {
-    await env.DB.batch(sentencias);
-  } catch (error) {
-    return json({ errores: [`la base rechazó la receta: ${error.message}`] }, 422);
-  }
-
-  const guardada = await env.DB.prepare("SELECT * FROM recetas WHERE id = ?").bind(recetaId).first();
-  return json({ receta: { ...guardada, pasos: await pasosDe(env, recetaId) } }, nuevo ? 201 : 200);
-}
-
-/**
- * Borra una receta y sus pasos. Este borrado sí es de verdad, no lógico como
- * el de las extracciones: una receta no es un dato observado sino una
- * plantilla, y una plantilla retirada solo ensuciaría la lista.
- *
- * Se niega si alguna extracción la usa, retiradas incluidas: siguen
- * apuntando, y sin la fila no habría forma de saber con qué se preparó
- * aquella taza. Para eso está editarla, o dejarla ahí sin usarla.
- */
-async function borrarReceta(env, ref) {
-  const existe = await recetaPorRef(env, ref);
-  if (!existe) return json({ errores: [`no existe la receta '${ref}'`] }, 404);
-  const id = existe.id;
-
-  const usos = await env.DB.prepare(
-    "SELECT COUNT(*) AS total FROM extracciones WHERE receta_id = ?",
-  )
-    .bind(id)
-    .first();
-
-  if (usos.total) {
-    const cuantas = usos.total === 1 ? "1 extracción" : `${usos.total} extracciones`;
-    return json(
-      {
-        errores: [
-          `la receta '${existe.slug}' la usan ${cuantas}, retiradas incluidas: no se puede borrar, ` +
-            "edítala o déjala ahí sin usarla",
-        ],
-      },
-      409,
-    );
-  }
-
-  await env.DB.batch([
-    env.DB.prepare("DELETE FROM pasos WHERE receta_id = ?").bind(id),
-    env.DB.prepare("DELETE FROM recetas WHERE id = ?").bind(id),
-  ]);
-  return json({ borrada: true, id, slug: existe.slug });
-}
-
 async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/sesion") return await sesion(request, env, url);
 
@@ -493,17 +153,23 @@ async function enrutar(request, env, url, ruta) {
    */
   if (!autorizado(request, env)) return json({ error: "no autorizado" }, 401);
 
+  const almacen = almacenD1(env.DB);
+
   if (ruta === "/api/recetas" && request.method === "POST") {
-    return await guardarReceta(request, env, { nuevo: true });
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await guardarReceta(almacen, { nuevo: true }, cuerpo));
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "PUT") {
-    const id = decodeURIComponent(ruta.slice("/api/recetas/".length));
-    return await guardarReceta(request, env, { id, nuevo: false });
+    const ref = decodeURIComponent(ruta.slice("/api/recetas/".length));
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await guardarReceta(almacen, { ref, nuevo: false }, cuerpo));
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "DELETE") {
-    return await borrarReceta(env, decodeURIComponent(ruta.slice("/api/recetas/".length)));
+    return respuesta(await borrarReceta(almacen, decodeURIComponent(ruta.slice("/api/recetas/".length))));
   }
 
   if (ruta.startsWith("/api/extracciones/")) {
@@ -515,24 +181,35 @@ async function enrutar(request, env, url, ruta) {
     }
 
     if (accion === "restaurar" && request.method === "POST") {
-      return await restaurarExtraccion(env, id);
+      return respuesta(await restaurarExtraccion(almacen, id));
     }
-    if (!accion && request.method === "PATCH") return await editarExtraccion(request, env, id);
-    if (!accion && request.method === "DELETE") return await retirarExtraccion(env, id);
+    if (!accion && request.method === "PATCH") {
+      const cuerpo = await cuerpoDe(request);
+      if (cuerpo === null) return sinJson();
+      return respuesta(await editarExtraccion(almacen, id, cuerpo));
+    }
+    if (!accion && request.method === "DELETE") {
+      return respuesta(await retirarExtraccion(almacen, id));
+    }
   }
 
   if (ruta === "/api/cafes" && request.method === "POST") {
-    return await crearCafe(request, env);
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await crearCafe(almacen, cuerpo));
   }
 
   if (ruta.startsWith("/api/cafes/") && ruta.endsWith("/foto")) {
-    const id = decodeURIComponent(ruta.slice("/api/cafes/".length, -"/foto".length));
-    if (request.method === "PUT") return await subirFoto(request, env, id);
-    if (request.method === "DELETE") return await quitarFoto(env, id);
+    const ref = decodeURIComponent(ruta.slice("/api/cafes/".length, -"/foto".length));
+    if (request.method === "PUT") return await subirFoto(request, env, almacen, ref);
+    if (request.method === "DELETE") return await quitarFoto(env, almacen, ref);
   }
 
   if (ruta.startsWith("/api/cafes/") && request.method === "PATCH") {
-    return await editarCafe(request, env, decodeURIComponent(ruta.slice("/api/cafes/".length)));
+    const ref = decodeURIComponent(ruta.slice("/api/cafes/".length));
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await editarCafe(almacen, ref, cuerpo));
   }
 
   if (request.method === "GET") {
@@ -540,53 +217,24 @@ async function enrutar(request, env, url, ruta) {
       return await servirFoto(env, ruta.slice("/api/".length));
     }
     if (ruta === "/api/guion") {
-      const receta = await recetaPorRef(env, url.searchParams.get("receta"));
-      const agua = Number(url.searchParams.get("agua") || 300);
-      const pasos = receta ? await pasosDe(env, receta.id) : [];
-      if (!pasos.length) {
-        return json({ error: `la receta ${url.searchParams.get("receta")} no tiene pasos` }, 404);
-      }
-      try {
-        return json(guion(pasos, agua));
-      } catch (error) {
-        return json({ error: error.message }, 422);
-      }
-    }
-    if (ruta === "/api/cafes") {
-      const { results } = await env.DB.prepare(
-        "SELECT * FROM cafes ORDER BY estado, nombre",
-      ).all();
-      return json(results);
-    }
-    if (ruta === "/api/recetas") {
-      const { results } = await env.DB.prepare("SELECT * FROM recetas ORDER BY slug").all();
-      const conPasos = await Promise.all(
-        results.map(async (receta) => ({ ...receta, pasos: await pasosDe(env, receta.id) })),
+      return respuesta(
+        await guionDe(almacen, url.searchParams.get("receta"), url.searchParams.get("agua")),
       );
-      return json(conPasos);
     }
+    if (ruta === "/api/cafes") return respuesta(await listaCafes(almacen));
+    if (ruta === "/api/recetas") return respuesta(await listaRecetas(almacen));
     if (ruta === "/api/extracciones") {
-      // ?retiradas=1 para mirar la papelera y poder restaurar.
-      const vista = url.searchParams.get("retiradas")
-        ? "v_extracciones_retiradas"
-        : "v_extracciones";
-      const cafeRef = url.searchParams.get("cafe");
-      let consulta;
-      if (cafeRef) {
-        const cafe = await cafePorRef(env, cafeRef);
-        consulta = env.DB.prepare(
-          `SELECT * FROM ${vista} WHERE cafe_id = ? ORDER BY creado_en DESC, id DESC`,
-        ).bind(cafe?.id ?? "");
-      } else {
-        consulta = env.DB.prepare(`SELECT * FROM ${vista} ORDER BY creado_en DESC, id DESC`);
-      }
-      const { results } = await consulta.all();
-      return json(results);
+      return respuesta(await listaExtracciones(almacen, {
+        cafe: url.searchParams.get("cafe"),
+        retiradas: Boolean(url.searchParams.get("retiradas")),
+      }));
     }
   }
 
   if (request.method === "POST" && ruta === "/api/extracciones") {
-    return await crearExtraccion(request, env);
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await crearExtraccion(almacen, cuerpo));
   }
 
   return json({ error: "ruta no encontrada" }, 404);

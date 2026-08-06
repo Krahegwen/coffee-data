@@ -17,11 +17,13 @@ describe("uuidv7", () => {
     assert.ok(antes < despues);
   });
 
-  it("dos del mismo milisegundo no chocan: el resto es azar", () => {
+  it("dos del mismo milisegundo no chocan y quedan en orden", () => {
     const a = uuidv7(1_000_000_000_000);
     const b = uuidv7(1_000_000_000_000);
     assert.notEqual(a, b);
     assert.equal(a.slice(0, 13), b.slice(0, 13));
+    // La secuencia hace de desempate: quien nació después ordena después.
+    assert.ok(a < b);
   });
 
   it("esUuid distingue las nuestras de un slug o un número", () => {

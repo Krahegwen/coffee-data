@@ -77,8 +77,8 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | Fichero | Qué es |
 |---|---|
 | `api/migrations/` | El esquema de D1 y la semilla. Es la definición de los datos. |
-| `nucleo/` | La lógica sin saber dónde corre: recetas, sugerencias, validación y derivados. Cero dependencias. |
-| `api/src/` | La API: enrutado, autorización y D1. La lógica la importa de `nucleo/`. |
+| `nucleo/` | La lógica sin saber dónde corre, **manejadores de la API incluidos**: hablan con un puerto de almacén y devuelven `{estado, datos}`. Cero dependencias. |
+| `api/src/` | Lo que es del servidor: enrutado, autorización, fotos en R2 y el adaptador D1 del puerto. |
 | `web/` | La app: Nuxt estático, instalable en el móvil. |
 | `datos/` | Exportación legible de lo que hay en D1. **No es la fuente.** |
 | `resumen.py` | Ranking, histórico y frescura, leyendo de la API. `python resumen.py` |

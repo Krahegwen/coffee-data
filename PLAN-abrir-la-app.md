@@ -171,7 +171,7 @@ Cada una deja el repo funcionando y desplegable.
 | 1 ✔ | Sacar `nucleo/` con la lógica pura y `derivar.js`. Sin cambio de comportamiento. | Bajo |
 | 2 ✔ | Proteger los `GET`. Arreglar `resumen.py` y `exportar_csv.py`, que hoy leen sin token. | Bajo |
 | 3 ✔ | **Identidad**: UUIDv7 en las tres tablas, slug a columna, orden por `creado_en`, URLs y pantallas al día. | Medio |
-| 4 | Puerto de almacén y adaptador D1. El Worker sigue igual por fuera. | Medio |
+| 4 ✔ | Puerto de almacén y adaptador D1. El Worker sigue igual por fuera. | Medio |
 | 5 | Adaptador IndexedDB + el árbitro en `useApi()`. **Aquí está el trabajo.** | Alto |
 | 6 | Cola de salida: escribir en local y encolar para la red, con reintento. | Alto |
 | 7 | El gesto del pie y el modo local por defecto. | Bajo |

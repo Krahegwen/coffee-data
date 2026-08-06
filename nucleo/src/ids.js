@@ -16,8 +16,24 @@ function alAzar(bytes) {
   return bytes;
 }
 
+/*
+ * Secuencia para el mismo milisegundo. Sin ella, dos ids del mismo ms quedan
+ * en orden arbitrario —el resto es azar— y el desempate del orden cronológico
+ * deja de desempatar. Se arranca con margen (el bit alto a cero) para que
+ * dentro de un ms siempre quepa incrementar.
+ */
+let ultimoMs = -1;
+let secuencia = 0;
+
 export function uuidv7(ahoraMs = Date.now(), aleatorio = alAzar) {
   const bytes = aleatorio(new Uint8Array(16));
+
+  if (ahoraMs === ultimoMs) {
+    secuencia = (secuencia + 1) & 0x0fff;
+  } else {
+    ultimoMs = ahoraMs;
+    secuencia = ((bytes[6] << 8) | bytes[7]) & 0x07ff;
+  }
 
   // Los 48 bits altos son los milisegundos desde época, en big-endian.
   let ms = BigInt(ahoraMs);
@@ -26,7 +42,8 @@ export function uuidv7(ahoraMs = Date.now(), aleatorio = alAzar) {
     ms >>= 8n;
   }
 
-  bytes[6] = (bytes[6] & 0x0f) | 0x70; // versión 7
+  bytes[6] = 0x70 | (secuencia >> 8); // versión 7 + secuencia alta
+  bytes[7] = secuencia & 0xff; //                    secuencia baja
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // variante RFC 4122
 
   const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");

@@ -171,12 +171,19 @@ herramientas de Python. `datos/` son los CSV exportados.
 
 ## Si tocas el código
 
-- `nucleo/` es la lógica de la bitácora sin saber dónde corre: `recetas.js`,
-  `sugerencias.js`, `validacion.js` y `derivar.js` (el equivalente JS de la
-  vista SQL, para el almacén local). Cero dependencias; si una función no
-  puede correr en un navegador, no va aquí.
-- `api/src/` es la API: `index.js` enruta y habla con D1, `auth.js` decide
-  quién escribe. Todo lo demás lo importa de `@coffee/nucleo`.
+- `nucleo/` es la lógica de la bitácora sin saber dónde corre. `api.js` son
+  **los manejadores enteros de la API**: reciben un almacén (el puerto: once
+  métodos) y devuelven `{estado, datos}`. `almacen-memoria.js` es el puerto
+  sobre Maps —con él se prueba la API sin base, y es la forma de referencia
+  del futuro adaptador de IndexedDB—. El resto: `recetas.js`,
+  `sugerencias.js`, `validacion.js`, `derivar.js`, `ids.js`. Cero
+  dependencias; si una función no puede correr en un navegador, no va aquí.
+- `api/src/` es solo lo que es del servidor: `index.js` enruta y envuelve en
+  Response, `auth.js` decide quién escribe, `almacen-d1.js` enchufa el puerto
+  a D1, y las fotos viven aquí porque R2 no existe en el modo local.
+- **Si añades un endpoint, el manejador va en `nucleo/src/api.js`** con su
+  test en `nucleo/test/api.test.js` contra el almacén en memoria; en el Worker
+  solo se añade la ruta.
 - Las dos suites van con `pnpm test` (el runner de Node, sin dependencias).
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
