@@ -79,20 +79,36 @@ watchEffect(() => {
   sembrada = true
 })
 
+/** Has metido mano en la tabla, acabe donde acabe. Lo dice el componente. */
+const manoseada = ref(false)
+
+/** La etiqueta que describe la tabla de ahora mismo. Null si no hay tabla. */
+const compuesta = computed(() =>
+  cambiadas.value.length
+    ? textoDeCambios(cambiadas.value, anterior.value, form, opciones.value)
+    : null,
+)
+
 /**
- * Si la tabla ya no describe lo que describía al abrir: o se ha añadido o
- * quitado una fila, o se ha cambiado el valor de alguna variable.
+ * Cuándo hay que reescribir la etiqueta. Tres motivos, y los tres hacen falta:
  *
- * Hace falta para no reescribir la etiqueta por las buenas. Una ficha vieja
- * puede tener un texto que no cuadre con sus columnas —porque se escribió a
- * mano, o porque se corrigió una columna sin tocarlo— y abrirla no debería
- * marcarla como cambiada. Se regenera cuando de verdad cambia algo.
+ * - has tocado la tabla, aunque la dejes como estaba: añadir una fila y
+ *   quitarla te devuelve al mismo sitio, pero la etiqueta guardada puede seguir
+ *   diciendo otra cosa;
+ * - has cambiado el valor de una variable, aunque sea desde su campo de
+ *   siempre y no desde la tabla;
+ * - la etiqueta guardada no cuadra con la tabla. Pasa con fichas viejas o si se
+ *   corrigió una columna sin tocarla, y si no contara no habría forma de
+ *   arreglarlas: el botón se quedaba en «Sin cambios» para siempre.
  */
 const tocada = computed(() => {
   if (!original.value) return false
-  if (JSON.stringify(cambiadas.value) !== JSON.stringify(derivadas.value)) return true
+  if (manoseada.value) return true
   const fila = original.value as unknown as Record<string, unknown>
-  return Object.keys(VARIABLES).some((c) => String(form[c] ?? '') !== String(fila[c] ?? ''))
+  if (Object.keys(VARIABLES).some((c) => String(form[c] ?? '') !== String(fila[c] ?? ''))) {
+    return true
+  }
+  return compuesta.value !== null && compuesta.value !== String(form.variable_cambiada ?? '')
 })
 
 /**
@@ -100,10 +116,11 @@ const tocada = computed(() => {
  * editas: eso era lo que hacía que añadir una fila truncase la etiqueta de una
  * ficha que tenía dos variables.
  */
-const textoVariables = computed(() => {
-  if (!tocada.value || !cambiadas.value.length) return String(form.variable_cambiada ?? '')
-  return textoDeCambios(cambiadas.value, anterior.value, form, opciones.value)
-})
+const textoVariables = computed(() =>
+  tocada.value && compuesta.value !== null
+    ? compuesta.value
+    : String(form.variable_cambiada ?? ''),
+)
 
 onMounted(comprobar)
 
@@ -138,9 +155,15 @@ async function guardar() {
   try {
     const r = await editarExtraccion(id, cambios.value)
     guardado.value = r.cambiado
+    /*
+     * Lista nueva y no el hueco de siempre: `useAsyncData` devuelve un
+     * shallowRef, así que cambiar un elemento por su índice no despierta a
+     * nadie. La ficha se quedaba comparándose contra la versión de antes de
+     * guardar y el botón no volvía a «Sin cambios» ni aunque estuviera todo
+     * escrito ya en la base.
+     */
     if (historial.value) {
-      const i = historial.value.findIndex((e) => e.id === id)
-      if (i >= 0) historial.value[i] = r.extraccion
+      historial.value = historial.value.map((e) => (e.id === id ? r.extraccion : e))
     }
   } catch (fallo) {
     errores.value = erroresDe(fallo)
@@ -234,6 +257,7 @@ async function retirar() {
       <VariablesCambiadas
         v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
         @cambia="(clave, valor) => (form[clave] = valor)"
+        @toca="manoseada = true"
       />
       <!-- Sin campo de texto: lo que se guarda sale de la tabla. Cuando no hay
            nada que tabular —la primera de una bolsa, o un cambio que no es una

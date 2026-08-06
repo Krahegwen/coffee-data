@@ -25,7 +25,16 @@ const props = defineProps<{
   opciones?: Opciones
 }>()
 
-const emit = defineEmits<{ cambia: [clave: string, valor: unknown] }>()
+const emit = defineEmits<{
+  cambia: [clave: string, valor: unknown]
+  /**
+   * Has tocado la tabla, pase lo que pase con el resultado. Hace falta aparte:
+   * añadir una fila y quitarla te devuelve al mismo sitio, y comparando estados
+   * eso parecía «no has hecho nada» aunque la etiqueta guardada dijera otra
+   * cosa y hubiera que reescribirla.
+   */
+  toca: []
+}>()
 
 const elegidas = defineModel<string[]>({ required: true })
 
@@ -48,15 +57,19 @@ function anteriorDe(clave: string) {
 
 function anadir() {
   const libre = claves.find((c) => !elegidas.value.includes(c))
-  if (libre) elegidas.value = [...elegidas.value, libre]
+  if (!libre) return
+  elegidas.value = [...elegidas.value, libre]
+  emit('toca')
 }
 
 function quitar(i: number) {
   elegidas.value = elegidas.value.filter((_, n) => n !== i)
+  emit('toca')
 }
 
 function cambiarVariable(i: number, clave: string) {
   elegidas.value = elegidas.value.map((c, n) => (n === i ? clave : c))
+  emit('toca')
 }
 </script>
 
