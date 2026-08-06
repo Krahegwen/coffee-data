@@ -137,6 +137,69 @@ export function contratoDelAlmacen(titulo, fabrica) {
       });
     });
 
+    describe("identidad del cliente: lo que reenvía la cola de salida", () => {
+      const ID = "019fd647-1234-7abc-8def-000000000001";
+      const SELLO = "2026-08-07 08:30:00";
+
+      it("un alta de bolsa respeta id y creado_en si vienen", async () => {
+        const { estado, datos } = await crearCafe(almacen, {
+          nombre: "Abbie", id: ID, creado_en: SELLO,
+        });
+        assert.equal(estado, 201);
+        assert.equal(datos.cafe.id, ID);
+        assert.equal(datos.cafe.creado_en, SELLO);
+      });
+
+      it("repetir el alta con la misma id es 409 repetida, y no duplica", async () => {
+        await crearCafe(almacen, { nombre: "Abbie", id: ID });
+        const { estado, datos } = await crearCafe(almacen, { nombre: "Abbie", id: ID });
+        assert.equal(estado, 409);
+        assert.equal(datos.repetida, true);
+        const bolsas = (await listaCafes(almacen)).datos;
+        assert.equal(bolsas.filter((c) => c.id === ID).length, 1);
+      });
+
+      it("una id que no es uuid se rechaza sin escribir", async () => {
+        const { estado, datos } = await crearCafe(almacen, { nombre: "Abbie", id: "abbie" });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /id inválida/);
+        assert.equal((await listaCafes(almacen)).datos.length, 1);
+      });
+
+      it("un sello con mala pinta también", async () => {
+        const { estado, datos } = await crearCafe(almacen, {
+          nombre: "Abbie", creado_en: "ayer por la tarde",
+        });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /creado_en inválido/);
+      });
+
+      it("las recetas y las extracciones van igual: id propia, y repetirla choca", async () => {
+        const receta = await guardarReceta(almacen, { nuevo: true }, {
+          ...RECETA, nombre: "Copia", id: ID, creado_en: SELLO,
+        });
+        assert.equal(receta.datos.receta.id, ID);
+        assert.equal(receta.datos.receta.creado_en, SELLO);
+        const otraVez = await guardarReceta(almacen, { nuevo: true }, { ...RECETA, nombre: "Copia", id: ID });
+        assert.equal(otraVez.estado, 409);
+        assert.equal(otraVez.datos.repetida, true);
+
+        const creada = await crearExtraccion(almacen, { ...EXTRACCION, id: ID, creado_en: SELLO });
+        assert.equal(creada.datos.extraccion.id, ID);
+        assert.equal(creada.datos.extraccion.creado_en, SELLO);
+        const repetida = await crearExtraccion(almacen, { ...EXTRACCION, id: ID });
+        assert.equal(repetida.estado, 409);
+        assert.equal(repetida.datos.repetida, true);
+        assert.equal((await listaExtracciones(almacen)).datos.length, 1);
+      });
+
+      it("en una corrección la id sigue sin aceptarse", async () => {
+        const { estado, datos } = await editarCafe(almacen, "gary", { id: ID });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /campos desconocidos: id/);
+      });
+    });
+
     describe("extracciones por el puerto", () => {
       it("el alta resuelve slugs, calcula el reparto y guarda el ajuste del motor", async () => {
         const { estado, datos } = await crearExtraccion(almacen, EXTRACCION);

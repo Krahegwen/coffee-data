@@ -6,6 +6,8 @@
  * vez de un mensaje de SQLite, y para poner los valores por defecto.
  */
 
+import { esUuid } from "./ids.js";
+
 export const DEFECTOS = [
   "equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton",
   "aguado",
@@ -103,6 +105,37 @@ function vacio(valor) {
   return valor === null || valor === undefined || String(valor).trim() === "";
 }
 
+/** El sello de la base: `datetime('now')` de SQLite, en UTC. */
+const SELLO = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+/** Lo que un alta puede traer puesto además de sus campos. */
+export const IDENTIDAD = ["id", "creado_en"];
+
+/**
+ * id y creado_en opcionales en los altas. No los teclea nadie: los manda la
+ * cola de salida al reenviar una fila que nació en local, para que el
+ * servidor escriba exactamente la misma y reintentar no duplique — la misma
+ * id choca. Deja lo validado en `valores` y los fallos en `errores`.
+ */
+function validarIdentidad(entrada, valores, errores) {
+  if (!vacio(entrada.id)) {
+    const id = String(entrada.id).trim().toLowerCase();
+    if (!esUuid(id)) {
+      errores.push(`id inválida, se espera un uuid: ${JSON.stringify(entrada.id)}`);
+    }
+    valores.id = id;
+  }
+  if (!vacio(entrada.creado_en)) {
+    const sello = String(entrada.creado_en).trim();
+    if (!SELLO.test(sello)) {
+      errores.push(
+        `creado_en inválido, se espera AAAA-MM-DD HH:MM:SS: ${JSON.stringify(entrada.creado_en)}`,
+      );
+    }
+    valores.creado_en = sello;
+  }
+}
+
 /**
  * Devuelve { valores, errores }. Si errores tiene algo, no se inserta nada:
  * la fila entra entera o no entra.
@@ -111,7 +144,8 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
 
-  const desconocidos = Object.keys(entrada).filter((c) => !CAMPOS.includes(c));
+  const desconocidos = Object.keys(entrada)
+    .filter((c) => !CAMPOS.includes(c) && !IDENTIDAD.includes(c));
   if (desconocidos.length) {
     errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
   }
@@ -205,6 +239,8 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
   }
 
+  validarIdentidad(entrada, valores, errores);
+
   return { valores, errores };
 }
 
@@ -219,7 +255,10 @@ export function validarCafe(cuerpo, { nuevo }) {
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
   const valores = {};
 
-  const desconocidos = Object.keys(entrada).filter((c) => !CAMPOS_CAFE.includes(c));
+  // id y creado_en solo en el alta: en una corrección son la identidad de la
+  // fila y no se tocan.
+  const desconocidos = Object.keys(entrada)
+    .filter((c) => !CAMPOS_CAFE.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
   if (desconocidos.length) {
     errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
   }
@@ -232,6 +271,7 @@ export function validarCafe(cuerpo, { nuevo }) {
       );
     }
     valores.slug = slug;
+    validarIdentidad(entrada, valores, errores);
   }
 
   if (nuevo || entrada.nombre !== undefined) {
@@ -479,7 +519,8 @@ export function validarReceta(cuerpo, { nuevo }) {
   const permitidos = ["nombre", "ratio", "notas", "pasos"];
   const receta = {};
 
-  const desconocidos = Object.keys(entrada).filter((c) => !permitidos.includes(c));
+  const desconocidos = Object.keys(entrada)
+    .filter((c) => !permitidos.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
   if (desconocidos.length) errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
 
   // Como en las bolsas: el slug sale del nombre y la id la pone quien crea.
@@ -491,6 +532,7 @@ export function validarReceta(cuerpo, { nuevo }) {
       );
     }
     receta.slug = slug;
+    validarIdentidad(entrada, receta, errores);
   }
 
   const nombre = String(entrada.nombre ?? "").trim();

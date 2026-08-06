@@ -84,10 +84,16 @@ export async function crearCafe(almacen, cuerpo) {
   const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
   if (errores.length) return respuesta(422, { errores });
 
+  // La id puede venir puesta: es lo que reenvía la cola de salida de una fila
+  // nacida en local. Si ya está, no es un choque: es el mismo envío otra vez,
+  // y `repetida` le dice al drenador que lo dé por hecho.
   const existentes = await almacen.cafes.listar();
-  valores.id = uuidv7();
+  if (valores.id && existentes.some((c) => c.id === valores.id)) {
+    return respuesta(409, { repetida: true, errores: [`ya existe un café con la id ${valores.id}`] });
+  }
+  valores.id = valores.id ?? uuidv7();
   valores.slug = slugLibre(existentes, valores.slug);
-  valores.creado_en = ahoraSQL();
+  valores.creado_en = valores.creado_en ?? ahoraSQL();
   valores.actualizado_en = valores.creado_en;
   valores.foto = null;
 
@@ -153,9 +159,14 @@ export async function guardarReceta(almacen, { ref, nuevo }, cuerpo) {
   const existentes = await almacen.recetas.listar();
   let fila;
   if (nuevo) {
-    const sello = ahoraSQL();
+    // Como en las bolsas: id y sello del cliente si vienen — el reenvío de la
+    // cola —, y si la id ya está es el mismo envío repetido.
+    if (receta.id && existentes.some((r) => r.id === receta.id)) {
+      return respuesta(409, { repetida: true, errores: [`ya existe una receta con la id ${receta.id}`] });
+    }
+    const sello = receta.creado_en ?? ahoraSQL();
     fila = {
-      id: uuidv7(),
+      id: receta.id ?? uuidv7(),
       slug: slugLibre(existentes, receta.slug),
       nombre: receta.nombre,
       ratio: receta.ratio,
@@ -249,9 +260,16 @@ export async function crearExtraccion(almacen, cuerpo) {
   // ese día te desviaras y lo mandes explícito.
   if (!valores.reparto) valores.reparto = repartoDe(pasos, valores.agua_g);
 
-  // La id nace aquí de momento; con el modo local la traerá puesta el cliente.
-  valores.id = uuidv7();
-  valores.creado_en = ahoraSQL();
+  // La id viene puesta cuando la fila nació en local y la reenvía la cola;
+  // repetirla no duplica, choca — y el 409 con `repetida` lo dice.
+  if (valores.id) {
+    const filas = await almacen.extracciones.listar();
+    if (filas.some((e) => e.id === valores.id)) {
+      return respuesta(409, { repetida: true, errores: [`ya existe una extracción con la id ${valores.id}`] });
+    }
+  }
+  valores.id = valores.id ?? uuidv7();
+  valores.creado_en = valores.creado_en ?? ahoraSQL();
 
   const fila = {};
   for (const campo of ["id", ...CAMPOS, "creado_en"]) {

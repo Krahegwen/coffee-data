@@ -478,11 +478,16 @@ describe("alta de bolsas", () => {
     assert.equal(valores.sca, 87);
   });
 
-  it("ni id ni slug entran por el cuerpo: uno es opaco y el otro, derivado", () => {
-    assert.ok(validarCafe(nueva({ id: "etiopia" }), { nuevo: true })
-      .errores.some((e) => e.includes("desconocidos")));
+  it("el slug no entra por el cuerpo, y la id solo si es un uuid: es lo que reenvía la cola", () => {
     assert.ok(validarCafe(nueva({ slug: "etiopia" }), { nuevo: true })
       .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarCafe(nueva({ id: "etiopia" }), { nuevo: true })
+      .errores.some((e) => e.includes("id inválida")));
+    const { valores, errores } = validarCafe(
+      nueva({ id: "019fd647-1234-7abc-8def-000000000001" }), { nuevo: true },
+    );
+    assert.deepEqual(errores, []);
+    assert.equal(valores.id, "019fd647-1234-7abc-8def-000000000001");
   });
 
   it("exige nombre, y que de él salga un slug", () => {
@@ -729,11 +734,18 @@ describe("recetas", () => {
     assert.equal(valores.slug, "4_6_con_mas_cuerpo");
   });
 
-  it("la identidad no entra por el cuerpo", () => {
+  it("el slug no entra por el cuerpo, y la id solo si es uuid — y solo en el alta", () => {
     assert.ok(validarReceta(receta({ id: "kasuya-46-fuerte" }), { nuevo: true })
-      .errores.some((e) => e.includes("desconocidos")));
+      .errores.some((e) => e.includes("id inválida")));
     assert.ok(validarReceta(receta({ slug: "otro" }), { nuevo: false })
       .errores.some((e) => e.includes("desconocidos")));
+    assert.ok(validarReceta(receta({ id: "019fd647-1234-7abc-8def-000000000001" }), { nuevo: false })
+      .errores.some((e) => e.includes("desconocidos")));
+    const valida = validarReceta(
+      receta({ id: "019fd647-1234-7abc-8def-000000000001" }), { nuevo: true },
+    );
+    assert.deepEqual(valida.errores, []);
+    assert.equal(valida.receta.id, "019fd647-1234-7abc-8def-000000000001");
   });
 });
 
