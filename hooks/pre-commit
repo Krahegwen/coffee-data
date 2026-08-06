@@ -50,4 +50,4 @@ if ! "$PYTHON" herramientas/subir_version.py; then
     echo "pre-commit: commit abortado." >&2
     exit 1
 fi
-git add package.json api/package.json web/package.json
+git add package.json nucleo/package.json api/package.json web/package.json

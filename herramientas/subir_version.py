@@ -19,6 +19,7 @@ BASE = Path(__file__).resolve().parent.parent
 # El primero manda: de ahí sale el número que se copia a los demás.
 FICHEROS = [
     BASE / "package.json",
+    BASE / "nucleo" / "package.json",
     BASE / "api" / "package.json",
     BASE / "web" / "package.json",
 ]
