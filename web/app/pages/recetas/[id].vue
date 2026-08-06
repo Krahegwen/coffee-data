@@ -18,7 +18,7 @@ const id = String(route.params.id)
 const esNueva = computed(() => id === 'nueva')
 const copiaDe = computed(() => (esNueva.value ? String(route.query.de ?? '') : ''))
 
-const { data: catalogo } = await useAsyncData('recetas-editar', recetas)
+const { data: catalogo, refresh: recargarCatalogo } = await useAsyncData('recetas-editar', recetas)
 const buscar = (cual: string) => (catalogo.value ?? []).find((r) => r.id === cual) ?? null
 const original = computed(() => (esNueva.value ? null : buscar(id)))
 const fuente = computed(() => (copiaDe.value ? buscar(copiaDe.value) : null))
@@ -87,6 +87,10 @@ async function enviar() {
     }
     if (esNueva.value) {
       const { receta } = await crearReceta({ ...cuerpo, id: form.id })
+      // El catálogo se comparte por clave entre las dos pantallas: sin
+      // recargarlo, la ficha recién creada aterrizaba en «no hay ninguna
+      // receta con ese id».
+      await recargarCatalogo()
       await router.push(`/recetas/${receta.id}`)
     } else {
       await guardarReceta(id, cuerpo)
