@@ -161,6 +161,9 @@ function ahora() {
  * requestAnimationFrame la bola va fluida en vez de a diez saltos por segundo.
  */
 async function arrancarDesde(desde: number) {
+  // Idempotente: llamado con el reloj ya andando —un salto de paso— no deja
+  // un segundo bucle de animación vivo ni pide otro wake lock.
+  if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
   inicio = performance.now() - desde * 1000
   transcurrido.value = desde
   corriendo.value = true
@@ -172,9 +175,11 @@ async function arrancarDesde(desde: number) {
   animacion = requestAnimationFrame(tic)
 
   // Que no se apague la pantalla con las manos ocupadas.
-  try {
-    despierta = await navigator.wakeLock?.request('screen')
-  } catch { /* sin wake lock se sigue igual */ }
+  if (!despierta) {
+    try {
+      despierta = await navigator.wakeLock?.request('screen')
+    } catch { /* sin wake lock se sigue igual */ }
+  }
 }
 
 async function iniciar() {
@@ -197,6 +202,34 @@ function tocarEsfera() {
   if (!enMarcha.value) iniciar()
   else if (corriendo.value) pausar()
   else arrancarDesde(transcurrido.value)
+}
+
+/** Mueve el reloj a un segundo dado sin cambiar si va o está en pausa. */
+function moverA(segundo: number) {
+  if (corriendo.value) void arrancarDesde(segundo)
+  else transcurrido.value = segundo
+}
+
+function alSiguientePaso() {
+  if (siguiente.value?.t_inicio_s != null) moverA(siguiente.value.t_inicio_s)
+}
+
+/**
+ * Al arranque del paso; recién entrado —menos de 3 s—, al del anterior.
+ * Como el doble toque de «pista anterior» de toda la vida: dos pulsaciones
+ * seguidas encadenan pasos hacia atrás.
+ */
+function alInicioDePaso() {
+  const desde = actual.value?.t_inicio_s ?? 0
+  if (transcurrido.value - desde >= 3) {
+    moverA(desde)
+    return
+  }
+  let previo = 0
+  for (const p of pasos.value) {
+    if (p.t_inicio_s !== null && p.t_inicio_s < desde) previo = p.t_inicio_s
+  }
+  moverA(previo)
 }
 
 function marcarFinGoteo() {
@@ -380,9 +413,33 @@ onUnmounted(parar)
     <button v-if="!enMarcha && finGoteo === null" @click="iniciar">Iniciar</button>
 
     <template v-else-if="finGoteo === null">
-      <button class="pausa" @click="tocarEsfera">
-        {{ corriendo ? 'Pausa' : 'Reanudar' }}
-      </button>
+      <!-- Los saltos a los lados del mando grande: te fuiste del guion —un
+           vertido que se alargó, un paso que sobraba— y el reloj se realinea
+           sin tocar el café. Atrás repite el gesto de «pista anterior»: al
+           inicio del paso, y recién entrado, al de antes. -->
+      <div class="mando-pasos">
+        <button
+          type="button" class="salto" aria-label="Volver al inicio del paso"
+          @click="alInicioDePaso"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M6 5h2v14H6z" />
+            <path d="M19 5v14l-9.5-7z" />
+          </svg>
+        </button>
+        <button class="pausa" @click="tocarEsfera">
+          {{ corriendo ? 'Pausa' : 'Reanudar' }}
+        </button>
+        <button
+          type="button" class="salto" aria-label="Saltar al siguiente paso"
+          :disabled="!siguiente" @click="alSiguientePaso"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+            <path d="M5 5v14l9.5-7z" />
+            <path d="M16 5h2v14h-2z" />
+          </svg>
+        </button>
+      </div>
       <button class="goteo" @click="marcarFinGoteo">Dejó de gotear</button>
     </template>
 
@@ -456,6 +513,29 @@ button {
 /* Ni acento ni apagado: es el que más se pulsa después del de gotear, pero no
    es el que cierra la extracción. */
 .pausa { background: transparent; color: var(--acento); border: 1px solid var(--linea); }
+
+/* Pausa en medio y los saltos a los lados, cuadrados y discretos: mandan
+   sobre el reloj, no sobre el café. */
+.mando-pasos {
+  display: grid;
+  grid-template-columns: 3.25rem 1fr 3.25rem;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.mando-pasos button { margin-top: 0; }
+
+.salto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--suave);
+  border: 1px solid var(--linea);
+  padding: 0;
+}
+
+.salto:disabled { opacity: 0.35; cursor: default; }
 
 .plan {
   margin: 1rem 0;
