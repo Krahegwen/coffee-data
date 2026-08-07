@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { avisoRespaldo } from '~/almacen/respaldo'
-import { fechaCorta } from '~/composables/textos'
+import { fechaCorta, nombreCafe } from '~/composables/textos'
 
 const { cafes, extracciones } = useApi()
 const { activa } = useSesion()
@@ -190,7 +190,7 @@ async function instalar() {
          el café y el día. -->
     <NuxtLink v-for="e in ultimas" :key="e.id" :to="`/extracciones/${e.id}`" class="tarjeta enlace">
       <div class="fila">
-        <strong>{{ e.cafe_nombre }} · {{ fechaCorta(e.fecha) }}</strong>
+        <strong>{{ nombreCafe(e.cafe_nombre) }} · {{ fechaCorta(e.fecha) }}</strong>
         <span v-if="e.nota" class="nota">{{ e.nota }}/10</span>
       </div>
       <p class="meta">

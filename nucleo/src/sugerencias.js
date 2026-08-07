@@ -99,9 +99,13 @@ export function avisosDe(extraccion, historico = []) {
     );
   }
 
-  const anteriores = historico.filter(
-    (e) => e.cafe_id === extraccion.cafe_id && String(e.id) !== String(extraccion.id),
-  );
+  // Sin bolsa no hay «previa»: dos extracciones sueltas son cafés distintos,
+  // y el aviso del dripper compararía tazas que no tienen nada que ver.
+  const anteriores = extraccion.cafe_id
+    ? historico.filter(
+        (e) => e.cafe_id === extraccion.cafe_id && String(e.id) !== String(extraccion.id),
+      )
+    : [];
   const previa = anteriores[anteriores.length - 1];
   if (previa && previa.dripper !== extraccion.dripper) {
     avisos.push(
@@ -191,6 +195,8 @@ export function cambiosDe(extraccion) {
 export function pares(historico) {
   const porCafe = new Map();
   for (const extraccion of historico) {
+    // Las sueltas no emparejan: compartir «sin bolsa» no las hace el mismo café.
+    if (!extraccion.cafe_id) continue;
     const lista = porCafe.get(extraccion.cafe_id) ?? [];
     lista.push(extraccion);
     porCafe.set(extraccion.cafe_id, lista);
@@ -255,11 +261,13 @@ export function efectos(historico, minimo = MINIMO_PARES) {
 // --- cobertura -------------------------------------------------------------
 
 export function cobertura(cafeId, historico) {
+  // Sin bolsa no hay serie que cubrir: cada taza suelta es de un café que no
+  // consta, así que sumar sus valores dibujaría la cobertura de nadie.
+  const propios = cafeId ? historico.filter((e) => e.cafe_id === cafeId) : [];
   const probado = {};
   for (const variable of ["temp_c", "clics", "receta_id"]) {
     const valores = new Set();
-    for (const e of historico) {
-      if (e.cafe_id !== cafeId) continue;
+    for (const e of propios) {
       const valor = String(e[variable] ?? "").trim();
       if (valor) valores.add(valor);
     }

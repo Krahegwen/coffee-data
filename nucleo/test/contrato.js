@@ -220,6 +220,50 @@ export function contratoDelAlmacen(titulo, fabrica) {
         assert.equal((await listaExtracciones(almacen)).datos.length, 0);
       });
 
+      it("sin bolsa también se guarda: la taza suelta queda apuntada", async () => {
+        const { cafe_id, ...suelta } = EXTRACCION;
+        const { estado, datos } = await crearExtraccion(almacen, suelta);
+        assert.equal(estado, 201);
+        assert.equal(datos.extraccion.cafe_id, null);
+        assert.equal(datos.extraccion.cafe_nombre, null);
+        assert.equal(datos.extraccion.cafe_slug, null);
+        assert.equal(datos.cafe, null);
+        // Las reglas de la propia taza siguen hablando aunque no haya serie.
+        assert.ok(Array.isArray(datos.sugerencias.cambios));
+      });
+
+      it("dos sueltas no se comparan entre sí: no son el mismo café", async () => {
+        const { cafe_id, ...suelta } = EXTRACCION;
+        await crearExtraccion(almacen, { ...suelta, dripper: "v60-02-ceramica", nota: 6 });
+        const { datos } = await crearExtraccion(almacen, suelta);
+        assert.ok(!datos.sugerencias.avisos.some((a) => a.includes("cambiado de dripper")));
+        assert.deepEqual(datos.sugerencias.efectos, {});
+      });
+
+      it("pero una bolsa que viene y no existe sigue siendo 422", async () => {
+        const { estado } = await crearExtraccion(almacen, { ...EXTRACCION, cafe_id: "chemex" });
+        assert.equal(estado, 422);
+        assert.equal((await listaExtracciones(almacen)).datos.length, 0);
+      });
+
+      it("corregir puede quitar la bolsa, o ponerla por su slug", async () => {
+        const creada = await crearExtraccion(almacen, EXTRACCION);
+        const id = creada.datos.extraccion.id;
+
+        const suelta = await editarExtraccion(almacen, id, { cafe_id: "" });
+        assert.equal(suelta.estado, 200);
+        assert.equal(suelta.datos.extraccion.cafe_id, null);
+        assert.equal(suelta.datos.extraccion.cafe_nombre, null);
+
+        const atada = await editarExtraccion(almacen, id, { cafe_id: "gary" });
+        assert.equal(atada.estado, 200);
+        assert.ok(esUuid(atada.datos.extraccion.cafe_id));
+        assert.equal(atada.datos.extraccion.cafe_nombre, "Gary");
+
+        const aNadie = await editarExtraccion(almacen, id, { cafe_id: "chemex" });
+        assert.equal(aNadie.estado, 422);
+      });
+
       it("la lista sale nueva primero y con los derivados puestos", async () => {
         await crearExtraccion(almacen, EXTRACCION);
         await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88, variable_cambiada: "88" });

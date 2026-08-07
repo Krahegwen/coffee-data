@@ -117,6 +117,13 @@ async function bitacoraDePrueba(almacen) {
     variable_cambiada: "Temperatura 91 → 88", defecto: "plano", nota: 5,
   });
   await retirarExtraccion(almacen, segunda.datos.extraccion.id);
+  // Y una suelta: sin bolsa, el cafe_id viaja vacío en el CSV y tiene que
+  // volver vacío, no convertido en error ni en bolsa inventada.
+  await crearExtraccion(almacen, {
+    receta_id: receta.datos.receta.id,
+    temp_c: 92, clics: 26, tiempo_total: "3:10",
+    variable_cambiada: "Primera extracción", defecto: "agrio", nota: 6,
+  });
   return { primera };
 }
 
@@ -127,7 +134,7 @@ describe("el respaldo entero, de ida y vuelta", () => {
 
     const { bytes, manifiesto } = await crearRespaldo(origen, { version: "0.0.0-test" });
     assert.equal(manifiesto.filas.cafes, 2);
-    assert.equal(manifiesto.filas.extracciones, 2);
+    assert.equal(manifiesto.filas.extracciones, 3);
 
     const contenido = await leerRespaldo(bytes);
     const preparado = await prepararRestauracion(contenido);
@@ -155,6 +162,8 @@ describe("el respaldo entero, de ida y vuelta", () => {
     assert.deepEqual(despues.map(sinSellos), antes.map(sinSellos));
     // La retirada sigue retirada, con su fecha, y el ajuste del motor intacto.
     assert.equal(despues.filter((e) => e.borrada_en).length, 1);
+    // La suelta volvió suelta: sin bolsa, no con una inventada.
+    assert.equal(despues.filter((e) => e.cafe_id === null).length, 1);
     assert.deepEqual(
       despues.map((e) => e.siguiente_ajuste),
       antes.map((e) => e.siguiente_ajuste),

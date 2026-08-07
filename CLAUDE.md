@@ -65,8 +65,14 @@ la sugerencia principal. Lo que escribas manda siempre sobre eso.
 dosis da la retención (unos 2 g por gramo de café en V60) y el servidor avisa
 si se sale, que ahí lo que falla es la medida y no el café.
 
-Si falta algún obligatorio (`cafe_id`, `temp_c`, `clics`, `tiempo_total`,
+Si falta algún obligatorio (`temp_c`, `clics`, `tiempo_total`,
 `variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
+
+`cafe_id` es opcional: una taza sin ficha —el café de un amigo, una muestra—
+se registra **suelta**, sin bolsa. El motor no la compara con nada (dos
+sueltas no son el mismo café), así que si el usuario va a repetir ese café,
+ofrécele dar de alta la bolsa antes que registrar a ciegas. Si `cafe_id`
+viene, tiene que existir.
 
 `--drawdown_s` va en segundos, del final del último vertido al fin del goteo.
 Es el dato del que depende la sugerencia de molienda: pídelo aunque sea
@@ -108,7 +114,7 @@ una idea nueva.
 Una fila es **una bolsa**, no un café: el tueste es lo que hace la taza, y dos
 bolsas con el mismo `cafe_id` harían que el motor emparejase extracciones de
 lotes distintos. La app duplica la ficha desde la bolsa vieja («Otra bolsa») y
-arranca la basal con los valores de la última extracción de aquélla, pero el
+arranca la primera extracción con los valores de la última de aquélla, pero el
 motor empieza de cero igual. **Si compras dos bolsas del mismo tueste, es una
 sola ficha.**
 

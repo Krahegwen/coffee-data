@@ -304,6 +304,12 @@ describe("avisos", () => {
     const nueva = extraccion({ id: 2 });
     assert.ok(!avisosDe(nueva, [otro, nueva]).some((a) => a.includes("cambiado de dripper")));
   });
+
+  it("dos sueltas no se comparan: sin bolsa no hay «previa»", () => {
+    const suelta = extraccion({ id: 1, cafe_id: null, dripper: "v60-02-ceramica" });
+    const nueva = extraccion({ id: 2, cafe_id: null });
+    assert.ok(!avisosDe(nueva, [suelta, nueva]).some((a) => a.includes("cambiado de dripper")));
+  });
 });
 
 describe("deltas emparejados", () => {
@@ -323,6 +329,14 @@ describe("deltas emparejados", () => {
 
   it("no empareja extracciones de cafés distintos", () => {
     const historico = [extraccion({ id: 1, cafe_id: "gary" }), extraccion({ id: 2, cafe_id: "abbie", temp_c: 91 })];
+    assert.deepEqual(pares(historico), []);
+  });
+
+  it("las sueltas tampoco emparejan entre sí: compartir «sin bolsa» no las hace el mismo café", () => {
+    const historico = [
+      extraccion({ id: 1, cafe_id: null, temp_c: 94, nota: 7 }),
+      extraccion({ id: 2, cafe_id: null, temp_c: 91, nota: 8 }),
+    ];
     assert.deepEqual(pares(historico), []);
   });
 
@@ -361,6 +375,11 @@ describe("cobertura", () => {
 
   it("ignora los otros cafés", () => {
     assert.deepEqual(cobertura("gary", [extraccion({ cafe_id: "abbie" })]).temp_c, []);
+  });
+
+  it("sin bolsa no hay serie que cubrir", () => {
+    const probado = cobertura(null, [extraccion({ id: 1, cafe_id: null, temp_c: 94 })]);
+    assert.deepEqual(probado, { temp_c: [], clics: [], receta_id: [] });
   });
 });
 
@@ -414,6 +433,12 @@ describe("validación de extracciones", () => {
   it("exige los obligatorios", () => {
     const { errores } = validarExtraccion({ cafe_id: "gary" });
     assert.ok(errores.some((e) => e.includes("obligatorios")));
+  });
+
+  it("la bolsa no es obligatoria: una taza sin ficha se apunta suelta", () => {
+    const { valores, errores } = validarExtraccion(cuerpo({ cafe_id: "" }));
+    assert.deepEqual(errores, []);
+    assert.equal(valores.cafe_id, null);
   });
 
   it("rechaza notas fuera de rango", () => {
@@ -610,8 +635,10 @@ describe("corrección de extracciones", () => {
     assert.equal(validarCambiosExtraccion({ notas_cata: "" }).valores.notas_cata, null);
   });
 
-  it("no deja vaciar el café", () => {
-    assert.ok(validarCambiosExtraccion({ cafe_id: "" }).errores.length);
+  it("vaciar el café es quitarle la bolsa: la extracción queda suelta", () => {
+    const { valores, errores } = validarCambiosExtraccion({ cafe_id: "" });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.cafe_id, null);
   });
 
   it("exige algún campo", () => {

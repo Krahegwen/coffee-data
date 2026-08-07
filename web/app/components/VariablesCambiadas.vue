@@ -95,7 +95,7 @@ function cambiarVariable(i: number, clave: string) {
 <template>
   <div class="variables">
     <p v-if="!anterior" class="pista">
-      No hay ninguna extracción previa de este café: esta es la basal.
+      No hay ninguna extracción previa con la que comparar: esta es la primera.
     </p>
 
     <div v-for="(clave, i) in elegidas" :key="clave" class="fila">

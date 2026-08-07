@@ -63,6 +63,10 @@ def main():
 
     por_cafe = defaultdict(list)
     for e in ext:
+        # Las sueltas no entran al ranking: compartir «sin bolsa» no las hace
+        # el mismo café, y una media de tazas sin relación no ordena nada.
+        if e["cafe_id"] is None:
+            continue
         n = num(e["nota"])
         if n is not None:
             por_cafe[e["cafe_id"]].append(n)
@@ -78,7 +82,7 @@ def main():
     # El uuid no aporta a la vista: identifican la fila el día y el café.
     for e in sorted(ext, key=lambda e: (e["creado_en"], e["id"])):
         dias = e.get("dias_tueste")
-        print(f"  {e['fecha']}  {e.get('cafe_nombre') or e['cafe_slug']:<14}"
+        print(f"  {e['fecha']}  {e.get('cafe_nombre') or e.get('cafe_slug') or '(sin bolsa)':<14}"
               f" {e['temp_c']}°C  {e['clics']} clics  {e['reparto']:<12}"
               f" nota {e['nota']:<4} [{e['variable_cambiada']}]"
               f"{'' if dias is None else f'  {dias}d'}")

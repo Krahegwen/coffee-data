@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
-import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const route = useRoute()
@@ -13,10 +13,10 @@ const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
 
 const original = computed(() => (historial.value ?? []).find((e) => e.id === id) ?? null)
 
-/** «Gary · 6 ago»: la id es un uuid opaco y no se enseña. */
+/** «Gary · 6 ago» — o «Sin bolsa · 6 ago» si la taza se apuntó suelta. */
 const titulo = computed(() =>
   original.value
-    ? `${original.value.cafe_nombre} · ${fechaCorta(original.value.fecha)}`
+    ? `${nombreCafe(original.value.cafe_nombre)} · ${fechaCorta(original.value.fecha)}`
     : 'Extracción',
 )
 
@@ -30,7 +30,9 @@ useHead({ title: () => titulo.value })
  */
 const anterior = computed(() => {
   const mia = original.value
-  if (!mia) return null
+  // Una taza suelta no tiene «antes»: las demás sueltas comparten el cafe_id
+  // vacío, pero cada una es un café distinto.
+  if (!mia || !mia.cafe_id) return null
   const clave = (e: Extraccion) => `${e.creado_en}|${e.id}`
   const propias = (historial.value ?? [])
     .filter((e) => e.cafe_id === mia.cafe_id && clave(e) < clave(mia))
@@ -197,9 +199,12 @@ async function retirar() {
       <!-- El uuid no se enseña: el café y el día ya identifican la taza. -->
       <h2>{{ titulo }}<template v-if="original.tiempo_total"> · {{ original.tiempo_total }}</template></h2>
 
+      <!-- «Sin bolsa» suelta la extracción de su ficha; elegir una la ata.
+           Vaciar aquí es corregir, no borrar: la taza se queda. -->
       <label>
         Café
         <select v-model="form.cafe_id">
+          <option value="">Sin bolsa</option>
           <option v-for="c in bolsas ?? []" :key="c.id" :value="c.id">{{ c.nombre }}</option>
         </select>
       </label>

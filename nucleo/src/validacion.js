@@ -24,8 +24,10 @@ export const POR_DEFECTO = {
   dripper: "v60-02-plastico",
 };
 
+// cafe_id no está: una taza sin ficha —el café de un amigo, una muestra— se
+// apunta sin bolsa. Sin ella no hay serie que comparar, pero la taza queda.
 export const OBLIGATORIOS = [
-  "cafe_id", "temp_c", "clics", "tiempo_total", "variable_cambiada", "defecto", "nota",
+  "temp_c", "clics", "tiempo_total", "variable_cambiada", "defecto", "nota",
 ];
 
 // Columnas que acepta el endpoint. reparto entra pero se calcula si falta;
@@ -352,10 +354,11 @@ export function validarCambiosExtraccion(cuerpo) {
     valores.fecha = fecha;
   }
 
+  // Vaciarlo es legal y significa quitarle la bolsa: la extracción pasa a
+  // ser suelta, como una que se hubiera apuntado sin ficha.
   if (dado("cafe_id")) {
     const cafeId = String(entrada.cafe_id ?? "").trim();
-    if (!cafeId) errores.push("cafe_id no puede quedar vacío");
-    valores.cafe_id = cafeId;
+    valores.cafe_id = cafeId || null;
   }
 
   for (const campo of ["dosis_g", "agua_g"]) {

@@ -3,7 +3,7 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 useHead({ title: 'Registrar extracción' })
 
-import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { DEFECTOS, DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const route = useRoute()
@@ -64,16 +64,22 @@ watchEffect(() => {
   form.receta_id = (base ?? catalogo.value[0]!).id
 })
 
-/** La última de este café: de ahí salen los valores «de antes». */
-const anterior = computed(
-  () => (historial.value ?? []).find((e) => e.cafe_id === form.cafe_id) ?? null,
+/**
+ * La última de este café: de ahí salen los valores «de antes». Sin bolsa no
+ * hay «antes»: las sueltas también tienen cafe_id vacío, pero cada una es un
+ * café distinto y compararlas mentiría.
+ */
+const anterior = computed(() =>
+  form.cafe_id
+    ? (historial.value ?? []).find((e) => e.cafe_id === form.cafe_id) ?? null
+    : null,
 )
 
 /**
  * La última extracción de la bolsa **anterior del mismo café**, cuando la de
  * ahora está estrenada.
  *
- * Sirve para arrancar la basal donde lo dejaste y no en los valores de
+ * Sirve para arrancar la primera donde lo dejaste y no en los valores de
  * fábrica: la bolsa es nueva, pero el café y tu molinillo son los mismos.
  *
  * La familia se reconoce por el slug, que es como el servidor los reparte al
@@ -88,8 +94,9 @@ const bolsaPrevia = computed(() => {
   const mia = (bolsas.value ?? []).find((c) => c.id === form.cafe_id)
   if (!mia) return null
   const base = familia(mia.slug)
+  // Las sueltas no tienen slug ni familia: no son la bolsa anterior de nadie.
   return (historial.value ?? []).find(
-    (e) => e.cafe_id !== form.cafe_id && familia(e.cafe_slug) === base,
+    (e) => e.cafe_id !== form.cafe_id && e.cafe_slug && familia(e.cafe_slug) === base,
   ) ?? null
 })
 
@@ -117,8 +124,8 @@ const DESDE_LA_URL: Record<string, string> = {
  *
  * Lo segundo **solo rellena campos**. El motor de sugerencias empieza de cero
  * igual, porque empareja por `cafe_id` y este es otro: no habrá deltas contra
- * la bolsa vieja ni fila en la tabla, y la extracción queda como «basal». Y
- * tiene que ser así — el tueste es nuevo, así que la taza no es comparable.
+ * la bolsa vieja ni fila en la tabla, y la extracción queda como «Primera
+ * extracción». Y tiene que ser así — el tueste es nuevo, la taza no compara.
  */
 const arranque = computed(() => anterior.value ?? bolsaPrevia.value)
 
@@ -163,14 +170,14 @@ const textoVariables = computed(() =>
  * enviar. Reescribirlo en caliente hacía que la etiqueta cambiara sola cada
  * vez que se añadía o se quitaba una fila.
  *
- * «basal» sí se pone y se quita solo, porque ese sí se teclea: solo es verdad
- * mientras no haya nada anterior con lo que comparar, así que si cambias de
- * bolsa se va con ella.
+ * «Primera extracción» sí se pone y se quita solo, porque ese sí se teclea:
+ * solo es verdad mientras no haya nada anterior con lo que comparar, así que
+ * si cambias de bolsa se va con ella.
  */
 watchEffect(() => {
   if (cambiadas.value.length) return
-  if (!anterior.value && !form.variable_cambiada) form.variable_cambiada = 'basal'
-  if (anterior.value && form.variable_cambiada === 'basal') form.variable_cambiada = ''
+  if (!anterior.value && !form.variable_cambiada) form.variable_cambiada = 'Primera extracción'
+  if (anterior.value && form.variable_cambiada === 'Primera extracción') form.variable_cambiada = ''
 })
 
 /** Lo que se queda el lecho, por gramo de café. El juicio lo da el servidor. */
@@ -208,7 +215,20 @@ const enviando = ref(false)
 const errores = ref<string[]>([])
 const resultado = ref<Creada | null>(null)
 
-watchEffect(() => { if (!form.cafe_id && abiertas.value.length) form.cafe_id = abiertas.value[0]!.id })
+/*
+ * La primera bolsa abierta se propone una sola vez, cuando la lista llega:
+ * después manda lo elegido, que «Sin bolsa» también es una elección y un
+ * watch permanente la taparía con una bolsa en cuanto la soltaras. Lo que
+ * trae la URL cuenta como elegido: viene del cronómetro, con o sin bolsa.
+ */
+const bolsaPropuesta = useState('borrador-extraccion-bolsa', () => false)
+watchEffect(() => {
+  if (bolsaPropuesta.value || !bolsas.value) return
+  bolsaPropuesta.value = true
+  if (q.cafe === undefined && !form.cafe_id && abiertas.value.length) {
+    form.cafe_id = abiertas.value[0]!.id
+  }
+})
 
 const ratio = computed(() =>
   Number(form.dosis_g) > 0 ? (Number(form.agua_g) / Number(form.dosis_g)).toFixed(1) : '—',
@@ -220,7 +240,6 @@ async function enviar() {
   enviando.value = true
   try {
     const datos: NuevaExtraccion = {
-      cafe_id: String(form.cafe_id),
       temp_c: Number(form.temp_c),
       clics: Number(form.clics),
       tiempo_total: String(form.tiempo_total),
@@ -234,6 +253,8 @@ async function enviar() {
       receta_id: String(form.receta_id),
       dripper: String(form.dripper),
     }
+    // Vacío es una elección: la taza va suelta y el cuerpo no lleva cafe_id.
+    if (form.cafe_id) datos.cafe_id = String(form.cafe_id)
     if (form.drawdown_s !== '') datos.drawdown_s = Number(form.drawdown_s)
     if (form.extraido_g !== '') datos.extraido_g = Number(form.extraido_g)
     if (String(form.notas_cata).trim()) datos.notas_cata = String(form.notas_cata).trim()
@@ -271,19 +292,22 @@ async function enviar() {
       Tiempo y goteo vienen del cronómetro.
     </p>
 
-    <!-- Aquí la bolsa sí es obligatoria: toda extracción se apunta a su
-         café. El cronómetro deja cronometrar sin ella; guardar no. -->
-    <p v-if="!abiertas.length" class="fallo">
-      No tienes ninguna bolsa abierta, y una extracción se apunta siempre a la
-      suya. <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> y vuelve: lo
-      escrito aquí no se pierde.
-    </p>
-    <label v-else>
+    <!-- La bolsa ya no es obligatoria: el café de un amigo o una muestra
+         suelta se guardan sin ficha. Eso sí, una taza suelta no compara con
+         nada, y el aviso ofrece el alta antes que inventarse una bolsa. -->
+    <label>
       Café
-      <select v-model="form.cafe_id" required>
+      <select v-model="form.cafe_id">
+        <option value="">Sin bolsa</option>
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
     </label>
+    <p v-if="!form.cafe_id" class="meta">
+      Sin bolsa la taza queda apuntada, pero no compara con nada ni suma a
+      ningún historial. Si este café va a repetir,
+      <NuxtLink to="/cafes/nueva">dale de alta su bolsa</NuxtLink>: lo escrito
+      aquí no se pierde.
+    </p>
 
     <div class="pareja">
       <label>Dosis (g)<input v-model.number="form.dosis_g" type="number" step="0.1" min="1" required></label>
@@ -336,16 +360,16 @@ async function enviar() {
       Los valores vienen de la última de la bolsa anterior
       ({{ bolsaPrevia.fecha }}<span v-if="bolsaPrevia.dias_abierta !== null">, que
       llevaba {{ bolsaPrevia.dias_abierta }} días abierta</span>). El tueste es
-      otro, así que esta cuenta como basal y no se compara con aquélla — y esos
-      ajustes pueden estar compensando un café ya apagado.
+      otro, así que esta cuenta como primera extracción y no se compara con
+      aquélla — y esos ajustes pueden estar compensando un café ya apagado.
     </p>
     <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
          repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay
          cambios que no son una columna —la báscula nueva, el agua de otra
-         botella— y la primera de una bolsa no cambia nada, es la basal. -->
+         botella— y la primera de una bolsa no cambia nada. -->
     <label v-if="!cambiadas.length">
       Variable cambiada
-      <input v-model="form.variable_cambiada" placeholder="basal" required>
+      <input v-model="form.variable_cambiada" placeholder="Primera extracción" required>
     </label>
 
     <label>
@@ -378,7 +402,7 @@ async function enviar() {
   </section>
 
   <section v-if="resultado" class="tarjeta exito">
-    <strong>Guardada · {{ resultado.cafe }}, {{ fechaCorta(resultado.extraccion.fecha) }}</strong>
+    <strong>Guardada · {{ nombreCafe(resultado.cafe) }}, {{ fechaCorta(resultado.extraccion.fecha) }}</strong>
     <p class="meta">
       reparto {{ resultado.extraccion.reparto }} · 1:{{ resultado.extraccion.ratio }}
       <span v-if="resultado.extraccion.dias_tueste !== null">

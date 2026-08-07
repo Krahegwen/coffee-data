@@ -65,6 +65,14 @@ export function fechaCorta(fecha: string | null | undefined): string {
   return dia.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 
+/**
+ * El nombre de la bolsa, o «Sin bolsa» si la extracción se apuntó suelta.
+ * En la base es un null; en una tarjeta, un hueco mudo no cuenta nada.
+ */
+export function nombreCafe(nombre: string | null | undefined): string {
+  return nombre ?? 'Sin bolsa'
+}
+
 /** Las variables que son de elegir de una lista, no de teclear un número. */
 export type OpcionesDeVariable = Record<string, { valor: string; etiqueta: string }[]>
 

@@ -413,11 +413,18 @@ curl -X POST https://brew.krahegwen.com/api/extracciones \
        "nota":8,"notas_cata":"Más dulzor"}'
 ```
 
-Obligatorios: `cafe_id`, `temp_c`, `clics`, `tiempo_total`, `variable_cambiada`,
-`defecto` y `nota`. Lo que no mandes toma la receta base: `dosis_g` 20, `agua_g`
-300, molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la
+Obligatorios: `temp_c`, `clics`, `tiempo_total`, `variable_cambiada`, `defecto`
+y `nota`. Lo que no mandes toma la receta base: `dosis_g` 20, `agua_g` 300,
+molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la
 fecha de hoy. La fila entra entera o no entra: si algo no valida, **422** con la
 lista de errores y no se escribe nada.
+
+`cafe_id` es opcional desde que las tazas sin ficha —el café de un amigo, una
+muestra suelta— también se pueden apuntar: sin él la extracción queda
+**suelta**. Se guarda y cuenta en la media global, pero el motor no la compara
+con nada: dos sueltas no son el mismo café, así que no hay deltas, ni cobertura,
+ni serie. Si el café va a repetir, dale su bolsa; si viene `cafe_id`, tiene que
+existir.
 
 ## Puesta en marcha
 
@@ -546,11 +553,11 @@ peso— y en blanco lo que describe a *esa* bolsa: tueste, consumir antes,
 compra, recepción, precio y foto. El id lo reparte el servidor: `gary`,
 `gary_2`, `gary_3`.
 
-Y la **basal de la bolsa nueva arranca donde lo dejaste**: el alta se rellena
+Y la **primera de la bolsa nueva arranca donde lo dejaste**: el alta se rellena
 con la última extracción de la bolsa anterior del mismo café. Solo rellena
 campos. El motor empieza de cero igual —empareja por `cafe_id` y este es
 otro—, así que no hay deltas contra la bolsa vieja, ni fila en la tabla, y la
-extracción queda como `basal`.
+extracción queda como `Primera extracción`.
 
 La familia se reconoce por el slug, que es como el servidor los reparte. Es una
 pista y no una verdad: un café llamado «Finca 2» caería en la familia de

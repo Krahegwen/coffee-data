@@ -242,11 +242,15 @@ export async function crearExtraccion(almacen, cuerpo) {
   if (errores.length) return respuesta(422, { errores });
 
   // cafe_id y receta_id llegan como uuid desde la app o como slug desde curl:
-  // se resuelven aquí y a la fila van siempre los uuid.
+  // se resuelven aquí y a la fila van siempre los uuid. La bolsa es opcional
+  // —una taza sin ficha se apunta suelta—, pero si viene tiene que existir.
   const cafes = await almacen.cafes.listar();
-  const cafe = porRef(cafes, valores.cafe_id);
-  if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
-  valores.cafe_id = cafe.id;
+  let cafe = null;
+  if (valores.cafe_id) {
+    cafe = porRef(cafes, valores.cafe_id);
+    if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
+    valores.cafe_id = cafe.id;
+  }
 
   const recetas = await almacen.recetas.listar();
   const receta = porRef(recetas, valores.receta_id);
@@ -284,8 +288,10 @@ export async function crearExtraccion(almacen, cuerpo) {
     return respuesta(422, { errores: [`la base rechazó la fila: ${error.message}`] });
   }
 
+  // Sin bolsa no hay serie: el motor solo ve la taza recién escrita. Dos
+  // extracciones sueltas son cafés distintos y emparejarlas mentiría.
   const historico = (await almacen.extracciones.listar())
-    .filter((e) => !e.borrada_en && e.cafe_id === cafe.id)
+    .filter((e) => !e.borrada_en && (cafe ? e.cafe_id === cafe.id : e.id === fila.id))
     .sort(cronologico)
     .map((e) => conDerivados(e, cafes, recetas));
   const mia = historico.find((e) => e.id === fila.id) ?? conDerivados(fila, cafes, recetas);
@@ -303,7 +309,7 @@ export async function crearExtraccion(almacen, cuerpo) {
 
   return respuesta(201, {
     extraccion: mia,
-    cafe: cafe.nombre,
+    cafe: cafe?.nombre ?? null,
     sugerencias: { ...sugerencia, resumen },
   });
 }
@@ -314,6 +320,14 @@ export async function editarExtraccion(almacen, id, cuerpo) {
 
   const { valores, errores } = validarCambiosExtraccion(cuerpo);
   if (errores.length) return respuesta(422, { errores });
+
+  // Atar la extracción a otra bolsa acepta uuid o slug, como el alta; vacío
+  // ya llegó como null de la validación y significa quitársela.
+  if (valores.cafe_id) {
+    const cafe = porRef(await almacen.cafes.listar(), valores.cafe_id);
+    if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
+    valores.cafe_id = cafe.id;
+  }
 
   // Aquí hace falta la fila: el agua puede venir en este PATCH o llevar
   // guardada desde el alta, y cualquiera de las dos manda sobre lo extraído.

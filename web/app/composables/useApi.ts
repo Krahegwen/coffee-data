@@ -52,9 +52,10 @@ export interface Extraccion {
   id: string
   fecha: string
   creado_en: string
-  cafe_id: string
-  cafe_nombre: string
-  cafe_slug: string
+  /** Null en una taza suelta: se apuntó sin bolsa y no compara con nada. */
+  cafe_id: string | null
+  cafe_nombre: string | null
+  cafe_slug: string | null
   receta_slug: string | null
   dosis_g: number
   agua_g: number
@@ -128,13 +129,15 @@ export interface Sugerencias {
 
 export interface Creada {
   extraccion: Extraccion
-  cafe: string
+  /** El nombre de la bolsa, o null si la taza se apuntó suelta. */
+  cafe: string | null
   sugerencias: Sugerencias
 }
 
 /** Lo que la app manda. El servidor calcula id, reparto, ratio y dias_tueste. */
 export interface NuevaExtraccion {
-  cafe_id: string
+  /** Sin él, la extracción queda suelta: taza apuntada, sin serie. */
+  cafe_id?: string
   temp_c: number
   clics: number
   tiempo_total: string

@@ -13,8 +13,9 @@ const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 
 
 /**
  * Sin receta no hay guion y el cronómetro no sabría qué marcar: este sí
- * corta el paso. La bolsa en cambio es opcional aquí — cronometrar un café
- * no obliga a apuntarlo—; la exige el alta, que es quien escribe.
+ * corta el paso. La bolsa en cambio es opcional de punta a punta: se puede
+ * cronometrar sin ella y el alta también guarda sin ella — la taza queda
+ * suelta, sin serie con la que comparar.
  */
 const sinRecetas = computed(() => !(catalogo.value ?? []).length)
 
@@ -365,12 +366,13 @@ onUnmounted(soltar)
       <button type="button" class="vaciar" @click="restablecer">Restablecer</button>
     </div>
 
-    <!-- Sin bolsa se puede cronometrar igual: el aviso ofrece el alta, no lo
-         exige. Registrar sí pedirá una — es quien escribe. -->
+    <!-- Sin bolsa se puede cronometrar y también registrar: la extracción
+         queda suelta. El aviso ofrece el alta porque sin ficha no hay
+         historial que comparar, no porque haga falta. -->
     <p v-if="!abiertas.length" class="sin-bolsas">
-      No tienes ninguna bolsa abierta. Puedes usar el cronómetro igual, pero
-      registrar la extracción pedirá una:
-      <NuxtLink to="/cafes/nueva">dala de alta</NuxtLink> si el café lo merece.
+      No tienes ninguna bolsa abierta: la extracción se registrará sin bolsa
+      y no comparará con nada.
+      <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> si el café lo merece.
     </p>
     <label v-else>
       Café

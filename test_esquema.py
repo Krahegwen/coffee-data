@@ -158,6 +158,35 @@ def test_los_pasos_exigen_que_la_receta_exista(db):
         )
 
 
+# --- extracciones sin bolsa --------------------------------------------------
+# El café de un amigo o una muestra suelta se apuntan sin ficha: cafe_id
+# admite NULL, pero si viene tiene que existir (el test de arriba).
+
+def test_una_extraccion_sin_bolsa_entra(db):
+    insertar_extraccion(db, cafe_id="NULL")
+    fila = db.execute(
+        "SELECT cafe_id FROM extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
+    ).fetchone()
+    assert fila[0] is None
+
+
+def test_la_vista_saca_la_extraccion_sin_bolsa_con_el_cafe_a_null(db):
+    insertar_extraccion(db, cafe_id="NULL")
+    fila = db.execute(
+        "SELECT cafe_nombre, cafe_slug, dias_tueste, dias_abierta, ratio "
+        "FROM v_extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
+    ).fetchone()
+    assert fila == (None, None, None, None, 15.0)
+
+
+def test_retirar_una_sin_bolsa_la_lleva_a_su_vista(db):
+    insertar_extraccion(db, cafe_id="NULL")
+    db.execute("UPDATE extracciones SET borrada_en = datetime('now') WHERE cafe_id IS NULL")
+    assert db.execute(
+        "SELECT COUNT(*) FROM v_extracciones_retiradas WHERE cafe_id IS NULL"
+    ).fetchone()[0] == 1
+
+
 # --- restricciones de extracciones -------------------------------------------
 
 @pytest.mark.parametrize("nota", ["0", "11", "-3"])
