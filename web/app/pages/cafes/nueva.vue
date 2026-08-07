@@ -20,6 +20,17 @@ const copiaDe = computed(() => {
 
 useHead({ title: () => (copiaDe.value ? `Otra de ${copiaDe.value.nombre}` : 'Nueva bolsa') })
 
+/**
+ * El mismo `?de=` de «Otra bolsa», elegible también desde aquí: no hace
+ * falta pasar por la ficha para partir de una que ya tienes. Va a la URL en
+ * vez de a un ref para que copiar el enlace copie también el punto de
+ * partida.
+ */
+const partirDe = computed({
+  get: () => String(route.query.de ?? ''),
+  set: (cual) => { void router.replace({ query: cual ? { de: cual } : {} }) },
+})
+
 const form = reactive<Record<string, any>>({
   nombre: '', tostador: '', origen: '', region: '', variedad: '',
   proceso: '', altitud_m: '', sca: '', fecha_tueste: '', consumir_antes: '',
@@ -80,6 +91,13 @@ async function enviar() {
   />
 
   <form @submit.prevent="enviar">
+    <label v-if="(bolsas ?? []).length" class="partir">
+      Partir de otra bolsa
+      <select v-model="partirDe">
+        <option value="">— desde cero —</option>
+        <option v-for="c in bolsas ?? []" :key="c.id" :value="c.slug">{{ c.nombre }}</option>
+      </select>
+    </label>
     <p v-if="copiaDe" class="pista">
       Copiado de <strong>{{ copiaDe.nombre }}</strong>: falta lo que cambia en
       cada bolsa —tueste, compra, precio y foto—. El id lo pone el servidor.
@@ -101,6 +119,25 @@ async function enviar() {
   color: var(--suave);
   font-size: 0.82rem;
   margin: 0 0 0.9rem;
+}
+
+.partir {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--suave);
+  margin: 0 0 0.9rem;
+}
+
+.partir select {
+  font: inherit;
+  font-size: 16px;
+  color: var(--tinta);
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.65rem;
 }
 
 button {

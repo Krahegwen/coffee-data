@@ -31,6 +31,16 @@ useHead({
   },
 })
 
+/**
+ * El mismo `?de=` del botón «Duplicar», elegible desde el propio formulario:
+ * variar una receta que funciona no obliga a pasar por su ficha. En la URL y
+ * no en un ref, para que el enlace copiado lleve el punto de partida.
+ */
+const partirDe = computed({
+  get: () => copiaDe.value,
+  set: (cual) => { void router.replace({ query: cual ? { de: cual } : {} }) },
+})
+
 // Sin campo de id: el slug sale del nombre en el servidor, como en las bolsas.
 const form = reactive({ nombre: '', ratio: 15 as number | '', notas: '' })
 const pasos = ref<PasoEditable[]>([
@@ -134,6 +144,14 @@ async function borrar() {
         <NuxtLink :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>
       </div>
 
+      <label v-if="esNueva && (catalogo ?? []).length" class="partir">
+        Partir de otra receta
+        <select v-model="partirDe">
+          <option value="">— desde cero —</option>
+          <option v-for="r in catalogo ?? []" :key="r.id" :value="r.slug">{{ r.nombre }}</option>
+        </select>
+      </label>
+
       <p v-if="copiaDe && !fuente" class="fallo">
         No hay ninguna receta «{{ copiaDe }}»: el formulario sale vacío.
       </p>
@@ -210,7 +228,7 @@ form { display: flex; flex-direction: column; gap: 0.85rem; }
 label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.82rem; color: var(--suave); }
 .pareja { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
-input {
+input, select {
   font: inherit; font-size: 16px; color: var(--tinta); background: var(--tarjeta);
   border: 1px solid var(--linea); border-radius: 0.5rem; padding: 0.6rem 0.65rem; min-width: 0;
 }
