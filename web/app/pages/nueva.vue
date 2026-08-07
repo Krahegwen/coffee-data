@@ -55,6 +55,10 @@ if (q.dosis !== undefined) form.dosis_g = numero(q.dosis, 20)
 if (q.agua !== undefined) form.agua_g = numero(q.agua, 300)
 if (q.tiempo !== undefined) form.tiempo_total = String(q.tiempo)
 if (q.drawdown !== undefined) form.drawdown_s = Number(q.drawdown)
+// La bolsa recién dada de alta: el alta reenvía aquí con ?bolsa= cuando se
+// fue desde este formulario, y llega ya elegida. El resto del borrador sigue
+// como estaba.
+if (q.bolsa !== undefined) form.cafe_id = String(q.bolsa)
 
 // Sin receta en la URL, la de siempre. Por slug, que los uuids no son de fiar
 // entre bases.
@@ -100,6 +104,18 @@ const bolsaPrevia = computed(() => {
   ) ?? null
 })
 
+/**
+ * La última suelta, cuando registras sin bolsa. El café será otro —o eso hay
+ * que suponer—, pero el molinillo, el hervidor y la mano son los mismos, así
+ * que la siguiente parte de tus últimos parámetros y no de los de fábrica.
+ *
+ * Solo rellena campos, como la bolsa anterior: entre sueltas sigue sin haber
+ * «antes», ni deltas, ni nada que comparar.
+ */
+const sueltaPrevia = computed(() =>
+  form.cafe_id ? null : (historial.value ?? []).find((e) => !e.cafe_id) ?? null,
+)
+
 // Parte del borrador: las filas de variables también vuelven al volver.
 const cambiadas = useState<string[]>('borrador-extraccion-variables', () => [])
 
@@ -119,15 +135,17 @@ const DESDE_LA_URL: Record<string, string> = {
 }
 
 /**
- * De dónde parte el formulario: la última de esta bolsa y, si está estrenada,
- * la última de la bolsa anterior del mismo café.
+ * De dónde parte el formulario: la última de esta bolsa; si está estrenada,
+ * la última de la bolsa anterior del mismo café; y sin bolsa, la última
+ * suelta.
  *
- * Lo segundo **solo rellena campos**. El motor de sugerencias empieza de cero
- * igual, porque empareja por `cafe_id` y este es otro: no habrá deltas contra
- * la bolsa vieja ni fila en la tabla, y la extracción queda como «Primera
- * extracción». Y tiene que ser así — el tueste es nuevo, la taza no compara.
+ * Todo lo que no es «la última de esta bolsa» **solo rellena campos**. El
+ * motor de sugerencias empieza de cero igual, porque empareja por `cafe_id`:
+ * no habrá deltas contra la bolsa vieja ni fila en la tabla, y la extracción
+ * queda como «Primera extracción». Y tiene que ser así — el tueste (o el
+ * café entero) es otro, la taza no compara.
  */
-const arranque = computed(() => anterior.value ?? bolsaPrevia.value)
+const arranque = computed(() => anterior.value ?? bolsaPrevia.value ?? sueltaPrevia.value)
 
 /**
  * De qué extracción se rellenó ya este borrador. Sin el sello, volver a la
@@ -305,8 +323,9 @@ async function enviar() {
     <p v-if="!form.cafe_id" class="meta">
       Sin bolsa la taza queda apuntada, pero no compara con nada ni suma a
       ningún historial. Si este café va a repetir,
-      <NuxtLink to="/cafes/nueva">dale de alta su bolsa</NuxtLink>: lo escrito
-      aquí no se pierde.
+      <NuxtLink :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
+        dale de alta su bolsa</NuxtLink>: al guardarla vuelves aquí con ella
+      puesta, y lo escrito no se pierde.
     </p>
 
     <div class="pareja">
@@ -362,6 +381,13 @@ async function enviar() {
       llevaba {{ bolsaPrevia.dias_abierta }} días abierta</span>). El tueste es
       otro, así que esta cuenta como primera extracción y no se compara con
       aquélla — y esos ajustes pueden estar compensando un café ya apagado.
+    </p>
+    <!-- El mismo trato que la bolsa anterior: se dice de dónde parten los
+         números, y que partir no es comparar. -->
+    <p v-if="sueltaPrevia" class="meta">
+      Los valores parten de tu última extracción sin bolsa
+      ({{ fechaCorta(sueltaPrevia.fecha) }}). Cada suelta es un café distinto:
+      no se comparan, esto es solo el punto de partida.
     </p>
     <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
          repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay

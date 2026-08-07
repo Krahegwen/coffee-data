@@ -422,9 +422,14 @@ lista de errores y no se escribe nada.
 `cafe_id` es opcional desde que las tazas sin ficha —el café de un amigo, una
 muestra suelta— también se pueden apuntar: sin él la extracción queda
 **suelta**. Se guarda y cuenta en la media global, pero el motor no la compara
-con nada: dos sueltas no son el mismo café, así que no hay deltas, ni cobertura,
-ni serie. Si el café va a repetir, dale su bolsa; si viene `cafe_id`, tiene que
-existir.
+con ninguna otra: dos sueltas no son el mismo café, así que no hay deltas, ni
+cobertura, ni serie. **Las reglas de la propia taza sí sugieren igual** — el
+defecto manda su palanca, el goteo su molienda y la retención su aviso, y el
+`siguiente_ajuste` se guarda como siempre—. En la app, el formulario de una
+suelta arranca además con los parámetros de la última suelta: el café es otro,
+pero el molinillo y la mano no, así que se parte de ahí en vez de los valores
+de fábrica (solo rellena campos, sin comparar). Si el café va a repetir, dale
+su bolsa; si viene `cafe_id`, tiene que existir.
 
 ## Puesta en marcha
 

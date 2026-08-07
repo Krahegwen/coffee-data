@@ -89,6 +89,20 @@ watchEffect(() => {
   sembrada = true
 })
 
+/**
+ * La bolsa recién creada vuelve elegida: el alta reenvía aquí con `?bolsa=`
+ * al llegar desde el enlace de abajo. Pisa el formulario una vez y solo si
+ * la bolsa existe de verdad; guardar sigue siendo cosa tuya.
+ */
+const bolsaRecien = String(route.query.bolsa ?? '')
+let bolsaPuesta = false
+watchEffect(() => {
+  if (bolsaPuesta || !bolsaRecien || !original.value) return
+  if (!(bolsas.value ?? []).some((c) => c.id === bolsaRecien)) return
+  bolsaPuesta = true
+  form.cafe_id = bolsaRecien
+})
+
 // Tocar un campo de arriba crea su fila si el valor se aleja de la anterior.
 useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> | null, cambiadas)
 
@@ -208,6 +222,13 @@ async function retirar() {
           <option v-for="c in bolsas ?? []" :key="c.id" :value="c.id">{{ c.nombre }}</option>
         </select>
       </label>
+      <!-- El camino de vuelta lo pone ?volver=: el alta reenvía aquí con la
+           bolsa nueva ya elegida, y atarla es solo guardar. -->
+      <p class="meta">
+        ¿La bolsa no existe todavía?
+        <NuxtLink :to="{ path: '/cafes/nueva', query: { volver: `/extracciones/${id}` } }">
+          Dala de alta</NuxtLink>: al guardarla vuelves aquí con ella puesta.
+      </p>
 
       <div class="pareja">
         <label>Fecha<input v-model="form.fecha" type="date"></label>

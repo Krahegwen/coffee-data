@@ -31,6 +31,18 @@ const partirDe = computed({
   set: (cual) => { void router.replace({ query: cual ? { de: cual } : {} }) },
 })
 
+/**
+ * A dónde volver tras el alta, cuando se llega desde otro formulario — la
+ * ficha de una extracción suelta, el alta de extracción—. Se vuelve con
+ * `?bolsa=<id>` para que la recién creada llegue ya elegida y atarla sea
+ * solo guardar. Solo rutas de la app; cualquier otra cosa se ignora y se va
+ * a la ficha nueva, como siempre.
+ */
+const volverA = computed(() => {
+  const volver = String(route.query.volver ?? '')
+  return volver.startsWith('/') ? volver : ''
+})
+
 const EN_BLANCO = (): Record<string, any> => ({
   nombre: '', tostador: '', origen: '', region: '', variedad: '',
   proceso: '', altitud_m: '', sca: '', fecha_tueste: '', consumir_antes: '',
@@ -80,8 +92,11 @@ const errores = ref<string[]>([])
 /** La ficha en blanco otra vez, preset de la URL incluido. */
 async function vaciar() {
   // La URL primero: si el sello se limpiara con la `?de=` aún puesta, el
-  // watchEffect del preset volvería a copiar la bolsa en esa ventana.
-  if (route.query.de !== undefined) await router.replace({ query: {} })
+  // watchEffect del preset volvería a copiar la bolsa en esa ventana. El
+  // `?volver=` se queda: vaciar el borrador no cancela el viaje de vuelta.
+  if (route.query.de !== undefined) {
+    await router.replace({ query: volverA.value ? { volver: volverA.value } : {} })
+  }
   Object.assign(form, EN_BLANCO())
   copiadaYa.value = ''
 }
@@ -96,10 +111,16 @@ async function enviar() {
       Object.entries(form).filter(([, v]) => String(v ?? '').trim() !== ''),
     )
     const { cafe } = await crearCafe(datos)
+    // Antes de vaciar, que el destino vive en la query y vaciar la toca.
+    const destino = volverA.value
     // Dada de alta, el borrador ya no es un borrador: la próxima empieza
     // limpia en vez de precargada con esta.
     await vaciar()
-    await router.push(`/cafes/${cafe.slug}`)
+    if (destino) {
+      await router.push({ path: destino, query: { bolsa: cafe.id } })
+    } else {
+      await router.push(`/cafes/${cafe.slug}`)
+    }
   } catch (fallo) {
     errores.value = erroresDe(fallo)
   } finally {

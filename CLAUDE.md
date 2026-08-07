@@ -69,10 +69,12 @@ Si falta algún obligatorio (`temp_c`, `clics`, `tiempo_total`,
 `variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
 
 `cafe_id` es opcional: una taza sin ficha —el café de un amigo, una muestra—
-se registra **suelta**, sin bolsa. El motor no la compara con nada (dos
-sueltas no son el mismo café), así que si el usuario va a repetir ese café,
-ofrécele dar de alta la bolsa antes que registrar a ciegas. Si `cafe_id`
-viene, tiene que existir.
+se registra **suelta**, sin bolsa. El motor no la compara con ninguna otra
+(dos sueltas no son el mismo café), pero las reglas de la propia taza sí
+sugieren: defecto, goteo y retención hablan igual y `siguiente_ajuste` se
+guarda como siempre. Si el usuario va a repetir ese café, ofrécele dar de
+alta la bolsa antes que registrar a ciegas. Si `cafe_id` viene, tiene que
+existir.
 
 `--drawdown_s` va en segundos, del final del último vertido al fin del goteo.
 Es el dato del que depende la sugerencia de molienda: pídelo aunque sea
