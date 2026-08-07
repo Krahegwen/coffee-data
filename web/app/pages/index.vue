@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { avisoRespaldo } from '~/almacen/respaldo'
 import { fechaCorta } from '~/composables/textos'
 
 const { cafes, extracciones } = useApi()
+const { activa } = useSesion()
 
 const { data: bolsas, error: errorCafes } = await useAsyncData('cafes', cafes)
 const { data: historial, error: errorExt } = await useAsyncData('extracciones', () => extracciones())
@@ -9,6 +11,27 @@ const { data: historial, error: errorExt } = await useAsyncData('extracciones', 
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
 const ultimas = computed(() => (historial.value ?? []).slice(0, 8))
 const fallo = computed(() => errorCafes.value || errorExt.value)
+
+/**
+ * La casa recién estrenada: ni una bolsa ni una extracción. Las recetas no
+ * cuentan — vienen sembradas—. En ese estado la portada no enseña dos listas
+ * vacías: cuenta qué es esto y cuál es el primer paso.
+ */
+const virgen = computed(() => !(bolsas.value?.length || historial.value?.length))
+
+/**
+ * El empujón al respaldo, solo en modo local: con sesión la copia buena es
+ * el servidor. En local no hay nadie más guardando esto, y el navegador
+ * puede decidir limpiar el almacén — iOS lo hace a la semana sin visitas.
+ */
+const copiaVieja = computed(() =>
+  activa.value
+    ? null
+    : avisoRespaldo({
+      ultimo: localStorage.getItem('coffee.respaldo'),
+      extracciones: historial.value ?? [],
+    }),
+)
 
 /** Café molido gastado por bolsa, para saber cuánto queda. */
 function consumido(cafeId: string) {
@@ -56,16 +79,40 @@ async function instalar() {
     últimos datos guardados en cuanto la app esté instalada.
   </div>
 
+  <!-- La primera vez: qué es esto, de quién son los datos y el primer paso.
+       Sin bolsa no hay nada que preparar, así que la puerta de siempre espera
+       detrás de la primera alta. -->
+  <section v-if="virgen" class="tarjeta bienvenida">
+    <p>
+      Una bitácora de extracciones en V60: registras cada café cambiando
+      <strong>una sola cosa</strong> cada vez, y la app te sugiere qué ajustar
+      en la siguiente.
+    </p>
+    <p class="meta">
+      Es opinionada — el método 4:6 de Tetsu Kasuya y unos umbrales calibrados
+      con el paladar de su autor — y tus datos viven <strong>solo en este
+      navegador</strong>: sin cuentas y sin mandar nada a ningún servidor. Por
+      lo mismo, la copia de seguridad corre de tu cuenta: en el pie tienes el
+      respaldo.
+    </p>
+    <NuxtLink to="/cafes/nueva" class="registrar">Dar de alta tu primera bolsa</NuxtLink>
+    <p class="meta">
+      Las tres recetas 4:6 ya vienen puestas; con una bolsa dada de alta, el
+      cronómetro te guía los vertidos y del resto se encarga la bitácora.
+    </p>
+  </section>
+
   <!-- Una sola puerta: preparar. Registrar a mano vive dentro, al lado del
        cronómetro, porque hasta ahí llegas con la misma información delante
        —café, receta, dosis y agua— y solo entonces se sabe cuál de las dos
        quieres. Las bolsas y las recetas se alcanzan desde su sitio. -->
-  <div class="acciones">
+  <div v-else class="acciones">
     <NuxtLink to="/crono" class="registrar">Preparar café</NuxtLink>
   </div>
 
   <!-- Solo en el móvil y mientras no esté instalada: instalada sobra, y en el
-       PC nunca fue para él. -->
+       PC nunca fue para él. Instalarla es además lo que más protege el cajón:
+       un sitio suelto el navegador lo puede limpiar; una app puesta, no. -->
   <section v-if="ofrecerInstalar" class="instalacion">
     <button type="button" class="instalar" @click="instalar">
       Instalar en el móvil
@@ -77,7 +124,21 @@ async function instalar() {
     </p>
   </section>
 
-  <section>
+  <!-- El recordatorio del respaldo, cuando hay historial en juego y hace
+       demasiado del último. Discreto pero visible: en local nadie más guarda
+       esto. -->
+  <div v-if="copiaVieja" class="aviso">
+    <template v-if="copiaVieja.nunca">
+      Llevas {{ copiaVieja.dias }} días registrando sin ningún respaldo.
+    </template>
+    <template v-else>
+      Tu último respaldo es de hace {{ copiaVieja.dias }} días.
+    </template>
+    <NuxtLink to="/respaldo">Descarga uno</NuxtLink>: tus datos solo existen
+    en este navegador.
+  </div>
+
+  <section v-if="!virgen">
     <!-- El lápiz es la puerta a las bolsas ahora que no hay botón: desde la
          portada ves cuáles tienes abiertas, y si quieres tocarlas se entra por
          aquí. -->
@@ -119,7 +180,7 @@ async function instalar() {
     </NuxtLink>
   </section>
 
-  <section>
+  <section v-if="!virgen">
     <h2>Últimas extracciones</h2>
     <p v-if="!ultimas.length" class="vacio">Todavía ninguna.</p>
     <!-- La id es un uuid opaco: lo que identifica una taza para un humano es
@@ -281,4 +342,19 @@ h2 {
   padding: 0.75rem 0.9rem;
   margin-bottom: 1rem;
 }
+
+/* El del respaldo llega después de las acciones: el hueco lo pone él. */
+.acciones + .aviso, .instalacion + .aviso { margin-top: 1rem; }
+
+.aviso a { color: var(--acento); }
+
+.bienvenida {
+  display: block;
+  padding: 1rem;
+}
+
+.bienvenida p { margin: 0 0 0.75rem; }
+.bienvenida .meta { font-size: 0.85rem; }
+.bienvenida .registrar { margin-bottom: 0.75rem; }
+.bienvenida p:last-child { margin-bottom: 0; }
 </style>

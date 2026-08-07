@@ -30,6 +30,18 @@ const ultimo = ref(localStorage.getItem('coffee.respaldo'))
 const generando = ref(false)
 const erroresDescarga = ref<string[]>([])
 
+/*
+ * Quien abre esta pantalla está cuidando sus datos: buen momento para pedir
+ * la persistencia si aún no está, y para decir en qué quedó. Solo en local
+ * — con sesión la copia buena es el servidor— y solo si el navegador sabe
+ * contestar; en null no se pinta nada.
+ */
+const persistente = ref<boolean | null>(null)
+onMounted(async () => {
+  if (activa.value || !sabePersistir()) return
+  persistente.value = await pedirPersistencia()
+})
+
 async function descargar() {
   erroresDescarga.value = []
   generando.value = true
@@ -136,6 +148,14 @@ const fechaLegible = (iso: string | null) =>
       {{ generando ? 'Preparando…' : 'Descargar respaldo' }}
     </button>
     <p v-if="erroresDescarga.length" class="fallo">{{ erroresDescarga.join(' · ') }}</p>
+    <p v-if="persistente === true" class="meta">
+      El navegador ha marcado este almacén como persistente: no lo vaciará por
+      hacer sitio.
+    </p>
+    <p v-else-if="persistente === false" class="meta">
+      El navegador no promete conservar este almacén para siempre. Instalar la
+      app ayuda; el respaldo es la garantía.
+    </p>
   </section>
 
   <section class="tarjeta">

@@ -176,7 +176,7 @@ Cada una deja el repo funcionando y desplegable.
 | 6 ✔ | Cola de salida: escribir en local y encolar para la red, con reintento. | Alto |
 | 7 ✔ | El gesto del pie y el modo local por defecto. Absorbida por la 5: el árbitro no se podía probar sin la puerta. | Bajo |
 | 8 ✔ | Respaldo y restauración en ZIP. | Medio |
-| 9 | Estreno para desconocidos: recetas base sembradas, estado vacío, aviso de instalar y de respaldo viejo. Ko-fi. | Bajo |
+| 9 ✔ | Estreno para desconocidos: recetas base sembradas, estado vacío, aviso de instalar y de respaldo viejo. Ko-fi. | Bajo |
 
 La 3 va antes que el almacén local **a propósito**: escribir el adaptador de
 IndexedDB con ids numéricas para migrarlas después sería hacer el trabajo dos

@@ -21,6 +21,40 @@ import { escribirZip, leerZip } from "./zip.js";
 
 export const FORMATO = 1;
 
+/** A partir de cuántos días sin respaldo se avisa en la portada. */
+export const DIAS_RESPALDO_VIEJO = 14;
+
+/**
+ * Un sello del cajón («2026-08-07 09:00:00», UTC sin decirlo) o un ISO, a
+ * Date. El del cajón no se puede dar a `new Date` tal cual: Safari lo lee
+ * NaN y el resto lo leería en hora local.
+ */
+const aFecha = (sello) => {
+  if (sello.includes("T")) return new Date(sello);
+  const iso = sello.includes(" ") ? sello.replace(" ", "T") : `${sello}T00:00:00`;
+  return new Date(`${iso}Z`);
+};
+
+/**
+ * Si toca recordar el respaldo, y cuánto hace del último: `{ dias, nunca }`,
+ * o null mientras no toque.
+ *
+ * En local no hay servidor que guarde nada y el navegador puede decidir
+ * limpiar el almacén — iOS lo hace a la semana de no visitar el sitio—, así
+ * que una bitácora con historial y sin respaldo es una pérdida esperando
+ * fecha. Se avisa desde que hay extracciones; si nunca hubo respaldo, los
+ * días se cuentan desde la más antigua, que es lo que se perdería.
+ */
+export function avisoRespaldo({ ultimo, extracciones, ahora = new Date() }) {
+  if (!extracciones.length) return null;
+  const referencia =
+    ultimo ?? extracciones.map((e) => e.creado_en).filter(Boolean).sort()[0];
+  if (!referencia) return null;
+  const dias = Math.floor((ahora - aFecha(referencia)) / 86_400_000);
+  if (dias < DIAS_RESPALDO_VIEJO) return null;
+  return { dias, nunca: !ultimo };
+}
+
 /* Las mismas columnas que escribe herramientas/exportar_csv.py. */
 const COLUMNAS_CAFES = [
   "id", "slug", "nombre", "tostador", "origen", "region", "variedad",

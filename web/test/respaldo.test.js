@@ -18,7 +18,7 @@ import {
 import { aCsv, deCsv } from "../app/almacen/csv.js";
 import { almacenIDB } from "../app/almacen/idb.js";
 import {
-  aplicarRestauracion, crearRespaldo, leerRespaldo, prepararRestauracion,
+  aplicarRestauracion, avisoRespaldo, crearRespaldo, leerRespaldo, prepararRestauracion,
 } from "../app/almacen/respaldo.js";
 import { crc32, escribirZip, leerZip } from "../app/almacen/zip.js";
 
@@ -228,5 +228,71 @@ describe("el respaldo entero, de ida y vuelta", () => {
     assert.deepEqual([...new Uint8Array(await vueltas[0].blob.arrayBuffer())], [...pixel]);
     const garyVuelto = (await destino.cafes.listar()).find((c) => c.slug === "gary");
     assert.equal(garyVuelto.foto, clave);
+  });
+});
+
+describe("el aviso de respaldo viejo", () => {
+  const ahora = new Date("2026-08-07T10:00:00Z");
+  const hace = (dias) => new Date(ahora - dias * 86_400_000).toISOString();
+  // El sello del cajón: espacio y sin zona, como lo escribe SQLite.
+  const sello = (dias) => hace(dias).slice(0, 19).replace("T", " ");
+
+  it("sin extracciones no hay nada que perder ni que avisar", () => {
+    assert.equal(avisoRespaldo({ ultimo: null, extracciones: [], ahora }), null);
+  });
+
+  it("con el respaldo reciente, silencio", () => {
+    const r = avisoRespaldo({
+      ultimo: hace(3),
+      extracciones: [{ creado_en: sello(40) }],
+      ahora,
+    });
+    assert.equal(r, null);
+  });
+
+  it("un respaldo de hace quince días ya avisa, con los días contados", () => {
+    const r = avisoRespaldo({
+      ultimo: hace(15),
+      extracciones: [{ creado_en: sello(40) }],
+      ahora,
+    });
+    assert.deepEqual(r, { dias: 15, nunca: false });
+  });
+
+  it("sin respaldo nunca, los días se cuentan desde la extracción más antigua", () => {
+    const r = avisoRespaldo({
+      ultimo: null,
+      extracciones: [{ creado_en: sello(5) }, { creado_en: sello(20) }],
+      ahora,
+    });
+    assert.deepEqual(r, { dias: 20, nunca: true });
+  });
+
+  it("quien acaba de empezar tiene dos semanas de gracia", () => {
+    const r = avisoRespaldo({
+      ultimo: null,
+      extracciones: [{ creado_en: sello(13) }],
+      ahora,
+    });
+    assert.equal(r, null);
+  });
+
+  it("a los catorce justos se cumple el plazo", () => {
+    const r = avisoRespaldo({
+      ultimo: hace(14),
+      extracciones: [{ creado_en: sello(30) }],
+      ahora,
+    });
+    assert.deepEqual(r, { dias: 14, nunca: false });
+  });
+
+  it("el sello con espacio del cajón no rompe la cuenta", () => {
+    // Si aFecha lo leyera en hora local o NaN, los días saldrían mal o null.
+    const r = avisoRespaldo({
+      ultimo: null,
+      extracciones: [{ creado_en: "2026-07-01 08:00:00" }],
+      ahora,
+    });
+    assert.deepEqual(r, { dias: 37, nunca: true });
   });
 });

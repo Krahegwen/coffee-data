@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { almacenLocal } from '~/almacen/local'
+
 /**
  * El título de cada pantalla se cuelga del nombre de la app. Importa más de
  * lo que parece: es lo que se lee en la pestaña, en los marcadores y, ya
@@ -61,6 +63,11 @@ onMounted(async () => {
   await recontar()
   lista.value = true
 
+  // En local, el navegador es el único sitio donde existen los datos: en
+  // cuanto hay algo que perder se le pide que no limpie el cajón. Con
+  // sesión no hace falta — la copia buena es el servidor.
+  if (!activa.value) void persistirConDatos()
+
   // Al volver a la pestaña tras un rato, y en cuanto vuelva la red: es como
   // se entera este dispositivo de lo que se registró en el otro.
   document.addEventListener('visibilitychange', () => {
@@ -91,6 +98,16 @@ async function cerrarSesion() {
   panelSesion.value = false
   // Y de vuelta al cajón local de este navegador.
   await refreshNuxtData()
+}
+
+/** Pide la persistencia solo si el cajón ya guarda algo propio. */
+async function persistirConDatos() {
+  const almacen = await almacenLocal()
+  const [bolsas, extracciones] = await Promise.all([
+    almacen.cafes.listar(),
+    almacen.extracciones.listar(),
+  ])
+  if (bolsas.length || extracciones.length) await pedirPersistencia()
 }
 
 useHead({
@@ -140,7 +157,16 @@ useHead({
       <!-- El respaldo vive en el pie: se usa poco, pero tiene que poder
            encontrarse sin que nadie te lo cuente. -->
       <p><NuxtLink to="/respaldo" class="enlace-pie">Respaldo</NuxtLink></p>
-      <p>© 2026 Krahegwen · MIT</p>
+      <!-- Un enlace y no el widget de Ko-fi: un script de terceros no pinta
+           nada en una app que presume de no mandar datos a ningún sitio. Y
+           servir esto no cuesta nada — es para quien quiera invitar, no para
+           cubrir gastos. -->
+      <p>
+        © 2026 Krahegwen · MIT ·
+        <a class="kofi" href="https://ko-fi.com/krahegwen" target="_blank" rel="noopener">
+          Invítame a un café
+        </a>
+      </p>
 
       <section v-if="panelSesion" class="portero">
         <template v-if="!activa">
@@ -348,6 +374,9 @@ footer p { margin: 0.15rem 0; }
 }
 
 .enlace-pie:hover { color: var(--acento); }
+
+.kofi { color: var(--suave); text-decoration: underline; }
+.kofi:hover { color: var(--acento); }
 
 /* El panel de sesión, detrás de los cinco toques. Alineado a la izquierda:
    dentro del pie centrado parecería un aviso y es un formulario. */

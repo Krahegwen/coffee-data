@@ -265,7 +265,18 @@ onUnmounted(parar)
 <template>
   <Migas :ruta="[{ texto: 'Cronómetro' }]" />
 
-  <section v-if="!enCrono">
+  <!-- Sin una bolsa abierta no hay nada que preparar: toda extracción cuelga
+       de un café. Antes que un desplegable vacío, el camino. -->
+  <section v-if="!enCrono && !abiertas.length">
+    <h2>Preparar</h2>
+    <p class="sin-bolsas">
+      No tienes ninguna bolsa abierta. Da de alta el café que vayas a usar y
+      desde aquí el cronómetro te guía los vertidos.
+    </p>
+    <NuxtLink to="/cafes/nueva" class="alta">Dar de alta una bolsa</NuxtLink>
+  </section>
+
+  <section v-else-if="!enCrono">
     <h2>Preparar</h2>
     <label>
       Café
@@ -384,6 +395,20 @@ onUnmounted(parar)
 
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+
+.sin-bolsas { color: var(--suave); font-size: 0.9rem; margin: 0 0 1rem; }
+
+/* Un enlace vestido como el botón principal: es la única acción que hay. */
+.alta {
+  display: block;
+  text-align: center;
+  font-weight: 600;
+  color: #fff;
+  background: var(--acento);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  text-decoration: none;
+}
 
 label {
   display: flex;
