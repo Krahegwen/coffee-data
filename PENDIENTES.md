@@ -141,6 +141,42 @@ la extracción de la que ésta es variación.
 - Las sueltas tienen el padre siempre a nulo, que es lo que ya se decidió: sin
   bolsa no hay serie.
 
-Lo que hay que pensar antes de escribirlo: si el padre debe poder estar en otra
-bolsa (creo que no — el tueste manda, y para eso está el arranque que solo
-rellena campos), y qué pasa si borras una extracción que es madre de otra.
+### Decidido
+
+**Son dos cadenas distintas y no hay que confundirlas.** El padre (`desde_id`)
+dice contra qué se compara: **nunca sale de la bolsa**, porque el tueste es lo
+que hace la taza. El arranque dice de dónde se copian los números al abrir el
+formulario: **puede venir de donde sea**, porque solo rellena campos y no
+afirma nada. Cuando las dos no coinciden, la extracción es una primera y no
+forma par — que es exactamente lo que ya pasa hoy al estrenar bolsa.
+
+**El arranque necesita un escalón más, y hoy falta.** La cadena es: la última
+de esta bolsa → la última de la bolsa anterior de la misma familia → la última
+de cualquier bolsa. Ese tercer escalón no existe: estrenar un café que no
+continúa a ninguno deja el formulario en los valores de fábrica (92 °C, 28
+clics), y lo razonable es partir de tu última taza sea del café que sea. El
+café es otro, pero el molinillo, el hervidor y la mano son los mismos — el
+mismo argumento que ya se aceptó para las sueltas, que hoy sí lo tienen y las
+bolsas nuevas no.
+
+**Retirar una madre no rompe nada, pero hay que decidir qué pasa con el par.**
+Con borrado lógico la fila se queda, así que `desde_id` nunca cuelga de un
+hueco. Lo que sí desaparece es la comparación: el histórico que recibe el motor
+va filtrado por `borrada_en`, así que la madre retirada no está y la hija se
+queda sin base. **Y debe ser así**: retirar significa «esto fue un error de
+registro», y un delta medido contra un error no vale nada. La hija pasa a
+contar como primera. Conviene que sea una decisión escrita y no un efecto
+secundario del filtro, porque una implementación ingenua lo haría en silencio.
+
+Dos remates que salen de ahí: al retirar, avisar si esa extracción es madre de
+otras —como el 409 que ya protege a las recetas en uso, pero blando, que esto
+se puede deshacer—; y restaurarla devuelve el par sola, sin nada que arreglar.
+
+**El selector de «de qué extracción partes» enseña las activas más la que ya
+esté puesta, aunque esté retirada** y marcada como tal. Si no, al abrir una
+ficha cuya madre se retiró después, el desplegable no podría representar su
+propio valor y lo cambiaría solo al guardar. La regla general, que vale para
+todos los desplegables de la app: **un selector nunca debe poder perder el
+valor que ya tiene**. El de bolsa de la ficha ya lo cumple —lista todas, no
+solo las abiertas—; el del alta enseña solo abiertas, y ahí está bien porque
+es una fila nueva y no hay valor previo que perder.
