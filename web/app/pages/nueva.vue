@@ -210,7 +210,14 @@ async function enviar() {
       Tiempo y goteo vienen del cronómetro.
     </p>
 
-    <label>
+    <!-- Aquí la bolsa sí es obligatoria: toda extracción se apunta a su
+         café. El cronómetro deja cronometrar sin ella; guardar no. -->
+    <p v-if="!abiertas.length" class="fallo">
+      No tienes ninguna bolsa abierta, y una extracción se apunta siempre a la
+      suya. <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> para poder
+      guardar.
+    </p>
+    <label v-else>
       Café
       <select v-model="form.cafe_id" required>
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>

@@ -11,6 +11,13 @@ const { data: catalogo } = await useAsyncData('recetas-crono', recetas)
 
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
 
+/**
+ * Sin receta no hay guion y el cronómetro no sabría qué marcar: este sí
+ * corta el paso. La bolsa en cambio es opcional aquí — cronometrar un café
+ * no obliga a apuntarlo—; la exige el alta, que es quien escribe.
+ */
+const sinRecetas = computed(() => !(catalogo.value ?? []).length)
+
 const cafeId = ref('')
 const recetaId = ref('')
 const dosis = ref(20)
@@ -265,26 +272,29 @@ onUnmounted(parar)
 <template>
   <Migas :ruta="[{ texto: 'Cronómetro' }]" />
 
-  <!-- Sin una bolsa abierta no hay nada que preparar: toda extracción cuelga
-       de un café. Antes que un desplegable vacío, el camino. -->
-  <section v-if="!enCrono && !abiertas.length">
+  <section v-if="!enCrono">
     <h2>Preparar</h2>
-    <p class="sin-bolsas">
-      No tienes ninguna bolsa abierta. Da de alta el café que vayas a usar y
-      desde aquí el cronómetro te guía los vertidos.
-    </p>
-    <NuxtLink to="/cafes/nueva" class="alta">Dar de alta una bolsa</NuxtLink>
-  </section>
 
-  <section v-else-if="!enCrono">
-    <h2>Preparar</h2>
-    <label>
+    <!-- Sin bolsa se puede cronometrar igual: el aviso ofrece el alta, no lo
+         exige. Registrar sí pedirá una — es quien escribe. -->
+    <p v-if="!abiertas.length" class="sin-bolsas">
+      No tienes ninguna bolsa abierta. Puedes usar el cronómetro igual, pero
+      registrar la extracción pedirá una:
+      <NuxtLink to="/cafes/nueva">dala de alta</NuxtLink> si el café lo merece.
+    </p>
+    <label v-else>
       Café
       <select v-model="cafeId">
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
     </label>
-    <label>
+
+    <!-- Este sí corta: sin receta no hay guion que seguir. -->
+    <p v-if="sinRecetas" class="sin-recetas">
+      No queda ninguna receta, y sin receta el cronómetro no tiene qué guiar.
+      <NuxtLink to="/recetas/nueva">Crea una</NuxtLink> para seguir.
+    </p>
+    <label v-else>
       Receta
       <select v-model="recetaId">
         <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
@@ -307,7 +317,7 @@ onUnmounted(parar)
          delante —café, receta, dosis y agua—, y solo mirando el guion se sabe
          si toca cronometrar o si el café ya está hecho y solo vienes a
          apuntarlo. -->
-    <button @click="alCronometro">Al cronómetro</button>
+    <button :disabled="sinRecetas" @click="alCronometro">Al cronómetro</button>
     <button class="secundario" @click="aMano">Introducir manualmente</button>
   </section>
 
@@ -396,19 +406,13 @@ onUnmounted(parar)
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 
-.sin-bolsas { color: var(--suave); font-size: 0.9rem; margin: 0 0 1rem; }
+.sin-bolsas, .sin-recetas { font-size: 0.9rem; margin: 0 0 1rem; }
+.sin-bolsas { color: var(--suave); }
+/* El de recetas para en seco, y el color lo dice antes que el texto. */
+.sin-recetas { color: #c2410c; }
+.sin-bolsas a, .sin-recetas a { color: var(--acento); }
 
-/* Un enlace vestido como el botón principal: es la única acción que hay. */
-.alta {
-  display: block;
-  text-align: center;
-  font-weight: 600;
-  color: #fff;
-  background: var(--acento);
-  border-radius: 0.6rem;
-  padding: 1rem;
-  text-decoration: none;
-}
+button:disabled { opacity: 0.5; cursor: default; }
 
 label {
   display: flex;

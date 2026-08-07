@@ -96,6 +96,9 @@ async function instalar() {
       respaldo.
     </p>
     <NuxtLink to="/cafes/nueva" class="registrar">Dar de alta tu primera bolsa</NuxtLink>
+    <!-- El crono no exige bolsa: se puede probar con la receta de serie
+         antes de apuntar nada. -->
+    <NuxtLink to="/crono" class="registrar secundario">Probar el cronómetro</NuxtLink>
     <p class="meta">
       Las tres recetas 4:6 ya vienen puestas; con una bolsa dada de alta, el
       cronómetro te guía los vertidos y del resto se encarga la bitácora.

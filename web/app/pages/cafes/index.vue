@@ -32,6 +32,12 @@ function restante(cafeId: string, pesoG: number | null) {
     <NuxtLink to="/cafes/nueva" class="boton">Nueva</NuxtLink>
   </div>
 
+  <p v-if="!porEstado.length" class="vacio">
+    No tienes ninguna bolsa registrada. Cada café que entra en casa es una
+    bolsa —con su tueste y sus fechas— y toda extracción se apunta a la suya:
+    estrena la primera con «Nueva».
+  </p>
+
   <NuxtLink
     v-for="cafe in porEstado" :key="cafe.id"
     :to="`/cafes/${cafe.slug}`" class="tarjeta"
@@ -55,7 +61,7 @@ function restante(cafeId: string, pesoG: number | null) {
     </div>
   </NuxtLink>
 
-  <p class="nota">
+  <p v-if="porEstado.length" class="nota">
     Los gramos restantes salen de restar las dosis <em>registradas</em>. Si
     preparas café sin apuntarlo, sobreestiman lo que queda.
   </p>
@@ -114,5 +120,6 @@ function restante(cafeId: string, pesoG: number | null) {
 .estado.terminado { opacity: 0.55; }
 
 .nota { color: var(--suave); font-size: 0.8rem; margin-top: 1.5rem; }
+.vacio { color: var(--suave); font-size: 0.9rem; }
 a { color: var(--acento); }
 </style>

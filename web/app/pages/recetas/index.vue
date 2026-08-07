@@ -21,6 +21,11 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
     <NuxtLink to="/recetas/nueva" class="boton">Nueva</NuxtLink>
   </div>
 
+  <p v-if="!(catalogo ?? []).length" class="vacio">
+    No queda ninguna receta, y sin al menos una el cronómetro no tiene qué
+    guiar. Crea una con «Nueva».
+  </p>
+
   <NuxtLink
     v-for="r in catalogo ?? []" :key="r.id"
     :to="`/recetas/${r.slug}`" class="tarjeta"
@@ -48,5 +53,6 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 }
 
 .meta { margin: 0.25rem 0 0; color: var(--suave); font-size: 0.85rem; }
+.vacio { color: var(--suave); font-size: 0.9rem; }
 a { color: var(--acento); }
 </style>
