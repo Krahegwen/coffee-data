@@ -7,6 +7,7 @@ import { DEFECTOS, DRIPPERS, fechaCorta, textoDeCambios, VARIABLES } from '~/com
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const route = useRoute()
+const router = useRouter()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
@@ -17,23 +18,43 @@ const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 
 const q = route.query
 const numero = (v: unknown, porDefecto: number) => (v === undefined ? porDefecto : Number(v))
 
-// La receta base del README, salvo lo que traiga el cronómetro en la URL.
-const form = reactive<Record<string, unknown>>({
-  cafe_id: String(q.cafe ?? ''),
-  dosis_g: numero(q.dosis, 20),
-  agua_g: numero(q.agua, 300),
+/** El formulario en blanco: la receta base del README. */
+const EN_BLANCO = (): Record<string, unknown> => ({
+  cafe_id: '',
+  dosis_g: 20,
+  agua_g: 300,
   temp_c: 92,
   clics: 28,
-  receta_id: String(q.receta ?? ''),
+  receta_id: '',
   dripper: 'v60-02-plastico',
-  tiempo_total: String(q.tiempo ?? ''),
-  drawdown_s: (q.drawdown === undefined ? '' : Number(q.drawdown)) as number | '',
+  tiempo_total: '',
+  drawdown_s: '' as number | '',
   extraido_g: '' as number | '',
   variable_cambiada: '',
   defecto: 'equilibrado',
   notas_cata: '',
   nota: 7,
 })
+
+/**
+ * El formulario es un borrador en memoria de la app: salir a mitad —a dar de
+ * alta la bolsa que faltaba, a mirar una ficha— y volver no borra lo
+ * escrito. Se vacía al guardar lo que no se repite, o entero con «Vaciar»;
+ * un F5 también lo tira, que la memoria es de la pestaña.
+ */
+const form = useState('borrador-extraccion', EN_BLANCO).value
+
+/*
+ * Lo que traiga el cronómetro en la URL pisa el borrador: venir del reloj
+ * con el tiempo medido es intención fresca. Al volver atrás la query es la
+ * misma, así que re-aplicarla deja el borrador como estaba.
+ */
+if (q.cafe !== undefined) form.cafe_id = String(q.cafe)
+if (q.receta !== undefined) form.receta_id = String(q.receta)
+if (q.dosis !== undefined) form.dosis_g = numero(q.dosis, 20)
+if (q.agua !== undefined) form.agua_g = numero(q.agua, 300)
+if (q.tiempo !== undefined) form.tiempo_total = String(q.tiempo)
+if (q.drawdown !== undefined) form.drawdown_s = Number(q.drawdown)
 
 // Sin receta en la URL, la de siempre. Por slug, que los uuids no son de fiar
 // entre bases.
@@ -72,7 +93,8 @@ const bolsaPrevia = computed(() => {
   ) ?? null
 })
 
-const cambiadas = ref<string[]>([])
+// Parte del borrador: las filas de variables también vuelven al volver.
+const cambiadas = useState<string[]>('borrador-extraccion-variables', () => [])
 
 /** Las variables que son de elegir, no de teclear. */
 const opciones = computed(() => ({
@@ -100,14 +122,28 @@ const DESDE_LA_URL: Record<string, string> = {
  */
 const arranque = computed(() => anterior.value ?? bolsaPrevia.value)
 
-watch(arranque, (previa) => {
-  if (!previa) return
+/**
+ * De qué extracción se rellenó ya este borrador. Sin el sello, volver a la
+ * pantalla re-aplicaría «la anterior» y pisaría lo que se hubiera tecleado:
+ * el arranque puebla una vez por extracción de partida, no en cada visita.
+ */
+const arranqueAplicado = useState('borrador-extraccion-arranque', () => '')
+
+function aplicarArranque(previa: Record<string, unknown>) {
   for (const clave of Object.keys(VARIABLES)) {
     const enUrl = DESDE_LA_URL[clave]
-    if (enUrl && q[enUrl] !== undefined) continue
-    const valor = (previa as Record<string, unknown>)[clave]
+    if (enUrl && route.query[enUrl] !== undefined) continue
+    const valor = previa[clave]
     if (valor !== null && valor !== undefined) form[clave] = valor
   }
+}
+
+watch(arranque, (previa) => {
+  if (!previa) return
+  const sello = String((previa as Record<string, unknown>).id ?? '')
+  if (arranqueAplicado.value === sello) return
+  arranqueAplicado.value = sello
+  aplicarArranque(previa as Record<string, unknown>)
 }, { immediate: true })
 
 // Tocar un campo de arriba crea su fila si el valor se aleja de la anterior.
@@ -146,7 +182,27 @@ const retencion = computed(() => {
   return (agua - extraido) / dosis
 })
 
-const desdeCrono = computed(() => q.tiempo !== undefined)
+// Sobre la query viva, no la de llegada: «Vaciar» la limpia y el cartel
+// tiene que irse con ella.
+const desdeCrono = computed(() => route.query.tiempo !== undefined)
+
+/**
+ * El formulario como recién entrado: en blanco, sin filas de variables, sin
+ * query del crono, y con la última extracción puesta otra vez de partida.
+ * Para el borrador a medias que ya no es verdad —o el preset que no era—.
+ */
+function vaciar() {
+  Object.assign(form, EN_BLANCO())
+  cambiadas.value = []
+  arranqueAplicado.value = ''
+  if (Object.keys(route.query).length) void router.replace({ query: {} })
+  if (abiertas.value.length) form.cafe_id = abiertas.value[0]!.id
+  const previa = arranque.value as Record<string, unknown> | null
+  if (previa) {
+    arranqueAplicado.value = String(previa.id ?? '')
+    aplicarArranque(previa)
+  }
+}
 
 const enviando = ref(false)
 const errores = ref<string[]>([])
@@ -204,7 +260,12 @@ async function enviar() {
   <Migas :ruta="[{ texto: 'Registrar extracción' }]" />
 
   <form @submit.prevent="enviar">
-    <h2>Nueva extracción</h2>
+    <div class="titulo">
+      <h2>Nueva extracción</h2>
+      <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
+           propósito cuando el borrador ya no es verdad. -->
+      <button type="button" class="limpiar" @click="vaciar">Vaciar</button>
+    </div>
 
     <p v-if="desdeCrono" class="delcrono">
       Tiempo y goteo vienen del cronómetro.
@@ -214,8 +275,8 @@ async function enviar() {
          café. El cronómetro deja cronometrar sin ella; guardar no. -->
     <p v-if="!abiertas.length" class="fallo">
       No tienes ninguna bolsa abierta, y una extracción se apunta siempre a la
-      suya. <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> para poder
-      guardar.
+      suya. <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> y vuelve: lo
+      escrito aquí no se pierde.
     </p>
     <label v-else>
       Café
@@ -344,6 +405,25 @@ async function enviar() {
 
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+
+.titulo { display: flex; justify-content: space-between; align-items: baseline; }
+.titulo h2 { margin-bottom: 0; }
+
+/* Texto pequeño y sin peso: vacía un borrador, no borra datos guardados. */
+.limpiar {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  margin: 0;
+  min-height: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.limpiar:hover { color: var(--acento); }
 
 /* Del tamaño y el color de una etiqueta: encabeza un bloque de campos, no una
    sección aparte, así que no tiene por qué gritar. */

@@ -18,36 +18,56 @@ const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 
  */
 const sinRecetas = computed(() => !(catalogo.value ?? []).length)
 
-const cafeId = ref('')
-const recetaId = ref('')
-const dosis = ref(20)
-const agua = ref(300)
+/**
+ * Todo el crono vive fuera del componente: salir a mirar una ficha con el
+ * reloj andando —o pulsar atrás sin querer— y volver no puede costar la
+ * extracción. `inicioMs` guarda el origen en la escala de
+ * `performance.now()`, que no se reinicia entre navegaciones, así que el
+ * tiempo sigue corriendo aunque la pantalla no esté. En memoria de la app,
+ * no en almacén: un F5 sí lo reinicia, como cualquier cronómetro.
+ */
+const estado = useState('crono', () => ({
+  cafeId: '',
+  recetaId: '',
+  dosis: 20,
+  agua: 300,
+  pasos: [] as PasoGuion[],
+  /** En la pantalla del cronómetro; no implica que el reloj vaya. */
+  enCrono: false,
+  corriendo: false,
+  transcurrido: 0,
+  finGoteo: null as number | null,
+  inicioMs: null as number | null,
+  /**
+   * Si el reloj iba al marcar el fin del goteo. Solo entonces tiene sentido
+   * ponerse al día al deshacer: en pausa, la parada fue a propósito.
+   */
+  goteoIba: false,
+}))
+const {
+  cafeId, recetaId, dosis, agua, pasos, enCrono, corriendo, transcurrido,
+  finGoteo, inicioMs, goteoIba,
+} = toRefs(estado.value)
 
-watchEffect(() => { if (!cafeId.value && abiertas.value.length) cafeId.value = abiertas.value[0]!.id })
+// La selección guardada puede apuntar a una bolsa ya cerrada o borrada: si no
+// está entre las abiertas, la primera. Y si no hay ninguna, nada — aquí se
+// puede cronometrar sin bolsa.
+watchEffect(() => {
+  if (!abiertas.value.length) return
+  if (!abiertas.value.some((c) => c.id === cafeId.value)) cafeId.value = abiertas.value[0]!.id
+})
 
 // La receta de siempre como arranque. Por slug, que es lo único estable: los
 // uuids cambian entre la base local y la de verdad.
 watchEffect(() => {
-  if (recetaId.value || !catalogo.value?.length) return
+  if (!catalogo.value?.length) return
+  if (catalogo.value.some((r) => r.id === recetaId.value)) return
   const base = catalogo.value.find((r) => r.slug === 'kasuya-46-base')
   recetaId.value = (base ?? catalogo.value[0]!).id
 })
 
-const pasos = ref<PasoGuion[]>([])
-/** En la pantalla del cronómetro; no implica que el reloj vaya. */
-const enCrono = ref(false)
-const corriendo = ref(false)
-const transcurrido = ref(0)
-const finGoteo = ref<number | null>(null)
-
 let animacion = 0
-let inicio = 0
 let despierta: WakeLockSentinel | null = null
-/**
- * Si el reloj iba al marcar el fin del goteo. Solo entonces tiene sentido
- * ponerse al día si se deshace: si estaba en pausa, la parada fue a propósito.
- */
-let goteoEnMarcha = false
 
 /** Cuando acaba el último vertido: desde ahí se cuenta el goteo. */
 const finVertidos = computed(() => {
@@ -148,26 +168,18 @@ async function alCronometro() {
 
 /** Segundos desde el arranque, leídos del reloj del sistema. */
 function ahora() {
-  return (performance.now() - inicio) / 1000
+  return inicioMs.value === null ? transcurrido.value : (performance.now() - inicioMs.value) / 1000
 }
 
 /**
- * Pone el reloj a andar desde el segundo que se le diga.
- *
- * El origen se recalcula en vez de guardarse una vez: así reanudar es lo
- * mismo que arrancar, solo que desde otro punto, y el tiempo en pausa no
- * cuenta. Se mide contra el reloj del sistema y no sumando ticks —sumar
- * acumula deriva y aquí 45 segundos tienen que ser 45—; con
- * requestAnimationFrame la bola va fluida en vez de a diez saltos por segundo.
+ * Rearma lo que es del componente —el bucle de animación y el wake lock—
+ * sobre el estado que ya hay. Es lo que se repite al volver a la pantalla
+ * con el reloj andando: el tiempo nunca dejó de correr, solo la pintura.
  */
-async function arrancarDesde(desde: number) {
+async function rearmar() {
   // Idempotente: llamado con el reloj ya andando —un salto de paso— no deja
   // un segundo bucle de animación vivo ni pide otro wake lock.
   if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
-  inicio = performance.now() - desde * 1000
-  transcurrido.value = desde
-  corriendo.value = true
-
   const tic = () => {
     transcurrido.value = ahora()
     animacion = requestAnimationFrame(tic)
@@ -180,6 +192,22 @@ async function arrancarDesde(desde: number) {
       despierta = await navigator.wakeLock?.request('screen')
     } catch { /* sin wake lock se sigue igual */ }
   }
+}
+
+/**
+ * Pone el reloj a andar desde el segundo que se le diga.
+ *
+ * El origen se recalcula en vez de guardarse una vez: así reanudar es lo
+ * mismo que arrancar, solo que desde otro punto, y el tiempo en pausa no
+ * cuenta. Se mide contra el reloj del sistema y no sumando ticks —sumar
+ * acumula deriva y aquí 45 segundos tienen que ser 45—; con
+ * requestAnimationFrame la bola va fluida en vez de a diez saltos por segundo.
+ */
+async function arrancarDesde(desde: number) {
+  inicioMs.value = performance.now() - desde * 1000
+  transcurrido.value = desde
+  corriendo.value = true
+  await rearmar()
 }
 
 async function iniciar() {
@@ -233,7 +261,7 @@ function alInicioDePaso() {
 }
 
 function marcarFinGoteo() {
-  goteoEnMarcha = corriendo.value
+  goteoIba.value = corriendo.value
   // Del reloj del sistema, no de la última pintada: con la pestaña de fondo
   // el navegador congela las animaciones y el valor se quedaría corto. En
   // pausa manda `transcurrido`, que es donde se dejó.
@@ -251,14 +279,19 @@ function marcarFinGoteo() {
  */
 function seguirGoteando() {
   finGoteo.value = null
-  arrancarDesde(goteoEnMarcha ? ahora() : transcurrido.value)
+  arrancarDesde(goteoIba.value ? ahora() : transcurrido.value)
+}
+
+/** Suelta el bucle y el wake lock sin tocar el estado: es lo del componente. */
+function soltar() {
+  if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
+  despierta?.release?.()
+  despierta = null
 }
 
 function parar() {
-  if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
+  soltar()
   corriendo.value = false
-  despierta?.release?.()
-  despierta = null
 }
 
 function reiniciar() {
@@ -266,7 +299,26 @@ function reiniciar() {
   enCrono.value = false
   transcurrido.value = 0
   finGoteo.value = null
+  inicioMs.value = null
 }
+
+/** Preparar, como recién llegado: fuera la selección y las cantidades viejas. */
+function restablecer() {
+  dosis.value = 20
+  agua.value = 300
+  cafeId.value = abiertas.value[0]?.id ?? ''
+  const base = (catalogo.value ?? []).find((r) => r.slug === 'kasuya-46-base')
+  recetaId.value = base?.id ?? catalogo.value?.[0]?.id ?? ''
+}
+
+/**
+ * Al volver a la pantalla con el reloj andando, la pintura se reengancha al
+ * tiempo que nunca dejó de correr. Al salir se suelta solo lo del DOM: el
+ * estado se queda, que es la gracia.
+ */
+onMounted(() => {
+  if (corriendo.value && inicioMs.value !== null) void rearmar()
+})
 
 /**
  * Al alta sin pasar por el reloj, con lo elegido aquí ya puesto. Sin tiempo
@@ -299,14 +351,19 @@ function registrar() {
   })
 }
 
-onUnmounted(parar)
+onUnmounted(soltar)
 </script>
 
 <template>
   <Migas :ruta="[{ texto: 'Cronómetro' }]" />
 
   <section v-if="!enCrono">
-    <h2>Preparar</h2>
+    <div class="titulo">
+      <h2>Preparar</h2>
+      <!-- La selección y las cantidades se quedan puestas entre visitas; esto
+           las devuelve a las de siempre cuando lo que hay es un despiste. -->
+      <button type="button" class="vaciar" @click="restablecer">Restablecer</button>
+    </div>
 
     <!-- Sin bolsa se puede cronometrar igual: el aviso ofrece el alta, no lo
          exige. Registrar sí pedirá una — es quien escribe. -->
@@ -462,6 +519,26 @@ onUnmounted(parar)
 
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+
+.titulo { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* Un botón que parece lo que es: texto pequeño, sin peso. Vacía estado, no
+   datos, así que no hace falta ceremonia. */
+.vaciar {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  margin: 0;
+  width: auto;
+  min-height: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.vaciar:hover { color: var(--acento); }
 
 .sin-bolsas, .sin-recetas { font-size: 0.9rem; margin: 0 0 1rem; }
 .sin-bolsas { color: var(--suave); }

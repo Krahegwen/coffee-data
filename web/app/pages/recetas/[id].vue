@@ -42,10 +42,23 @@ const partirDe = computed({
 })
 
 // Sin campo de id: el slug sale del nombre en el servidor, como en las bolsas.
-const form = reactive({ nombre: '', ratio: 15 as number | '', notas: '' })
-const pasos = ref<PasoEditable[]>([
+const VACIA = () => ({ nombre: '', ratio: 15 as number | '', notas: '' })
+const PASO_INICIAL = (): PasoEditable[] => [
   { accion: 'verter', estilo: '', agua_g: 60, t_inicio_s: 0, notas: '' },
-])
+]
+
+/**
+ * En el alta, el formulario es un borrador en memoria de la app: montar los
+ * pasos lleva un rato y salir a mirar algo no puede tirarlos. Editando, el
+ * estado es propio de la ficha y se rellena del original como siempre.
+ */
+const borradorForm = useState('borrador-receta', VACIA)
+const borradorPasos = useState<PasoEditable[]>('borrador-receta-pasos', PASO_INICIAL)
+const form = esNueva.value ? borradorForm.value : reactive(VACIA())
+const pasos = esNueva.value ? borradorPasos : ref<PasoEditable[]>(PASO_INICIAL())
+
+/** De qué receta se copió ya el borrador, para no pisarlo al volver. */
+const copiadaYa = useState('borrador-receta-de', () => '')
 
 const enviando = ref(false)
 const errores = ref<string[]>([])
@@ -58,6 +71,12 @@ watchEffect(() => {
   // luego, así que se elige a mano, y el nombre avisa de que es una copia.
   const modelo = original.value ?? fuente.value
   if (!modelo) return
+  // En el alta, cada fuente puebla el borrador una sola vez: volver con el
+  // ?de= en la URL no pisa lo que ya se haya retocado.
+  if (esNueva.value) {
+    if (copiadaYa.value === modelo.id) return
+    copiadaYa.value = modelo.id
+  }
   form.nombre = fuente.value ? `${modelo.nombre} (copia)` : modelo.nombre
   form.ratio = modelo.ratio ?? ''
   form.notas = modelo.notas ?? ''
@@ -89,6 +108,9 @@ async function enviar() {
     }
     if (esNueva.value) {
       const { receta } = await crearReceta(cuerpo)
+      // Creada, el borrador ya no es borrador: la próxima alta empieza
+      // limpia en vez de precargada con esta.
+      await vaciar()
       // El catálogo se comparte por clave entre las dos pantallas: sin
       // recargarlo, la ficha recién creada aterrizaba en «no hay ninguna
       // receta con ese id».
@@ -103,6 +125,16 @@ async function enviar() {
   } finally {
     enviando.value = false
   }
+}
+
+/** El alta en blanco otra vez, preset de la URL incluido. */
+async function vaciar() {
+  // La URL primero: si el sello se limpiara con la `?de=` aún puesta, el
+  // watchEffect del preset volvería a copiar la receta en esa ventana.
+  if (route.query.de !== undefined) await router.replace({ query: {} })
+  Object.assign(form, VACIA())
+  pasos.value = PASO_INICIAL()
+  copiadaYa.value = ''
 }
 
 /**
@@ -140,8 +172,10 @@ async function borrar() {
   <template v-else>
     <form @submit.prevent="enviar">
       <!-- Sin título: el nombre de la receta ya está en la última miga. -->
-      <div v-if="!esNueva" class="cabecera">
-        <NuxtLink :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>
+      <div class="cabecera">
+        <NuxtLink v-if="!esNueva" :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>
+        <!-- El borrador del alta sobrevive a salir y volver; esto lo tira. -->
+        <button v-else type="button" class="limpiar" @click="vaciar">Vaciar</button>
       </div>
 
       <label v-if="esNueva && (catalogo ?? []).length" class="partir">
@@ -214,8 +248,23 @@ async function borrar() {
 <style scoped>
 h2 { font-size: 1.05rem; margin: 0; }
 
-/* Solo queda Duplicar, que se va a la derecha él solo. */
+/* Duplicar en la ficha o Vaciar en el alta, a la derecha ellos solos. */
 .cabecera { display: flex; justify-content: flex-end; align-items: center; }
+
+/* Texto pequeño y sin peso: vacía un borrador, no borra datos guardados. */
+.limpiar {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  min-height: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.limpiar:hover { color: var(--acento); }
 
 .secundario {
   display: inline-flex; align-items: center; min-height: 44px; white-space: nowrap;

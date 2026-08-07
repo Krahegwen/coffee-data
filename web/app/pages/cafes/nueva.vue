@@ -31,12 +31,24 @@ const partirDe = computed({
   set: (cual) => { void router.replace({ query: cual ? { de: cual } : {} }) },
 })
 
-const form = reactive<Record<string, any>>({
+const EN_BLANCO = (): Record<string, any> => ({
   nombre: '', tostador: '', origen: '', region: '', variedad: '',
   proceso: '', altitud_m: '', sca: '', fecha_tueste: '', consumir_antes: '',
   peso_g: '', precio_eur: '', notas_tostador: '', estado: 'abierto',
   fecha_apertura: '', url: '', conservacion: '',
 })
+
+/**
+ * Borrador en memoria de la app: salir a mitad de ficha y volver no borra lo
+ * tecleado. Se vacía al dar de alta o con «Vaciar»; un F5 también.
+ */
+const form = useState('borrador-bolsa', EN_BLANCO).value
+
+/**
+ * De qué bolsa se copió ya este borrador. Sin el sello, volver con `?de=` en
+ * la URL pisaría lo editado con los datos de la bolsa de partida otra vez.
+ */
+const copiadaYa = useState('borrador-bolsa-de', () => '')
 
 /**
  * Lo que describe al café y se repite en cada bolsa. El peso entra porque casi
@@ -54,6 +66,8 @@ const DEL_CAFE = [
 watchEffect(() => {
   const origen = copiaDe.value as Record<string, unknown> | null
   if (!origen) return
+  if (copiadaYa.value === String(origen.id)) return
+  copiadaYa.value = String(origen.id)
   for (const campo of DEL_CAFE) {
     const valor = origen[campo]
     if (valor !== null && valor !== undefined) form[campo] = valor
@@ -62,6 +76,15 @@ watchEffect(() => {
 
 const enviando = ref(false)
 const errores = ref<string[]>([])
+
+/** La ficha en blanco otra vez, preset de la URL incluido. */
+async function vaciar() {
+  // La URL primero: si el sello se limpiara con la `?de=` aún puesta, el
+  // watchEffect del preset volvería a copiar la bolsa en esa ventana.
+  if (route.query.de !== undefined) await router.replace({ query: {} })
+  Object.assign(form, EN_BLANCO())
+  copiadaYa.value = ''
+}
 
 async function enviar() {
   errores.value = []
@@ -73,6 +96,9 @@ async function enviar() {
       Object.entries(form).filter(([, v]) => String(v ?? '').trim() !== ''),
     )
     const { cafe } = await crearCafe(datos)
+    // Dada de alta, el borrador ya no es un borrador: la próxima empieza
+    // limpia en vez de precargada con esta.
+    await vaciar()
     await router.push(`/cafes/${cafe.slug}`)
   } catch (fallo) {
     errores.value = erroresDe(fallo)
@@ -91,6 +117,11 @@ async function enviar() {
   />
 
   <form @submit.prevent="enviar">
+    <!-- Arriba a la derecha, como en el resto de formularios: lo escrito
+         sobrevive a salir y volver, y esto lo tira a propósito. -->
+    <div class="cabecera-form">
+      <button type="button" class="limpiar" @click="vaciar">Vaciar</button>
+    </div>
     <label v-if="(bolsas ?? []).length" class="partir">
       Partir de otra bolsa
       <select v-model="partirDe">
@@ -120,6 +151,22 @@ async function enviar() {
   font-size: 0.82rem;
   margin: 0 0 0.9rem;
 }
+
+.cabecera-form { display: flex; justify-content: flex-end; margin-bottom: -0.4rem; }
+
+/* Texto pequeño y sin peso: vacía un borrador, no borra datos guardados. */
+.limpiar {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.limpiar:hover { color: var(--acento); }
 
 .partir {
   display: flex;
