@@ -31,6 +31,15 @@ const { version } = useRuntimeConfig().public
  * siendo el token.
  */
 const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
+const ruta = useRoute()
+
+/**
+ * El atajo a las recetas, solo donde es atajo: en la portada y en el
+ * formulario de preparar, que es donde uno cae con la receta en la cabeza.
+ * En /recetas era un enlace a la página que ya estás viendo, y en el resto
+ * compite con las migas, que ya llevan a todas partes.
+ */
+const conAtajo = computed(() => ruta.path === '/' || ruta.path === '/crono')
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const tokenVisible = ref('')
 const errorSesion = ref('')
@@ -125,7 +134,7 @@ useHead({
       <!-- Las recetas se consultan a menudo y se editan poco, así que viven
            arriba y siempre a la misma altura en vez de ocupar un botón en la
            portada. -->
-      <NuxtLink to="/recetas" class="atajo">
+      <NuxtLink v-if="conAtajo" to="/recetas" class="atajo">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
           <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
