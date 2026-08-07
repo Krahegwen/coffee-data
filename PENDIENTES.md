@@ -6,6 +6,9 @@ lleva anotado lo que ya se sabe, para no volver a investigarlo desde cero.
 
 Anotadas el 2026-08-07, sobre la versión 0.1.40.
 
+Hay una fila con un dato malo que corregir cuando se aborde el punto 5: la
+extracción del 2026-08-07 de Gary tiene `drawdown_s` 64 y debería ser ~42.
+
 ## 1. Separar la ruta de «preparar» y la del cronómetro
 
 Hoy `/crono` es dos pantallas en una: la de elegir café, receta, dosis y agua,
@@ -52,7 +55,43 @@ las palancas de las dos tiran de los clics en direcciones distintas. Puede que
 lo correcto sea seguir eligiendo uno —el que más molesta— y que el resto viva
 en las notas de cata, que para eso están. Decidir antes de tocar nada.
 
-## 5. Las notas de cata parecen perderse al guardar
+## 5. El goteo y el tiempo total están atados, y nadie lo comprueba
+
+Los dos **terminan en el mismo instante** —el fin del goteo—; lo que cambia es
+desde dónde se miden: el total desde el primer vertido, el goteo desde el final
+del último. O sea:
+
+    tiempo_total = fin_del_último_vertido + drawdown_s
+
+Y el fin del último vertido no hay que adivinarlo: sale de la receta que la
+propia extracción referencia. Corregir uno a mano y dejar el otro quieto rompe
+la fila, porque no son dos medidas independientes sino la misma marca vista
+desde dos orígenes.
+
+Pasó de verdad el 2026-08-07: el crono siguió corriendo al tirar el filtro, se
+corrigió el tiempo total a 3:32 y el goteo se quedó en 64 s. Con la receta base
+—último vertido de 145 a 170 s— esos 64 implican que 90 g cayeron en tres
+segundos. El valor coherente eran ~42 s. Las otras dos extracciones cuadran al
+segundo (217 − 47 = 170; 205 − 30 = 175), así que la comprobación funciona.
+
+Dos arreglos, y hacen falta los dos:
+
+- **Validar en el núcleo**, con la misma división que ya usa `extraido_g`: dura
+  la que es imposible —`drawdown_s` nunca puede llegar a `tiempo_total`— y
+  aviso la que solo es sospechosa, que el vertido dure mucho menos o mucho más
+  de lo que dice la receta. Blanda porque el vertido real varía y porque se
+  puede mandar un `reparto` propio; el aviso avisa, no bloquea.
+- **Atarlos al editar**: en el alta y en la corrección, cambiar el tiempo total
+  debería mover el goteo el mismo delta, que es lo que hace el reloj cuando los
+  calcula él. Hoy esa atadura solo existe dentro del cronómetro y se pierde en
+  cuanto tocas el campo a mano.
+
+Y una lección que va más allá del campo: un dato mal medido no se queda quieto,
+se convierte en conclusión. Ese 64 sostuvo un diagnóstico entero —«el lecho se
+está cerrando cada día»— que era falso, porque los otros dos valores sí subían
+y el malo remataba la tendencia. Los avisos de coherencia no son cosmética.
+
+## 6. Las notas de cata parecen perderse al guardar
 
 **No se pierden**: la extracción del 2026-08-07 tiene sus notas en la base. Lo
 que pasa es que `enviar()` en `web/app/pages/nueva.vue` limpia el campo después
