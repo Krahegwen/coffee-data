@@ -6,8 +6,8 @@ lleva anotado lo que ya se sabe, para no volver a investigarlo desde cero.
 
 Anotadas el 2026-08-07, sobre la versión 0.1.40.
 
-Hay una fila con un dato malo que corregir cuando se aborde el punto 5: la
-extracción del 2026-08-07 de Gary tiene `drawdown_s` 64 y debería ser ~42.
+(La fila mala que motivó el punto 5 ya está corregida: la extracción del
+2026-08-07 tiene su goteo en 42 s y la corrección explicada en sus notas.)
 
 ## 1. Separar la ruta de «preparar» y la del cronómetro
 
@@ -104,3 +104,43 @@ posibles: que la tarjeta de guardado enseñe las notas que se guardaron, o que
 el campo no se limpie hasta que empieces la siguiente. El primero parece mejor
 —confirma en vez de esconder— y de paso arregla la sensación de que el aviso
 se ha comido lo que escribiste.
+
+## 7. Volver a una rama anterior: la base de comparación no siempre es la de ayer
+
+El motor empareja **extracciones consecutivas**: `pares()` recorre el histórico
+de cada café y compara cada una con la inmediatamente anterior. Eso da por
+supuesto que la exploración es una línea, y no lo es.
+
+Pasó el 2026-08-07 con Gary. La escalera de temperatura fue 94 (amargor, 7),
+91 (equilibrado, 7) y 88 (astringente, 5): el 88 es un muro y el 91 es el
+techo. Lo siguiente razonable es **volver al 91 y mover otra cosa** —la
+molienda—. Contra la extracción de ayer eso son dos cambios y el par se
+descarta; contra la del 6 de agosto es uno solo y limpio. La comparación buena
+existe, pero el motor no puede verla porque solo mira hacia atrás un paso.
+
+La exploración es un **árbol**: cada extracción es una variación *de otra*, casi
+siempre la última, y a veces de una anterior a la que se vuelve tras un
+callejón sin salida.
+
+El arreglo es una columna: `desde_id` en `extracciones`, nulable, apuntando a
+la extracción de la que ésta es variación.
+
+- `pares()` deja de emparejar por vecindad y empareja **padre e hija**. Sale
+  más simple de lo que es hoy, no más complicado.
+- Por defecto, el padre es la última de ese café: el caso normal no cambia de
+  comportamiento ni pide nada al usuario.
+- La migración puede rellenar las filas viejas con «la anterior del mismo
+  café», que reproduce exactamente lo que el motor hace ahora. Cambio de
+  esquema sin cambio de lecturas.
+- El formulario ya tiene la forma: hoy `arranque` decide de dónde salen los
+  valores. Pasaría a ser «de qué extracción partes», con la última puesta por
+  defecto y un selector para volver a otra — el mismo patrón que «Partir de
+  otra bolsa», que ya existe en el alta de bolsas.
+- `variable_cambiada` se vuelve derivable del todo: hoy se compone contra «la
+  anterior» y por eso hay que explicar a mano los casos raros.
+- Las sueltas tienen el padre siempre a nulo, que es lo que ya se decidió: sin
+  bolsa no hay serie.
+
+Lo que hay que pensar antes de escribirlo: si el padre debe poder estar en otra
+bolsa (creo que no — el tueste manda, y para eso está el arranque que solo
+rellena campos), y qué pasa si borras una extracción que es madre de otra.
