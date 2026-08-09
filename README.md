@@ -339,6 +339,11 @@ esquema y las aplica D1 aunque el que escriba sea otro.
 - `ratio` y `dias_tueste` no se guardan, los deriva la vista `v_extracciones`
 
 `defecto`: `equilibrado` | `amargor` | `astringente` | `plano` | `agrio` | `salado` | `carton`
+| `aguado`. Admite **varios, en orden de relevancia**, separados por comas
+(`amargor,astringente`): quedan registrados todos y **la sugerencia sale solo
+del primero**, porque dos palancas tiran del molinillo en direcciones
+distintas. `equilibrado` significa que no hay defecto, así que no acompaña a
+ninguno.
 
 `reparto`: gramos de cada vertido separados por guiones. `60-60-90-90` son dos
 vertidos de fase 1 y dos de fase 2.
@@ -368,6 +373,13 @@ Retirar el dripper al terminar el goteo.
 | Quiero más claridad y fuerza | Fase 2 en 3 vertidos (60-60-60) |
 
 Una variable por extracción. Si mueves dos, el dato no sirve.
+
+Los **defectos** sí pueden ser varios, y no se contradice con lo anterior: una
+taza puede estar amarga y astringente a la vez, y obligar a elegir perdía la
+mitad del juicio. Lo que sigue siendo uno es el **ajuste**: se apuntan todos en
+orden de relevancia y solo el primero mueve una palanca. Corriges lo que más
+molesta, vuelves a medir, y si el segundo sigue ahí ya será el primero de la
+próxima.
 
 `aguado` es un defecto y el cuerpo no: una taza puede tener poco cuerpo y estar
 buena. Está en la lista porque, cuando molesta, molesta como los demás y tiene
@@ -414,7 +426,9 @@ curl -X POST https://brew.krahegwen.com/api/extracciones \
 ```
 
 Obligatorios: `temp_c`, `clics`, `tiempo_total`, `variable_cambiada`, `defecto`
-y `nota`. Lo que no mandes toma la receta base: `dosis_g` 20, `agua_g` 300,
+y `nota`. `defecto` admite un array (`["amargor","astringente"]`) o el texto ya
+separado por comas; se guarda siempre en su forma canónica. Lo que no mandes
+toma la receta base: `dosis_g` 20, `agua_g` 300,
 molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la
 fecha de hoy. La fila entra entera o no entra: si algo no valida, **422** con la
 lista de errores y no se escribe nada.

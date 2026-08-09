@@ -200,6 +200,41 @@ def test_el_defecto_es_una_lista_cerrada(db):
         insertar_extraccion(db, defecto="'quemado'")
 
 
+@pytest.mark.parametrize(
+    "lista",
+    ["amargor,astringente", "astringente,amargor", "amargor,plano,agrio",
+     "aguado,carton,salado,agrio"],
+)
+def test_el_defecto_admite_varios_en_orden(db, lista):
+    """Desde la 0010 el defecto es una lista ordenada por relevancia."""
+    insertar_extraccion(db, defecto=f"'{lista}'")
+    fila = db.execute(
+        "SELECT defecto FROM extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
+    ).fetchone()
+    assert fila[0] == lista
+
+
+@pytest.mark.parametrize(
+    "lista",
+    [
+        "amargor,quemado",      # una clave que el motor no sabe traducir
+        "",                     # lista vacía: o hay defecto o la columna es NULL
+        "amargor,",             # coma suelta al final
+        ",amargor",             # y al principio
+        "amargor,,plano",       # hueco en medio
+        "amargor,amargor",      # repetido pegado
+        "amargor, astringente",  # con espacio: la forma canónica no lo lleva
+    ],
+)
+def test_una_lista_de_defectos_mal_formada_no_entra(db, lista):
+    """
+    El CHECK va tachando defectos conocidos de ',<lista>,' hasta dejar ','.
+    Lo que garantiza es lo que importa: que no entre una clave desconocida.
+    """
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, defecto=f"'{lista}'")
+
+
 def test_la_apertura_tiene_que_ser_una_fecha(db):
     db.execute("UPDATE cafes SET fecha_apertura = '2026-06-01' WHERE slug = 'gary'")
     with pytest.raises(sqlite3.IntegrityError):

@@ -4,11 +4,12 @@ import { describe, it } from "node:test";
 
 import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
 import {
-  avisosDe, cambiosDe, cobertura, efectos, extrapolar, pares, retencion, sugerir, textoCorto,
+  avisosDe, cambiosDe, cobertura, defectoPrincipal, efectos, extrapolar, pares,
+  retencion, sugerir, textoCorto,
 } from "../src/sugerencias.js";
 import {
-  claveDeFoto, extraidoImposible, fechaValida, MAX_FOTO_BYTES, slugDe, validarCafe,
-  validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
+  claveDeFoto, defectosDe, extraidoImposible, fechaValida, MAX_FOTO_BYTES, slugDe,
+  validarCafe, validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
 } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
@@ -147,6 +148,52 @@ describe("palancas por defecto", () => {
   it("no repite la misma variable dos veces", () => {
     const variables = cambiosDe(extraccion({ defecto: "amargor", drawdown_s: 95 })).map((c) => c.variable);
     assert.equal(variables.length, new Set(variables).size);
+  });
+});
+
+describe("varios defectos, en orden de relevancia", () => {
+  it("la lista se lee igual venga como texto o como array", () => {
+    assert.deepEqual(defectosDe("amargor,astringente"), ["amargor", "astringente"]);
+    assert.deepEqual(defectosDe(["Amargor", " astringente "]), ["amargor", "astringente"]);
+    assert.deepEqual(defectosDe(null), []);
+  });
+
+  it("un solo defecto es una lista de uno: las filas viejas no migran", () => {
+    assert.deepEqual(defectosDe("amargor"), ["amargor"]);
+    assert.equal(defectoPrincipal({ defecto: "amargor" }), "amargor");
+  });
+
+  /*
+   * El corazón de la decisión: se registran todos, pero la palanca sale solo
+   * del primero. Amargor pide moler más grueso y plano más fino — si mandaran
+   * los dos, el molinillo tendría que ir a la vez en dos direcciones.
+   */
+  it("la palanca sale solo del primero, no de los dos", () => {
+    const cambios = cambiosDe(extraccion({ defecto: "amargor,plano" }));
+    assert.deepEqual(cambios.map((c) => `${c.variable} ${c.cambio}`), ["clics +2", "temp_c -3"]);
+  });
+
+  it("cambiar el orden cambia la sugerencia, que para eso se ordena", () => {
+    const alReves = cambiosDe(extraccion({ defecto: "plano,amargor" }));
+    assert.deepEqual(alReves.map((c) => `${c.variable} ${c.cambio}`), ["clics -2", "temp_c +3"]);
+  });
+
+  it("el resumen que se guarda es el del primero", () => {
+    assert.equal(textoCorto(sugerir(extraccion({ defecto: "astringente,amargor" }))), "clics +3");
+  });
+
+  /*
+   * Los avisos sí miran la lista entera: no compiten entre ellos y ninguno
+   * mueve el molinillo, así que caben todos a la vez.
+   */
+  it("un aviso salta aunque su defecto no sea el primero", () => {
+    const avisos = avisosDe(extraccion({ defecto: "amargor,carton", dias_tueste: 90 }));
+    assert.ok(avisos.some((a) => /cartón/.test(a)));
+  });
+
+  it("con un defecto delante no está conforme aunque el segundo sea inocuo", () => {
+    assert.equal(sugerir(extraccion({ defecto: "amargor", nota: 9 })).conforme, false);
+    assert.equal(sugerir(extraccion({ defecto: "equilibrado", nota: 9 })).conforme, true);
   });
 });
 
@@ -459,6 +506,32 @@ describe("validación de extracciones", () => {
     assert.equal(valores.dripper, "v60-02-ceramica");
   });
 
+  it("guarda varios defectos en su forma canónica, venga array o texto", () => {
+    for (const defecto of [["Amargor", "astringente"], "amargor, astringente"]) {
+      const { valores, errores } = validarExtraccion(cuerpo({ defecto }));
+      assert.deepEqual(errores, [], JSON.stringify(defecto));
+      assert.equal(valores.defecto, "amargor,astringente");
+    }
+  });
+
+  it("una clave inventada entre varias buenas tumba la fila entera", () => {
+    assert.ok(validarExtraccion(cuerpo({ defecto: "amargor,quemado" })).errores.length);
+  });
+
+  it("rechaza el mismo defecto dos veces", () => {
+    assert.ok(validarExtraccion(cuerpo({ defecto: "amargor,plano,amargor" })).errores.length);
+  });
+
+  // Decir «equilibrado» es decir que no hay ninguno, así que no acompaña.
+  it("equilibrado no puede ir con otro defecto", () => {
+    const { errores } = validarExtraccion(cuerpo({ defecto: "equilibrado,amargor" }));
+    assert.ok(errores.some((e) => /equilibrado/.test(e)));
+  });
+
+  it("sin ningún defecto la fila no pasa: es obligatorio", () => {
+    assert.ok(validarExtraccion(cuerpo({ defecto: [] })).errores.length);
+  });
+
   it("rechaza campos que no existen", () => {
     const { errores } = validarExtraccion(cuerpo({ inventado: "x" }));
     assert.ok(errores.some((e) => e.includes("desconocidos")));
@@ -619,6 +692,13 @@ describe("corrección de extracciones", () => {
     const { valores, errores } = validarCambiosExtraccion({ cafe_id: "gary" });
     assert.deepEqual(errores, []);
     assert.equal(valores.cafe_id, "gary");
+  });
+
+  it("corrige la lista de defectos con las reglas del alta", () => {
+    const { valores, errores } = validarCambiosExtraccion({ defecto: ["plano", "Salado"] });
+    assert.deepEqual(errores, []);
+    assert.equal(valores.defecto, "plano,salado");
+    assert.ok(validarCambiosExtraccion({ defecto: "equilibrado,plano" }).errores.length);
   });
 
   it("valida igual que el alta", () => {

@@ -12,7 +12,71 @@ export const DEFECTOS = [
   "equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton",
   "aguado",
 ];
+
+/**
+ * «Equilibrado» no es un defecto: es decir que no hay ninguno. Por eso no
+ * acompaña a otros — una taza no puede estar equilibrada y amarga a la vez.
+ */
+export const SIN_DEFECTO = "equilibrado";
+
 export const DRIPPERS = ["v60-02-plastico", "v60-02-ceramica"];
+
+/**
+ * Los defectos de una taza, **en orden de relevancia**: el que más molesta
+ * primero.
+ *
+ * En la base es una sola columna con la lista separada por comas, y no una
+ * tabla hija: son como mucho siete claves de un vocabulario cerrado, nadie
+ * hace JOIN contra ellas y nadie filtra por ellas en SQL. Guardarlas en la
+ * misma fila deja el puerto de almacén donde está —once métodos, filas
+ * planas— y los tres adaptadores tontos, que es lo que los hace fáciles de
+ * escribir bien. El CHECK de la base sigue mordiendo: ver la migración 0010.
+ *
+ * Acepta lo que mande quien llame: un array, o el texto tal cual está
+ * guardado. Un solo defecto —`"amargor"`, que es lo que documenta el README y
+ * lo que hay en las filas viejas— es una lista de uno y no hay que migrar
+ * nada.
+ */
+export function defectosDe(valor) {
+  if (valor === null || valor === undefined) return [];
+  const crudos = Array.isArray(valor) ? valor : String(valor).split(",");
+  return crudos.map((d) => String(d ?? "").trim().toLowerCase()).filter(Boolean);
+}
+
+/**
+ * Valida la lista y la deja en su forma canónica: `"amargor,astringente"`.
+ *
+ * Sin espacios y sin repetidos, porque el texto es lo que se guarda y dos
+ * escrituras del mismo juicio tienen que dar la misma cadena — si no, dos
+ * filas iguales no se parecerían.
+ */
+function validarDefectos(valor, errores) {
+  const lista = defectosDe(valor);
+  if (!lista.length) return null;
+
+  const malos = lista.filter((d) => !DEFECTOS.includes(d));
+  if (malos.length) {
+    errores.push(
+      `defecto no permitido: ${malos.map((d) => JSON.stringify(d)).join(", ")}. ` +
+        `Válidos: ${DEFECTOS.join(", ")}`,
+    );
+  }
+
+  const repetidos = lista.filter((d, i) => lista.indexOf(d) !== i);
+  if (repetidos.length) {
+    errores.push(`defecto repetido: ${[...new Set(repetidos)].join(", ")}`);
+  }
+
+  // Decir «equilibrado» es decir que no hay defecto, así que no acompaña.
+  if (lista.includes(SIN_DEFECTO) && lista.length > 1) {
+    errores.push(
+      `'${SIN_DEFECTO}' significa que no hay defecto, así que no puede ir con otros: ` +
+        lista.join(", "),
+    );
+  }
+
+  return lista.join(",");
+}
 
 // Receta base del README.
 export const POR_DEFECTO = {
@@ -220,11 +284,7 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
     valores.extraido_g = n;
   }
 
-  const defecto = vacio(entrada.defecto) ? null : String(entrada.defecto).trim().toLowerCase();
-  if (defecto !== null && !DEFECTOS.includes(defecto)) {
-    errores.push(`defecto no permitido: ${JSON.stringify(entrada.defecto)}. Válidos: ${DEFECTOS.join(", ")}`);
-  }
-  valores.defecto = defecto;
+  valores.defecto = validarDefectos(entrada.defecto, errores);
 
   const dripper = vacio(entrada.dripper)
     ? POR_DEFECTO.dripper
@@ -417,11 +477,7 @@ export function validarCambiosExtraccion(cuerpo) {
   }
 
   if (dado("defecto")) {
-    const defecto = vacio(entrada.defecto) ? null : String(entrada.defecto).trim().toLowerCase();
-    if (defecto !== null && !DEFECTOS.includes(defecto)) {
-      errores.push(`defecto no permitido: ${JSON.stringify(entrada.defecto)}. Válidos: ${DEFECTOS.join(", ")}`);
-    }
-    valores.defecto = defecto;
+    valores.defecto = validarDefectos(entrada.defecto, errores);
   }
 
   if (dado("dripper")) {

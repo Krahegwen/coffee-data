@@ -6,6 +6,8 @@
  * extracciones consecutivas del mismo café.
  */
 
+import { defectosDe, SIN_DEFECTO } from "./validacion.js";
+
 // Umbrales de partida, no verdades reveladas: están aquí para calibrarlos con
 // datos propios cuando haya extracciones suficientes.
 export const DRAWDOWN_LARGO_S = 75;
@@ -87,6 +89,20 @@ function num(valor) {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * El defecto que manda: el primero de la lista, que es el que más molesta.
+ *
+ * Una taza puede estar amarga y astringente a la vez, y las dos cosas quedan
+ * apuntadas. Pero las palancas de dos defectos tiran de los clics en
+ * direcciones distintas, y el protocolo entero se sostiene sobre mover **una
+ * sola cosa** por extracción. Así que la lista se registra entera y la
+ * sugerencia sale solo de la cabeza: corrige lo que más molesta, vuelve a
+ * medir, y si el segundo sigue ahí ya será el primero de la próxima.
+ */
+export function defectoPrincipal(extraccion) {
+  return defectosDe(extraccion?.defecto)[0] ?? null;
+}
+
 // --- capa 1: reglas --------------------------------------------------------
 
 export function avisosDe(extraccion, historico = []) {
@@ -121,7 +137,14 @@ export function avisosDe(extraccion, historico = []) {
         `${DIAS_TUESTE_VIEJO} la taza se apaga sola y la receta no tiene la culpa`,
     );
   }
-  if (extraccion.defecto === "carton" && (dias === null || dias > DIAS_TUESTE_VIEJO)) {
+  /*
+   * Los avisos miran la lista **entera**, no solo la cabeza. Un aviso no
+   * compite con nada —caben todos a la vez y ninguno mueve el molinillo—,
+   * mientras que las palancas sí: por eso la sugerencia se queda con el
+   * primero y esto no.
+   */
+  const defectos = defectosDe(extraccion.defecto);
+  if (defectos.includes("carton") && (dias === null || dias > DIAS_TUESTE_VIEJO)) {
     avisos.push("a cartón casi siempre es café pasado, no extracción");
   }
 
@@ -182,7 +205,8 @@ export function cambiosDe(extraccion) {
     }
   }
 
-  for (const [variable, cambio, porque] of PALANCAS[extraccion.defecto] ?? []) {
+  // Solo la cabeza de la lista mueve una palanca: ver `defectoPrincipal`.
+  for (const [variable, cambio, porque] of PALANCAS[defectoPrincipal(extraccion)] ?? []) {
     if (cambios.some((c) => c.variable === variable)) continue;
     cambios.push({ variable, cambio, porque });
   }
@@ -291,7 +315,7 @@ export function cobertura(cafeId, historico) {
  * receta o de molinillo no se sabe cuál sería «el siguiente».
  */
 export function extrapolar(extraccion, historico = []) {
-  if (extraccion.defecto !== "equilibrado") return null;
+  if (defectoPrincipal(extraccion) !== SIN_DEFECTO) return null;
   if ((num(extraccion.nota) ?? 0) >= NOTA_BUENA) return null;
 
   const propios = pares(historico).filter((p) => p.cafe_id === extraccion.cafe_id);
@@ -331,8 +355,10 @@ export function sugerir(extraccion, historico = []) {
     cambios,
     efectos: efectos(historico),
     cobertura: cobertura(extraccion.cafe_id, historico),
+    // «Equilibrado» no acompaña a nadie, así que ser la cabeza es ser la lista
+    // entera: conforme solo cuando de verdad no hay ningún defecto apuntado.
     conforme:
-      extraccion.defecto === "equilibrado" && (num(extraccion.nota) ?? 0) >= NOTA_BUENA,
+      defectoPrincipal(extraccion) === SIN_DEFECTO && (num(extraccion.nota) ?? 0) >= NOTA_BUENA,
   };
 }
 
