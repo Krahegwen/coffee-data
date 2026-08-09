@@ -452,7 +452,7 @@ onUnmounted(soltar)
     <p v-if="actual && !actual.lectura_fiable" class="ojo">
       No mires la báscula: la cuchara pesa mientras está dentro.
     </p>
-    <p v-if="actual?.notas" class="notas">{{ actual.notas }}</p>
+    <p v-if="actual" class="notas" :class="{ vacia: !actual.notas }">{{ actual.notas }}</p>
 
     <p v-if="siguiente && corriendo" class="faltan">
       {{ etiquetaPaso(siguiente.accion, siguiente.estilo) }}{{ siguiente.accion === 'verter' ? ` hasta ${siguiente.acumulado_g} g` : '' }}
@@ -715,6 +715,10 @@ button {
 }
 
 .notas, .meta { color: var(--suave); font-size: 0.85rem; margin: 0.3rem 0; }
+/* Reservado aunque el paso no traiga nota: si el párrafo entra y sale del
+   árbol, todo lo de debajo salta al cambiar de paso. */
+.notas { min-height: 1.2em; }
+.notas.vacia { visibility: hidden; }
 
 .faltan {
   color: var(--suave);
