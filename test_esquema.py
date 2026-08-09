@@ -31,10 +31,26 @@ EXTRACCION = {
 
 
 def insertar_extraccion(db, **cambios):
-    campos = {"id": f"'{uuid.uuid4()}'", **EXTRACCION, **cambios}
+    """
+    Inserta y **devuelve la id**, para poder releer justo esa fila.
+
+    Hace falta: la semilla escribe su `creado_en` con `datetime('now')`, igual
+    que esto, así que pedir «la última» empata con ella y el desempate es un
+    uuid4 aleatorio. Un test que releyera por orden acertaría unas veces sí y
+    otras no.
+    """
+    clave = str(uuid.uuid4())
+    campos = {"id": f"'{clave}'", **EXTRACCION, **cambios}
     columnas = ", ".join(campos)
     valores = ", ".join(str(v) for v in campos.values())
     db.execute(f"INSERT INTO extracciones ({columnas}) VALUES ({valores})")
+    return clave
+
+
+def defecto_de(db, clave):
+    return db.execute(
+        "SELECT defecto FROM extracciones WHERE id = ?", (clave,)
+    ).fetchone()[0]
 
 
 @pytest.fixture
@@ -207,11 +223,8 @@ def test_el_defecto_es_una_lista_cerrada(db):
 )
 def test_el_defecto_admite_varios_en_orden(db, lista):
     """Desde la 0010 el defecto es una lista ordenada por relevancia."""
-    insertar_extraccion(db, defecto=f"'{lista}'")
-    fila = db.execute(
-        "SELECT defecto FROM extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
-    ).fetchone()
-    assert fila[0] == lista
+    clave = insertar_extraccion(db, defecto=f"'{lista}'")
+    assert defecto_de(db, clave) == lista
 
 
 @pytest.mark.parametrize(
@@ -252,11 +265,8 @@ def test_sin_fecha_de_apertura_los_dias_quedan_a_null(db):
 
 
 def test_aguado_es_un_defecto_valido(db):
-    insertar_extraccion(db, defecto="'aguado'")
-    fila = db.execute(
-        "SELECT defecto FROM extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
-    ).fetchone()
-    assert fila[0] == "aguado"
+    clave = insertar_extraccion(db, defecto="'aguado'")
+    assert defecto_de(db, clave) == "aguado"
 
 
 def test_lo_extraido_tiene_que_ser_positivo(db):

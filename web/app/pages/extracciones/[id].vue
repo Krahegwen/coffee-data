@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
-import { DEFECTOS, DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { defectosDe } from '@coffee/nucleo/validacion'
+import { DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
 const route = useRoute()
@@ -149,6 +150,16 @@ const textoVariables = computed(() =>
     : String(form.variable_cambiada ?? ''),
 )
 
+/**
+ * Los defectos como lista, sobre la misma cadena que guarda la fila. Igual que
+ * en el alta: la columna sigue siendo un texto y la lista es una vista de él,
+ * así que `cambios` compara lo de siempre y no hace falta tocarlo.
+ */
+const defectos = computed({
+  get: () => defectosDe(form.defecto),
+  set: (lista: string[]) => { form.defecto = lista.join(',') },
+})
+
 const cambios = computed(() => {
   if (!original.value) return {}
   const salida: Record<string, unknown> = {}
@@ -283,14 +294,9 @@ async function retirar() {
         Anotado como «{{ form.variable_cambiada }}»
       </p>
 
-      <label>
-        Defecto
-        <select v-model="form.defecto">
-          <option v-for="(etiqueta, clave) in DEFECTOS" :key="clave" :value="clave">
-            {{ etiqueta }}
-          </option>
-        </select>
-      </label>
+      <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
+      <h3 class="apartado">Defecto(s)</h3>
+      <DefectosElegidos v-model="defectos" />
 
       <label>
         Nota: <strong>{{ form.nota }}</strong>

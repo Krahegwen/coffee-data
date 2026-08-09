@@ -68,6 +68,14 @@ si se sale, que ahí lo que falla es la medida y no el café.
 Si falta algún obligatorio (`temp_c`, `clics`, `tiempo_total`,
 `variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
 
+**`defecto` admite varios**, en orden de relevancia: array
+(`["amargor","astringente"]`) o texto con comas. Se registran todos y **la
+sugerencia sale solo del primero** — dos palancas tirarían del molinillo en
+direcciones opuestas—, así que si el usuario menciona dos, pregúntale cuál
+molesta más y ponlo delante. Los avisos sí miran la lista entera.
+`equilibrado` quiere decir que no hay defecto y por eso no acompaña a
+ninguno: mandarlo junto a otro es un 422.
+
 `cafe_id` es opcional: una taza sin ficha —el café de un amigo, una muestra—
 se registra **suelta**, sin bolsa. El motor no la compara con ninguna otra
 (dos sueltas no son el mismo café), pero las reglas de la propia taza sí
@@ -201,6 +209,12 @@ herramientas de Python. `datos/` son los CSV exportados.
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
   en un SQLite en memoria y comprueba que las restricciones muerden de verdad.
+- El cronómetro son **dos rutas**: `/crono` elige (café, receta, dosis, agua)
+  y `/crono/reloj` mide. El estado lo comparten en `useCrono()`, que es
+  también donde está escrita **cuándo caduca un borrador**: al guardar la
+  extracción muere la medición y lo que no se repite del formulario; la
+  selección de preparar es una preferencia y sobrevive. Entrar directo al
+  reloj sin pasos escalados reconduce a `/crono`.
 - `web/` es la app. `ssr: false` a propósito. Todo el acceso a los datos pasa
   por `useApi()`, y desde la cola de salida hay **un solo camino**: leer y
   escribir van siempre por los manejadores del núcleo contra IndexedDB

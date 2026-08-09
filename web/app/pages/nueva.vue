@@ -3,11 +3,15 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 useHead({ title: 'Registrar extracción' })
 
-import { DEFECTOS, DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
+import { defectosDe } from '@coffee/nucleo/validacion'
+import { DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const route = useRoute()
 const router = useRouter()
+// Guardar la extracción es lo que cierra esa taza, así que es aquí donde
+// muere la medición del cronómetro. Ver la regla entera en `useCrono`.
+const { soltarReloj } = useCrono()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
@@ -212,11 +216,29 @@ const retencion = computed(() => {
 const desdeCrono = computed(() => route.query.tiempo !== undefined)
 
 /**
+ * Hay algo medido dentro. El tiempo y el goteo salen de cronometrar una taza
+ * que ya está colada: no se pueden volver a sacar, a diferencia de la
+ * temperatura o los clics, que son ajustes y se reescriben tecleando.
+ */
+const hayMedido = computed(
+  () => String(form.tiempo_total).trim() !== '' || String(form.drawdown_s).trim() !== '',
+)
+
+const dialogo = ref<HTMLDialogElement | null>(null)
+
+/** Vaciar en blanco no necesita ceremonia; vaciar una medición, sí. */
+function pedirVaciar() {
+  if (hayMedido.value) dialogo.value?.showModal()
+  else vaciar()
+}
+
+/**
  * El formulario como recién entrado: en blanco, sin filas de variables, sin
  * query del crono, y con la última extracción puesta otra vez de partida.
  * Para el borrador a medias que ya no es verdad —o el preset que no era—.
  */
 function vaciar() {
+  dialogo.value?.close()
   Object.assign(form, EN_BLANCO())
   cambiadas.value = []
   arranqueAplicado.value = ''
@@ -251,6 +273,19 @@ watchEffect(() => {
 const ratio = computed(() =>
   Number(form.dosis_g) > 0 ? (Number(form.agua_g) / Number(form.dosis_g)).toFixed(1) : '—',
 )
+
+/**
+ * Los defectos como lista, sobre la misma cadena que se guarda.
+ *
+ * El borrador sigue teniendo un solo campo de texto —`"amargor,astringente"`,
+ * que es exactamente lo que acaba en la columna— y la lista es una vista de
+ * él. Así lo que se compara y lo que se manda no se pueden desincronizar, que
+ * es lo que pasaría con un array al lado.
+ */
+const defectos = computed({
+  get: () => defectosDe(form.defecto),
+  set: (lista: string[]) => { form.defecto = lista.join(',') },
+})
 
 async function enviar() {
   errores.value = []
@@ -287,6 +322,18 @@ async function enviar() {
     form.variable_cambiada = ''
     form.notas_cata = ''
     cambiadas.value = []
+
+    /*
+     * Y con ella muere la medición del cronómetro: esa taza ya está apuntada.
+     * Antes se limpiaba al salir del reloj, que no termina nada — guardar y
+     * volver al crono te dejaba el tiempo de la taza anterior puesto, listo
+     * para registrarlo por segunda vez.
+     *
+     * La query se va con el mismo gesto: es de dónde salieron el tiempo y el
+     * goteo, y volver aquí con ella los reharía aparecer.
+     */
+    soltarReloj()
+    if (Object.keys(route.query).length) void router.replace({ query: {} })
   } catch (fallo) {
     errores.value = erroresDe(fallo)
   } finally {
@@ -302,8 +349,9 @@ async function enviar() {
     <div class="titulo">
       <h2>Nueva extracción</h2>
       <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
-           propósito cuando el borrador ya no es verdad. -->
-      <button type="button" class="limpiar" @click="vaciar">Vaciar</button>
+           propósito cuando el borrador ya no es verdad. Con una medición
+           dentro pregunta antes: eso no se puede volver a medir. -->
+      <button type="button" class="limpiar" @click="pedirVaciar">Vaciar</button>
     </div>
 
     <p v-if="desdeCrono" class="delcrono">
@@ -398,14 +446,9 @@ async function enviar() {
       <input v-model="form.variable_cambiada" placeholder="Primera extracción" required>
     </label>
 
-    <label>
-      Defecto
-      <select v-model="form.defecto">
-        <option v-for="(etiqueta, clave) in DEFECTOS" :key="clave" :value="clave">
-          {{ etiqueta }}
-        </option>
-      </select>
-    </label>
+    <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
+    <h3>Defecto(s)</h3>
+    <DefectosElegidos v-model="defectos" />
 
     <label>
       Nota: <strong>{{ form.nota }}</strong>
@@ -422,6 +465,19 @@ async function enviar() {
     </button>
   </form>
 
+  <dialog ref="dialogo" @cancel="dialogo?.close()">
+    <h3>¿Vaciar el formulario?</h3>
+    <p class="ojo">
+      Hay un tiempo cronometrado y se perderá. Eso no se puede volver a medir:
+      el café ya está colado.
+    </p>
+    <p>El resto —temperatura, clics, receta— se vuelve a teclear en un momento.</p>
+    <div class="botones">
+      <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>
+      <button type="button" class="peligro" @click="vaciar">Vaciar</button>
+    </div>
+  </dialog>
+
   <section v-if="errores.length" class="tarjeta errores">
     <strong>No se ha guardado nada</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
@@ -434,6 +490,21 @@ async function enviar() {
       <span v-if="resultado.extraccion.dias_tueste !== null">
         · {{ resultado.extraccion.dias_tueste }} días de tueste
       </span>
+    </p>
+
+    <!--
+      Las notas de cata, de vuelta y textuales.
+
+      El campo se limpia al guardar a propósito —no se repiten entre tazas—,
+      pero encima salía este aviso hablando de otra cosa y lo que se veía era
+      la nota desaparecida y ningún acuse de recibo. Nunca se perdieron: están
+      en la base desde el primer momento. Enseñarlas aquí lo demuestra en vez
+      de pedir que te fíes, y de paso lo que se lee es lo que **guardó el
+      servidor**, no lo que quedó en el formulario.
+    -->
+    <p v-if="resultado.extraccion.notas_cata" class="notas copiable">
+      <span class="etiqueta">Notas de cata</span>
+      «{{ resultado.extraccion.notas_cata }}»
     </p>
 
     <p v-for="a in resultado.sugerencias.avisos" :key="a" class="aviso">⚠ {{ a }}</p>
@@ -559,6 +630,46 @@ button:disabled { opacity: 0.5; cursor: default; }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
 .exito { border-color: var(--acento); }
 .aviso { font-size: 0.85rem; margin: 0.5rem 0; }
+
+/* Lo que escribiste, devuelto tal cual: por eso es seleccionable y va en
+   cursiva, para que se lea como una cita y no como un mensaje de la app. */
+.notas {
+  font-size: 0.88rem;
+  font-style: italic;
+  color: var(--tinta);
+  margin: 0.5rem 0;
+  overflow-wrap: anywhere;
+}
+
+.notas .etiqueta {
+  display: block;
+  font-style: normal;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--suave);
+}
+
+dialog {
+  border: 1px solid var(--linea);
+  border-radius: 0.8rem;
+  background: var(--tarjeta);
+  color: var(--tinta);
+  padding: 1.25rem;
+  max-width: min(28rem, calc(100% - 2rem));
+  margin: auto;
+  overflow-wrap: anywhere;
+}
+
+dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+dialog h3 { font-size: 1.05rem; font-weight: 600; color: var(--tinta); margin: 0 0 0.6rem; }
+dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
+dialog .ojo { color: #c2410c; }
+
+.botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.botones button { margin-top: 0; }
+.secundario { background: transparent; color: var(--suave); border: 1px solid var(--linea); font-weight: 400; }
+.peligro { background: #c2410c; }
 ol { margin: 0.35rem 0 0; padding-left: 1.2rem; font-size: 0.88rem; }
 code { font-size: 0.85em; }
 a { color: var(--acento); }

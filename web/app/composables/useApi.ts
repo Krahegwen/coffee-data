@@ -69,6 +69,7 @@ export interface Extraccion {
   tiempo_total: string | null
   drawdown_s: number | null
   variable_cambiada: string | null
+  /** Los defectos en orden de relevancia, separados por comas. El primero manda. */
   defecto: string | null
   notas_cata: string | null
   nota: number | null
@@ -142,7 +143,12 @@ export interface NuevaExtraccion {
   clics: number
   tiempo_total: string
   variable_cambiada: string
-  defecto: string
+  /**
+   * Uno, o varios en orden de relevancia. Como cadena —`"amargor,plano"`, la
+   * forma en que se guarda— o como array; el núcleo acepta las dos y devuelve
+   * siempre la cadena canónica.
+   */
+  defecto: string | string[]
   nota: number
   dosis_g?: number
   agua_g?: number
