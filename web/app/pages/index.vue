@@ -1,4 +1,10 @@
 <script setup lang="ts">
+// El título de la portada es el nombre de la app: sin esto se quedaba el del
+// HTML estático, que está en castellano por fuerza —se escribe antes de saber
+// el idioma— y acababa duplicado en la pestaña.
+const { t } = useI18n()
+useHead({ title: () => t('app.nombre') })
+
 import { avisoRespaldo } from '~/almacen/respaldo'
 const { fechaCorta, nombreCafe } = useTextos()
 
@@ -74,35 +80,24 @@ async function instalar() {
 </script>
 
 <template>
-  <div v-if="fallo" class="aviso">
-    No se pudo hablar con la API. Si estás sin cobertura, esto se verá con los
-    últimos datos guardados en cuanto la app esté instalada.
-  </div>
+  <div v-if="fallo" class="aviso">{{ $t('portada.sin_api') }}</div>
 
   <!-- La primera vez: qué es esto, de quién son los datos y el primer paso.
        Sin bolsa no hay nada que preparar, así que la puerta de siempre espera
        detrás de la primera alta. -->
   <section v-if="virgen" class="tarjeta bienvenida">
-    <p>
-      Una bitácora de extracciones en V60: registras cada café cambiando
-      <strong>una sola cosa</strong> cada vez, y la app te sugiere qué ajustar
-      en la siguiente.
-    </p>
-    <p class="meta">
-      Es opinionada — el método 4:6 de Tetsu Kasuya y unos umbrales calibrados
-      con el paladar de su autor — y tus datos viven <strong>solo en este
-      navegador</strong>: sin cuentas y sin mandar nada a ningún servidor. Por
-      lo mismo, la copia de seguridad corre de tu cuenta: en el pie tienes el
-      respaldo.
-    </p>
-    <NuxtLink to="/cafes/nueva" class="registrar">Dar de alta tu primera bolsa</NuxtLink>
+    <!-- El énfasis va por ranura: el catálogo guarda texto, no marcado. -->
+    <i18n-t keypath="portada.que_es" tag="p" scope="global">
+      <template #una_cosa><strong>{{ $t('portada.que_es_enfasis') }}</strong></template>
+    </i18n-t>
+    <i18n-t keypath="portada.opinionada" tag="p" class="meta" scope="global">
+      <template #solo_aqui><strong>{{ $t('portada.opinionada_enfasis') }}</strong></template>
+    </i18n-t>
+    <NuxtLinkLocale to="/cafes/nueva" class="registrar">{{ $t('portada.primera_bolsa') }}</NuxtLinkLocale>
     <!-- El crono no exige bolsa: se puede probar con la receta de serie
          antes de apuntar nada. -->
-    <NuxtLink to="/crono" class="registrar secundario">Probar el cronómetro</NuxtLink>
-    <p class="meta">
-      Las tres recetas 4:6 ya vienen puestas; con una bolsa dada de alta, el
-      cronómetro te guía los vertidos y del resto se encarga la bitácora.
-    </p>
+    <NuxtLinkLocale to="/crono" class="registrar secundario">{{ $t('portada.probar_crono') }}</NuxtLinkLocale>
+    <p class="meta">{{ $t('portada.crono_explicacion') }}</p>
   </section>
 
   <!-- Una sola puerta: preparar. Registrar a mano vive dentro, al lado del
@@ -110,7 +105,7 @@ async function instalar() {
        —café, receta, dosis y agua— y solo entonces se sabe cuál de las dos
        quieres. Las bolsas y las recetas se alcanzan desde su sitio. -->
   <div v-else class="acciones">
-    <NuxtLink to="/crono" class="registrar">Preparar café</NuxtLink>
+    <NuxtLinkLocale to="/crono" class="registrar">{{ $t('portada.preparar') }}</NuxtLinkLocale>
   </div>
 
   <!-- Solo en el móvil y mientras no esté instalada: instalada sobra, y en el
@@ -118,27 +113,19 @@ async function instalar() {
        un sitio suelto el navegador lo puede limpiar; una app puesta, no. -->
   <section v-if="ofrecerInstalar" class="instalacion">
     <button type="button" class="instalar" @click="instalar">
-      Instalar en el móvil
+      {{ $t('portada.instalar') }}
     </button>
-    <p v-if="comoInstalar" class="ayuda">
-      Este navegador no ofrece el diálogo. Búscalo en su menú (⋮) como
-      «Instalar aplicación» o «Añadir a pantalla de inicio». Si acabas de
-      actualizar la app, recarga una vez y vuelve a intentarlo.
-    </p>
+    <p v-if="comoInstalar" class="ayuda">{{ $t('portada.como_instalar') }}</p>
   </section>
 
   <!-- El recordatorio del respaldo, cuando hay historial en juego y hace
        demasiado del último. Discreto pero visible: en local nadie más guarda
        esto. -->
   <div v-if="copiaVieja" class="aviso">
-    <template v-if="copiaVieja.nunca">
-      Llevas {{ copiaVieja.dias }} días registrando sin ningún respaldo.
-    </template>
-    <template v-else>
-      Tu último respaldo es de hace {{ copiaVieja.dias }} días.
-    </template>
-    <NuxtLink to="/respaldo">Descarga uno</NuxtLink>: tus datos solo existen
-    en este navegador.
+    {{ copiaVieja.nunca
+      ? $t('portada.respaldo_nunca', { dias: copiaVieja.dias })
+      : $t('portada.respaldo_viejo', { dias: copiaVieja.dias }) }}
+    <NuxtLinkLocale to="/respaldo">{{ $t('portada.respaldo_descarga') }}</NuxtLinkLocale>{{ $t('portada.respaldo_solo_aqui') }}
   </div>
 
   <section v-if="!virgen">
@@ -146,16 +133,16 @@ async function instalar() {
          portada ves cuáles tienes abiertas, y si quieres tocarlas se entra por
          aquí. -->
     <h2>
-      Bolsas abiertas
-      <NuxtLink to="/cafes" class="editar" aria-label="Editar las bolsas">
+      {{ $t('portada.bolsas_abiertas') }}
+      <NuxtLinkLocale to="/cafes" class="editar" :aria-label="$t('portada.editar_bolsas')">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 20h9" />
           <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
         </svg>
-      </NuxtLink>
+      </NuxtLinkLocale>
     </h2>
-    <p v-if="!abiertas.length" class="vacio">Ninguna abierta.</p>
-    <NuxtLink
+    <p v-if="!abiertas.length" class="vacio">{{ $t('portada.ninguna_abierta') }}</p>
+    <NuxtLinkLocale
       v-for="cafe in abiertas" :key="cafe.id"
       :to="`/cafes/${cafe.slug}`" class="tarjeta bolsa"
     >
@@ -175,31 +162,31 @@ async function instalar() {
         </p>
         <p class="meta">
           <span v-if="restante(cafe.id, cafe.peso_g) !== null">
-            quedan ~{{ restante(cafe.id, cafe.peso_g) }} g
+            {{ $t('portada.quedan', { n: restante(cafe.id, cafe.peso_g) }) }}
           </span>
           <span v-if="cafe.conservacion"> · {{ cafe.conservacion }}</span>
         </p>
       </div>
-    </NuxtLink>
+    </NuxtLinkLocale>
   </section>
 
   <section v-if="!virgen">
-    <h2>Últimas extracciones</h2>
-    <p v-if="!ultimas.length" class="vacio">Todavía ninguna.</p>
+    <h2>{{ $t('portada.ultimas') }}</h2>
+    <p v-if="!ultimas.length" class="vacio">{{ $t('portada.todavia_ninguna') }}</p>
     <!-- La id es un uuid opaco: lo que identifica una taza para un humano es
          el café y el día. -->
-    <NuxtLink v-for="e in ultimas" :key="e.id" :to="`/extracciones/${e.id}`" class="tarjeta enlace">
+    <NuxtLinkLocale v-for="e in ultimas" :key="e.id" :to="`/extracciones/${e.id}`" class="tarjeta enlace">
       <div class="fila">
         <strong>{{ nombreCafe(e.cafe_nombre) }} · {{ fechaCorta(e.fecha) }}</strong>
         <span v-if="e.nota" class="nota">{{ e.nota }}/10</span>
       </div>
       <p class="meta">
-        {{ e.temp_c }} °C · {{ e.clics }} clics · 1:{{ e.ratio }}
+        {{ $t('portada.resumen_extraccion', { temp: e.temp_c, clics: e.clics, ratio: e.ratio }) }}
         <span v-if="e.tiempo_total"> · {{ e.tiempo_total }}</span>
       </p>
       <p v-if="e.variable_cambiada" class="variable">{{ e.variable_cambiada }}</p>
       <p v-if="e.notas_cata" class="cata copiable">{{ e.notas_cata }}</p>
-    </NuxtLink>
+    </NuxtLinkLocale>
   </section>
 </template>
 

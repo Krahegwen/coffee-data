@@ -68,6 +68,54 @@
     "guardando": "Guardando…",
     "sin_cambios": "Sin cambios",
     "restablecer": "Restablecer",
-    "no_guardado": "No se ha guardado nada"
+    "no_guardado": "No se ha guardado nada",
+    "nueva": "Nueva",
+    "donde_estas": "Dónde estás",
+    "dias_tueste_corto": "{n} d de tueste"
+  },
+  "rutas": {
+    "nueva": "nueva"
+  },
+  "estados": {
+    "abierto": "abierta",
+    "terminado": "terminada",
+    "pendiente": "pendiente"
+  },
+  "bolsas": {
+    "titulo": "Bolsas",
+    "vacio": "No tienes ninguna bolsa registrada. Cada café que entra en casa es una bolsa —con su tueste y sus fechas— y toda extracción se apunta a la suya: estrena la primera con «Nueva».",
+    "quedan": "quedan ~{restante} g de {peso}",
+    "nota_restante": "Los gramos restantes salen de restar las dosis {registradas}. Si preparas café sin apuntarlo, sobreestiman lo que queda.",
+    "foto_alt": "Bolsa de {nombre}",
+    "nota_restante_enfasis": "registradas"
+  },
+  "recetas": {
+    "titulo": "Recetas",
+    "vacio": "No queda ninguna receta, y sin al menos una el cronómetro no tiene qué guiar. Crea una con «Nueva».",
+    "resumen": "{reparto} sobre {referencia} g · {pasos} pasos"
+  },
+  "portada": {
+    "sin_api": "No se pudo hablar con la API. Si estás sin cobertura, esto se verá con los últimos datos guardados en cuanto la app esté instalada.",
+    "que_es": "Una bitácora de extracciones en V60: registras cada café cambiando {una_cosa} cada vez, y la app te sugiere qué ajustar en la siguiente.",
+    "que_es_enfasis": "una sola cosa",
+    "opinionada": "Es opinionada — el método 4:6 de Tetsu Kasuya y unos umbrales calibrados con el paladar de su autor — y tus datos viven {solo_aqui}: sin cuentas y sin mandar nada a ningún servidor. Por lo mismo, la copia de seguridad corre de tu cuenta: en el pie tienes el respaldo.",
+    "opinionada_enfasis": "solo en este navegador",
+    "primera_bolsa": "Dar de alta tu primera bolsa",
+    "probar_crono": "Probar el cronómetro",
+    "crono_explicacion": "Las tres recetas 4:6 ya vienen puestas; con una bolsa dada de alta, el cronómetro te guía los vertidos y del resto se encarga la bitácora.",
+    "preparar": "Preparar café",
+    "instalar": "Instalar en el móvil",
+    "como_instalar": "Este navegador no ofrece el diálogo. Búscalo en su menú (⋮) como «Instalar aplicación» o «Añadir a pantalla de inicio». Si acabas de actualizar la app, recarga una vez y vuelve a intentarlo.",
+    "respaldo_nunca": "Llevas {dias} días registrando sin ningún respaldo.",
+    "respaldo_viejo": "Tu último respaldo es de hace {dias} días.",
+    "respaldo_descarga": "Descarga uno",
+    "respaldo_solo_aqui": ": tus datos solo existen en este navegador.",
+    "bolsas_abiertas": "Bolsas abiertas",
+    "editar_bolsas": "Editar las bolsas",
+    "ninguna_abierta": "Ninguna abierta.",
+    "quedan": "quedan ~{n} g",
+    "ultimas": "Últimas extracciones",
+    "todavia_ninguna": "Todavía ninguna.",
+    "resumen_extraccion": "{temp} °C · {clics} clics · 1:{ratio}"
   }
 }

@@ -13,7 +13,7 @@ const src = computed(() => urlFoto(props.foto))
   <img
     v-if="src"
     :src="src"
-    :alt="`Bolsa de ${nombre}`"
+    :alt="$t('bolsas.foto_alt', { nombre })"
     class="miniatura"
     width="64"
     height="64"

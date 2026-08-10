@@ -20,11 +20,11 @@ defineProps<{ ruta: Miga[] }>()
 </script>
 
 <template>
-  <nav class="migas" aria-label="Dónde estás">
+  <nav class="migas" :aria-label="$t('comun.donde_estas')">
     <ol>
-      <li><NuxtLink to="/">Inicio</NuxtLink></li>
+      <li><NuxtLinkLocale to="/">{{ $t('comun.inicio') }}</NuxtLinkLocale></li>
       <li v-for="(miga, i) in ruta" :key="i">
-        <NuxtLink v-if="miga.a" :to="miga.a">{{ miga.texto }}</NuxtLink>
+        <NuxtLinkLocale v-if="miga.a" :to="miga.a">{{ miga.texto }}</NuxtLinkLocale>
         <span v-else aria-current="page">{{ miga.texto }}</span>
       </li>
     </ol>

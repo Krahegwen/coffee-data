@@ -1,5 +1,6 @@
 <script setup lang="ts">
-useHead({ title: 'Bolsas' })
+const { t } = useI18n()
+useHead({ title: () => t('bolsas.titulo') })
 
 const { cafes, extracciones } = useApi()
 
@@ -24,21 +25,17 @@ function restante(cafeId: string, pesoG: number | null) {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Bolsas' }]" />
+  <Migas :ruta="[{ texto: $t('bolsas.titulo') }]" />
 
   <!-- Sin título: lo dice la última miga, y repetirlo aquí era leer «Bolsas»
        dos veces seguidas. -->
   <div class="cabecera">
-    <NuxtLink to="/cafes/nueva" class="boton">Nueva</NuxtLink>
+    <NuxtLinkLocale to="/cafes/nueva" class="boton">{{ $t('comun.nueva') }}</NuxtLinkLocale>
   </div>
 
-  <p v-if="!porEstado.length" class="vacio">
-    No tienes ninguna bolsa registrada. Cada café que entra en casa es una
-    bolsa —con su tueste y sus fechas— y toda extracción se apunta a la suya:
-    estrena la primera con «Nueva».
-  </p>
+  <p v-if="!porEstado.length" class="vacio">{{ $t('bolsas.vacio') }}</p>
 
-  <NuxtLink
+  <NuxtLinkLocale
     v-for="cafe in porEstado" :key="cafe.id"
     :to="`/cafes/${cafe.slug}`" class="tarjeta"
   >
@@ -46,25 +43,26 @@ function restante(cafeId: string, pesoG: number | null) {
     <div class="cuerpo">
       <div class="fila">
         <strong>{{ cafe.nombre }}</strong>
-        <span :class="['estado', cafe.estado]">{{ cafe.estado }}</span>
+        <span :class="['estado', cafe.estado]">{{ $t(`estados.${cafe.estado}`) }}</span>
       </div>
       <p class="meta">
         <span v-if="cafe.tostador">{{ cafe.tostador }}</span>
         <span v-if="cafe.origen"> · {{ cafe.origen }}</span>
         <span v-if="diasDesdeTueste(cafe.fecha_tueste) !== null">
-          · {{ diasDesdeTueste(cafe.fecha_tueste) }} d de tueste
+          · {{ $t('comun.dias_tueste_corto', { n: diasDesdeTueste(cafe.fecha_tueste) }) }}
         </span>
       </p>
       <p v-if="restante(cafe.id, cafe.peso_g) !== null" class="meta">
-        quedan ~{{ restante(cafe.id, cafe.peso_g) }} g de {{ cafe.peso_g }}
+        {{ $t('bolsas.quedan', { restante: restante(cafe.id, cafe.peso_g), peso: cafe.peso_g }) }}
       </p>
     </div>
-  </NuxtLink>
+  </NuxtLinkLocale>
 
-  <p v-if="porEstado.length" class="nota">
-    Los gramos restantes salen de restar las dosis <em>registradas</em>. Si
-    preparas café sin apuntarlo, sobreestiman lo que queda.
-  </p>
+  <!-- El énfasis va por ranura y no como HTML dentro del mensaje: el
+       catálogo guarda texto, no marcado. -->
+  <i18n-t v-if="porEstado.length" keypath="bolsas.nota_restante" tag="p" class="nota" scope="global">
+    <template #registradas><em>{{ $t('bolsas.nota_restante_enfasis') }}</em></template>
+  </i18n-t>
 </template>
 
 <style scoped>

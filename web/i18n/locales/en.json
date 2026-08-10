@@ -68,6 +68,54 @@
     "guardando": "Saving…",
     "sin_cambios": "No changes",
     "restablecer": "Reset",
-    "no_guardado": "Nothing was saved"
+    "no_guardado": "Nothing was saved",
+    "nueva": "New",
+    "donde_estas": "Where you are",
+    "dias_tueste_corto": "{n} d past roast"
+  },
+  "rutas": {
+    "nueva": "new"
+  },
+  "estados": {
+    "abierto": "open",
+    "terminado": "finished",
+    "pendiente": "pending"
+  },
+  "bolsas": {
+    "titulo": "Bags",
+    "vacio": "You have no bags yet. Every coffee that comes into the house is a bag —with its roast date and its own clocks— and every brew is logged against one: start the first with “New”.",
+    "quedan": "~{restante} g left of {peso}",
+    "nota_restante": "The grams left come from subtracting the doses you {registradas}. If you brew without writing it down, they overestimate what is left.",
+    "foto_alt": "Bag of {nombre}",
+    "nota_restante_enfasis": "actually logged"
+  },
+  "recetas": {
+    "titulo": "Recipes",
+    "vacio": "There are no recipes left, and without at least one the timer has nothing to guide. Create one with “New”.",
+    "resumen": "{reparto} over {referencia} g · {pasos} steps"
+  },
+  "portada": {
+    "sin_api": "Could not reach the API. If you are offline, this will show the last saved data once the app is installed.",
+    "que_es": "A log of V60 brews: you record every cup changing {una_cosa} at a time, and the app suggests what to adjust next.",
+    "que_es_enfasis": "one single thing",
+    "opinionada": "It is opinionated — Tetsu Kasuya's 4:6 method and thresholds calibrated against its author's palate — and your data lives {solo_aqui}: no accounts, nothing sent to any server. By the same token, backing up is on you: the footer has the backup.",
+    "opinionada_enfasis": "only in this browser",
+    "primera_bolsa": "Add your first bag",
+    "probar_crono": "Try the timer",
+    "crono_explicacion": "The three 4:6 recipes come ready; with a bag added, the timer guides your pours and the log takes care of the rest.",
+    "preparar": "Brew a coffee",
+    "instalar": "Install on your phone",
+    "como_instalar": "This browser is not offering the dialog. Look for it in its menu (⋮) as “Install app” or “Add to home screen”. If you have just updated the app, reload once and try again.",
+    "respaldo_nunca": "You have been logging for {dias} days with no backup at all.",
+    "respaldo_viejo": "Your last backup is {dias} days old.",
+    "respaldo_descarga": "Download one",
+    "respaldo_solo_aqui": ": your data only exists in this browser.",
+    "bolsas_abiertas": "Open bags",
+    "editar_bolsas": "Edit the bags",
+    "ninguna_abierta": "None open.",
+    "quedan": "~{n} g left",
+    "ultimas": "Latest brews",
+    "todavia_ninguna": "None yet.",
+    "resumen_extraccion": "{temp} °C · {clics} clicks · 1:{ratio}"
   }
 }

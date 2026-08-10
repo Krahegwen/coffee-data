@@ -1,5 +1,6 @@
 <script setup lang="ts">
-useHead({ title: 'Recetas' })
+const { t } = useI18n()
+useHead({ title: () => t('recetas.titulo') })
 
 const { recetas } = useApi()
 const { data: catalogo } = await useAsyncData('recetas-lista', recetas)
@@ -14,26 +15,27 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Recetas' }]" />
+  <Migas :ruta="[{ texto: $t('recetas.titulo') }]" />
 
   <!-- Sin título: lo dice la última miga. -->
   <div class="cabecera">
-    <NuxtLink to="/recetas/nueva" class="boton">Nueva</NuxtLink>
+    <NuxtLinkLocale :to="`/recetas/${$t('rutas.nueva')}`" class="boton">{{ $t('comun.nueva') }}</NuxtLinkLocale>
   </div>
 
-  <p v-if="!(catalogo ?? []).length" class="vacio">
-    No queda ninguna receta, y sin al menos una el cronómetro no tiene qué
-    guiar. Crea una con «Nueva».
-  </p>
+  <p v-if="!(catalogo ?? []).length" class="vacio">{{ $t('recetas.vacio') }}</p>
 
-  <NuxtLink
+  <NuxtLinkLocale
     v-for="r in catalogo ?? []" :key="r.id"
     :to="`/recetas/${r.slug}`" class="tarjeta"
   >
     <strong>{{ r.nombre }}</strong>
-    <p class="meta">{{ reparto(r.pasos) }} sobre {{ referencia(r.pasos) }} g · {{ r.pasos.length }} pasos</p>
+    <p class="meta">
+      {{ $t('recetas.resumen', {
+        reparto: reparto(r.pasos), referencia: referencia(r.pasos), pasos: r.pasos.length,
+      }) }}
+    </p>
     <p v-if="r.notas" class="meta">{{ r.notas }}</p>
-  </NuxtLink>
+  </NuxtLinkLocale>
 </template>
 
 <style scoped>
