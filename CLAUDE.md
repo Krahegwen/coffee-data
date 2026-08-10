@@ -61,6 +61,13 @@ se manda si ese día te desviaste de la receta.
 `siguiente_ajuste` **tampoco hace falta**: si no lo mandas, el servidor guarda
 la sugerencia principal. Lo que escribas manda siempre sobre eso.
 
+`desde_id` **tampoco**: dice de qué extracción es variación ésta —contra ella
+mide el motor los deltas— y sin él el servidor cuelga la nueva de la última de
+esa bolsa, que es el caso de todos los días. Se manda **solo al volver a una
+rama anterior**: si el usuario cuenta que vuelve al 91 tras un callejón sin
+salida, localiza esa extracción y mándala. La madre nunca sale de la bolsa,
+tiene que ser anterior, y una taza suelta no cuelga de nadie.
+
 `extraido_g` es lo que acabó en la taza. Es opcional, pero con el agua y la
 dosis da la retención (unos 2 g por gramo de café en V60) y el servidor avisa
 si se sale, que ahí lo que falla es la medida y no el café.
@@ -269,6 +276,11 @@ El borrado es lógico: marca `borrada_en` y la fila se queda. **Si el usuario
 quiere retirar una extracción porque salió mal, adviértele**: quitar las malas
 sube las medias solas y deja los deltas emparejados sin sentido. Retirar es
 para errores de registro.
+
+La respuesta trae `huerfanas`: cuántas colgaban de ella. No impide nada —esto
+se deshace y restaurarla devuelve los pares—, pero dilo: esas extracciones se
+quedan sin base con la que compararse y pasan a contar como primeras. Y debe
+ser así, que un delta medido contra un error de registro no vale nada.
 
 ## Tras desplegar, espera antes de verificar
 

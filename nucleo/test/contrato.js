@@ -389,6 +389,17 @@ export function contratoDelAlmacen(titulo, fabrica) {
           assert.match(datos.errores[0], /anterior a ésta/);
         });
 
+        it("retirar una madre lo dice, pero no lo impide", async () => {
+          const primera = await crearExtraccion(almacen, EXTRACCION);
+          await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 90 });
+
+          const { datos } = await retirarExtraccion(almacen, primera.datos.extraccion.id);
+          assert.equal(datos.retirada, true);
+          // Solo la que colgaba de ella: la tercera cuelga de la segunda.
+          assert.equal(datos.huerfanas, 1);
+        });
+
         it("ni de sí misma", async () => {
           const { datos: creada } = await crearExtraccion(almacen, EXTRACCION);
           const { estado } = await editarExtraccion(almacen, creada.extraccion.id, {
@@ -438,7 +449,7 @@ export function contratoDelAlmacen(titulo, fabrica) {
         const id = creada.datos.extraccion.id;
 
         const retirada = await retirarExtraccion(almacen, id);
-        assert.deepEqual(retirada.datos, { retirada: true, id });
+        assert.deepEqual(retirada.datos, { retirada: true, id, huerfanas: 0 });
         assert.equal((await listaExtracciones(almacen)).datos.length, 0);
         assert.equal((await listaExtracciones(almacen, { retiradas: true })).datos.length, 1);
 

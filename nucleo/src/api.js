@@ -453,7 +453,19 @@ export async function retirarExtraccion(almacen, id) {
     borrada_en: ahoraSQL(),
     actualizado_en: ahoraSQL(),
   });
-  return respuesta(200, { retirada: true, id });
+
+  /*
+   * Las que colgaban de ella se quedan sin base de comparación. No se rompe
+   * nada —`desde_id` sigue apuntando y la fila sigue ahí—, pero dejan de
+   * formar par, y eso es correcto: retirar significa «esto fue un error de
+   * registro» y un delta medido contra un error no vale nada.
+   *
+   * Se dice, no se impide. A diferencia del 409 que protege a las recetas en
+   * uso, esto se deshace: restaurarla devuelve los pares sola.
+   */
+  const huerfanas = (await almacen.extracciones.listar())
+    .filter((e) => !e.borrada_en && e.desde_id === id).length;
+  return respuesta(200, { retirada: true, id, huerfanas });
 }
 
 export async function restaurarExtraccion(almacen, id) {

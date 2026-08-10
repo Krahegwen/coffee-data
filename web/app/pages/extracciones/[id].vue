@@ -3,7 +3,7 @@ import type { Extraccion } from '~/composables/useApi'
 import { defectosDe } from '@coffee/nucleo/validacion'
 import { DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
 
-const { cafes, recetas, extracciones, editarExtraccion, retirarExtraccion } = useApi()
+const { cafes, recetas, extracciones, retiradas, editarExtraccion, retirarExtraccion } = useApi()
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
@@ -11,6 +11,9 @@ const id = String(route.params.id)
 const { data: historial } = await useAsyncData(`ext-${id}`, () => extracciones())
 const { data: bolsas } = await useAsyncData('cafes-ext', cafes)
 const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
+// La papelera hace falta para una sola cosa: que el desplegable de la madre
+// pueda representar su propio valor si la madre se retiró después de elegirla.
+const { data: papelera } = await useAsyncData(`ext-papelera-${id}`, retiradas)
 
 const original = computed(() => (historial.value ?? []).find((e) => e.id === id) ?? null)
 
@@ -23,22 +26,27 @@ const titulo = computed(() =>
 
 useHead({ title: () => titulo.value })
 
+const clave = (e: Extraccion) => `${e.creado_en}|${e.id}`
+
 /**
- * La extracción de antes que ésta, del mismo café. No es la última de la
- * bolsa: corrigiendo la segunda hay que comparar con la primera, aunque
- * existan la quinta y la sexta. El antes/después lo da `creado_en`, con la
- * id v7 de desempate para dos del mismo segundo.
+ * De qué extracción puede ser variación ésta: las de su bolsa **anteriores a
+ * ella**, de la más nueva a la más vieja. No vale cualquiera: nadie es
+ * variación de algo que se hizo después, y el servidor lo rechaza.
+ *
+ * Se cuela además la madre que ya tenga aunque esté retirada, marcada como
+ * tal. Si no, al abrir una ficha cuya madre se retiró después, el desplegable
+ * no podría representar su propio valor y lo cambiaría solo al guardar. La
+ * regla vale para todos los desplegables de la app: **uno nunca debe poder
+ * perder el valor que ya tiene**.
  */
-const anterior = computed(() => {
+const candidatas = computed(() => {
   const mia = original.value
-  // Una taza suelta no tiene «antes»: las demás sueltas comparten el cafe_id
-  // vacío, pero cada una es un café distinto.
-  if (!mia || !mia.cafe_id) return null
-  const clave = (e: Extraccion) => `${e.creado_en}|${e.id}`
-  const propias = (historial.value ?? [])
+  if (!mia || !mia.cafe_id) return []
+  const vivas = (historial.value ?? [])
     .filter((e) => e.cafe_id === mia.cafe_id && clave(e) < clave(mia))
+  const puesta = (papelera.value ?? []).find((e) => e.id === mia.desde_id)
+  return [...vivas, ...(puesta ? [puesta] : [])]
     .sort((a, b) => (clave(a) < clave(b) ? 1 : -1))
-  return propias[0] ?? null
 })
 
 const cambiadas = ref<string[]>([])
@@ -49,12 +57,26 @@ const opciones = computed(() => ({
 }))
 
 const EDITABLES = [
-  'fecha', 'cafe_id', 'dosis_g', 'agua_g', 'temp_c', 'clics', 'receta_id',
-  'reparto', 'dripper', 'tiempo_total', 'drawdown_s', 'extraido_g',
+  'fecha', 'cafe_id', 'desde_id', 'dosis_g', 'agua_g', 'temp_c', 'clics',
+  'receta_id', 'reparto', 'dripper', 'tiempo_total', 'drawdown_s', 'extraido_g',
   'variable_cambiada', 'defecto', 'notas_cata', 'nota', 'siguiente_ajuste',
 ] as const
 
 const form = reactive<Record<string, any>>({})
+
+/**
+ * La madre: contra ella se miden los deltas y de ella sale «Temperatura 91 →
+ * 88». La del formulario mientras se edita, que es la que se va a guardar.
+ *
+ * Una taza suelta no tiene madre: las demás sueltas comparten el `cafe_id`
+ * vacío, pero cada una es un café distinto.
+ */
+const anterior = computed(() =>
+  form.desde_id ? candidatas.value.find((e) => e.id === form.desde_id) ?? null : null,
+)
+
+/** Las que cuelgan de ésta: lo que se queda sin madre si se retira. */
+const hijas = computed(() => (historial.value ?? []).filter((e) => e.desde_id === id))
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const guardado = ref<string[] | null>(null)
@@ -71,6 +93,13 @@ watchEffect(() => {
 // que tocar uno mueve el otro. Corregir aquí uno solo es cómo se rompió la
 // fila del 2026-08-07.
 const { movido, anotar, desdeElTiempo, desdeElGoteo } = useAtadura(form)
+
+// Mudar la taza de bolsa se lleva su madre por delante: era de la bolsa vieja,
+// y la madre nunca sale de la bolsa. El servidor hace lo mismo; esto es para
+// que el formulario no enseñe un valor que va a perder.
+watch(() => form.cafe_id, (ahora, antes) => {
+  if (antes !== undefined && ahora !== antes) form.desde_id = ''
+})
 
 /**
  * Lo que de verdad cambió respecto a la anterior, mirando las columnas.
@@ -241,6 +270,20 @@ async function retirar() {
           <option v-for="c in bolsas ?? []" :key="c.id" :value="c.id">{{ c.nombre }}</option>
         </select>
       </label>
+
+      <!-- De qué extracción es variación ésta: contra ella se miden los
+           deltas. Solo si hay alguna anterior en su bolsa de la que serlo. -->
+      <label v-if="candidatas.length">
+        Variación de
+        <select v-model="form.desde_id">
+          <option value="">Ninguna: ésta empieza una serie</option>
+          <option v-for="e in candidatas" :key="e.id" :value="e.id">
+            {{ fechaCorta(e.fecha) }} · {{ e.temp_c }} °C, {{ e.clics }} clics<template
+              v-if="e.nota"> · {{ e.nota }}/10</template><template
+              v-if="e.borrada_en"> · retirada</template>
+          </option>
+        </select>
+      </label>
       <!-- El camino de vuelta lo pone ?volver=: el alta reenvía aquí con la
            bolsa nueva ya elegida, y atarla es solo guardar. -->
       <p class="meta">
@@ -343,6 +386,14 @@ async function retirar() {
       Retira solo <strong>errores de registro</strong>. Si quitas las
       extracciones que salieron mal, las medias suben solas y los deltas
       emparejados dejan de significar nada.
+    </p>
+    <!-- Blando y no un 409 como el de las recetas en uso: esto se deshace, y
+         restaurarla devuelve los pares sola. -->
+    <p v-if="hijas.length" class="ojo">
+      De ésta cuelga{{ hijas.length === 1 ? '' : 'n' }}
+      <strong>{{ hijas.length }}</strong>
+      extracci{{ hijas.length === 1 ? 'ón' : 'ones' }}: al retirarla se
+      quedan sin base con la que compararse y pasan a contar como primeras.
     </p>
     <div class="botones">
       <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>

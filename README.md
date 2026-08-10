@@ -291,7 +291,22 @@ bolsa, que es el caso de todos los días. **La madre nunca sale de la bolsa** �
 tueste es lo que hace la taza—, tiene que ser anterior, y una suelta no cuelga
 de nadie. Retirar la madre no rompe nada: `desde_id` se queda, pero la hija pasa
 a contar como primera, porque un delta medido contra un error de registro no
-vale nada. Restaurarla devuelve el par.
+vale nada. Restaurarla devuelve el par, y el `DELETE` avisa de cuántas se
+quedan sin base (`huerfanas`) sin impedir nada.
+
+En la app es el desplegable **«Variación de»**: el alta enseña las de la bolsa
+con la última puesta, y la ficha las anteriores a ésta más la que ya tuviera
+aunque esté retirada — un selector nunca debe poder perder el valor que tiene.
+Volver a una rama con él rellena además el formulario con los valores de esa
+extracción, que es de donde parte el siguiente intento.
+
+**Esa cadena no es la del arranque, y no hay que confundirlas.** `desde_id` dice
+contra qué se compara. El arranque dice de dónde se copian los números al abrir
+el formulario, y va en escalones: la última de esta bolsa, la última de la bolsa
+anterior del mismo café, la última suelta si registras sin bolsa, y si nada de
+eso existe, tu última taza sea del café que sea — el café es otro, pero el
+molinillo, el hervidor y la mano son los mismos. Solo rellena campos: cuando las
+dos cadenas no coinciden, la extracción es una primera y no forma par.
 
 `drawdown_s`: segundos entre el final del último vertido y el fin del goteo. Va
 en segundos enteros, no en `m:ss`, porque es el valor con el que se decide si

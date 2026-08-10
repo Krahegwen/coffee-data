@@ -15,7 +15,7 @@ const { soltarReloj } = useCrono()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
-const { data: historial } = await useAsyncData('ext-form', () => extracciones())
+const { data: historial, refresh: releerHistorial } = await useAsyncData('ext-form', () => extracciones())
 
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
 
@@ -25,6 +25,7 @@ const numero = (v: unknown, porDefecto: number) => (v === undefined ? porDefecto
 /** El formulario en blanco: la receta base del README. */
 const EN_BLANCO = (): Record<string, unknown> => ({
   cafe_id: '',
+  desde_id: '',
   dosis_g: 20,
   agua_g: 300,
   temp_c: 92,
@@ -73,15 +74,40 @@ watchEffect(() => {
 })
 
 /**
- * La última de este café: de ahí salen los valores «de antes». Sin bolsa no
- * hay «antes»: las sueltas también tienen cafe_id vacío, pero cada una es un
+ * Las de esta bolsa, de la más nueva a la más vieja: lo que puede elegirse
+ * como madre. Las retiradas no vienen en el histórico, y está bien — de un
+ * error de registro no se parte.
+ */
+const deLaBolsa = computed(() =>
+  form.cafe_id ? (historial.value ?? []).filter((e) => e.cafe_id === form.cafe_id) : [],
+)
+
+/**
+ * De qué extracción es variación ésta: la madre. Por defecto la última de la
+ * bolsa —el protocolo es repetir y mover una cosa—, y el desplegable permite
+ * volver a otra cuando la última fue un callejón sin salida.
+ *
+ * Es también de donde salen los valores «de antes»: contra ella se compone
+ * `variable_cambiada` y contra ella mide la tabla de variables. Sin bolsa no
+ * hay madre: las sueltas también tienen `cafe_id` vacío, pero cada una es un
  * café distinto y compararlas mentiría.
  */
 const anterior = computed(() =>
   form.cafe_id
-    ? (historial.value ?? []).find((e) => e.cafe_id === form.cafe_id) ?? null
+    ? deLaBolsa.value.find((e) => e.id === form.desde_id) ?? deLaBolsa.value[0] ?? null
     : null,
 )
+
+/**
+ * Lo que enseña el desplegable, que no es exactamente lo que guarda el
+ * borrador: vacío ahí significa «la última», y así el formulario no tiene que
+ * reescribirse solo cada vez que llega el histórico o se cambia de bolsa —que
+ * era lo que pisaba lo tecleado en los presets—.
+ */
+const madreElegida = computed({
+  get: () => anterior.value?.id ?? '',
+  set: (id: string) => { form.desde_id = id },
+})
 
 /**
  * La última extracción de la bolsa **anterior del mismo café**, cuando la de
@@ -139,17 +165,31 @@ const DESDE_LA_URL: Record<string, string> = {
 }
 
 /**
- * De dónde parte el formulario: la última de esta bolsa; si está estrenada,
- * la última de la bolsa anterior del mismo café; y sin bolsa, la última
- * suelta.
+ * Y el último escalón: tu última taza, sea del café que sea.
  *
- * Todo lo que no es «la última de esta bolsa» **solo rellena campos**. El
- * motor de sugerencias empieza de cero igual, porque empareja por `cafe_id`:
- * no habrá deltas contra la bolsa vieja ni fila en la tabla, y la extracción
- * queda como «Primera extracción». Y tiene que ser así — el tueste (o el
- * café entero) es otro, la taza no compara.
+ * Estrenar un café que no continúa a ninguno dejaba el formulario en los
+ * valores de fábrica —92 °C, 28 clics—, y eso no es de donde uno parte: el café
+ * es otro, pero el molinillo, el hervidor y la mano son los mismos. Es el mismo
+ * argumento que ya valía para las sueltas, que lo tenían, y para las bolsas
+ * nuevas no.
  */
-const arranque = computed(() => anterior.value ?? bolsaPrevia.value ?? sueltaPrevia.value)
+const cualquiera = computed(() => (historial.value ?? [])[0] ?? null)
+
+/**
+ * De dónde parte el formulario, en escalones: la última de esta bolsa; si está
+ * estrenada, la última de la bolsa anterior del mismo café; sin bolsa, la
+ * última suelta; y si nada de eso existe, la última que hicieras.
+ *
+ * **Esta cadena no es la del `desde_id`, y no hay que confundirlas.** Aquélla
+ * dice contra qué se compara la taza y nunca sale de la bolsa, porque el tueste
+ * es lo que hace la taza. Ésta dice de dónde se copian los números al abrir el
+ * formulario, y puede venir de donde sea porque solo rellena campos y no afirma
+ * nada. Cuando las dos no coinciden, la extracción es una primera y no forma
+ * par — que es justo lo que ya pasaba al estrenar bolsa.
+ */
+const arranque = computed(
+  () => anterior.value ?? bolsaPrevia.value ?? sueltaPrevia.value ?? cualquiera.value,
+)
 
 /**
  * De qué extracción se rellenó ya este borrador. Sin el sello, volver a la
@@ -179,8 +219,9 @@ watch(arranque, (previa) => {
 useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> | null, cambiadas)
 
 // Al cambiar de bolsa, las filas de la de antes no valen: sus «antes» eran de
-// otro café, y el formulario se rellena con la última de la nueva.
-watch(() => form.cafe_id, () => { cambiadas.value = [] })
+// otro café, y el formulario se rellena con la última de la nueva. La madre se
+// suelta con ellas: nunca sale de la bolsa.
+watch(() => form.cafe_id, () => { cambiadas.value = []; form.desde_id = '' })
 
 /** «Temperatura 91 → 88». Sale de los valores, nunca al revés. */
 const textoVariables = computed(() =>
@@ -311,6 +352,9 @@ async function enviar() {
     }
     // Vacío es una elección: la taza va suelta y el cuerpo no lleva cafe_id.
     if (form.cafe_id) datos.cafe_id = String(form.cafe_id)
+    // La madre solo viaja si se eligió otra: sin ella, el servidor cuelga la
+    // nueva de la última de la bolsa, que es lo mismo que enseña el formulario.
+    if (form.cafe_id && form.desde_id) datos.desde_id = String(form.desde_id)
     if (form.drawdown_s !== '') datos.drawdown_s = Number(form.drawdown_s)
     if (form.extraido_g !== '') datos.extraido_g = Number(form.extraido_g)
     if (String(form.notas_cata).trim()) datos.notas_cata = String(form.notas_cata).trim()
@@ -325,6 +369,17 @@ async function enviar() {
     form.variable_cambiada = ''
     form.notas_cata = ''
     cambiadas.value = []
+
+    /*
+     * La que se acaba de guardar pasa a ser el punto de partida, así que hay
+     * que releer el histórico: sin eso, registrar dos seguidas sin salir de
+     * aquí compararía la segunda contra la madre de la primera. Y la elección
+     * de madre se suelta con ella —volver a una rama es una decisión de esa
+     * taza, no del formulario—, que si no la siguiente saldría colgando del
+     * mismo sitio sin haberlo pedido.
+     */
+    form.desde_id = ''
+    await releerHistorial()
 
     /*
      * Y con ella muere la medición del cronómetro: esa taza ya está apuntada.
@@ -377,6 +432,22 @@ async function enviar() {
       <NuxtLink :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
         dale de alta su bolsa</NuxtLink>: al guardarla vuelves aquí con ella
       puesta, y lo escrito no se pierde.
+    </p>
+
+    <!-- De qué extracción parte ésta. Solo con más de una en la bolsa: con una
+         sola no hay nada que elegir, y con ninguna tampoco. -->
+    <label v-if="deLaBolsa.length > 1">
+      Variación de
+      <select v-model="madreElegida">
+        <option v-for="e in deLaBolsa" :key="e.id" :value="e.id">
+          {{ fechaCorta(e.fecha) }} · {{ e.temp_c }} °C, {{ e.clics }} clics<template
+            v-if="e.nota"> · {{ e.nota }}/10</template>
+        </option>
+      </select>
+    </label>
+    <p v-if="deLaBolsa.length > 1 && anterior && anterior.id !== deLaBolsa[0]!.id" class="meta">
+      Vuelves a una anterior: los deltas se miden contra ella y no contra la
+      última, que es lo que hace que este cambio sea uno solo y no dos.
     </p>
 
     <div class="pareja">
@@ -445,6 +516,14 @@ async function enviar() {
     </p>
     <!-- El mismo trato que la bolsa anterior: se dice de dónde parten los
          números, y que partir no es comparar. -->
+    <!-- El último escalón, y el mismo trato: de dónde parten los números y que
+         partir no es comparar. -->
+    <p v-if="arranque && arranque === cualquiera" class="meta">
+      Los valores parten de tu última extracción
+      ({{ fechaCorta(cualquiera.fecha) }}<span v-if="cualquiera.cafe_nombre">,
+      {{ cualquiera.cafe_nombre }}</span>). Es otro café, así que no se compara
+      con ella: el molinillo y la mano son los mismos, nada más.
+    </p>
     <p v-if="sueltaPrevia" class="meta">
       Los valores parten de tu última extracción sin bolsa
       ({{ fechaCorta(sueltaPrevia.fecha) }}). Cada suelta es un café distinto:
