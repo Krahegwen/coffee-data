@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { finDeLosVertidos } from '@coffee/nucleo/recetas'
+import { relojDe } from '@coffee/nucleo/validacion'
 
 /**
  * El reloj. La otra mitad de `/crono`, ahora con URL propia: se puede volver
@@ -102,12 +103,6 @@ const bola = computed(() => {
   const rad = (progresoPaso.value * 360 - 90) * (Math.PI / 180)
   return { x: 50 + RADIO * Math.cos(rad), y: 50 + RADIO * Math.sin(rad) }
 })
-
-function reloj_mmss(segundos: number) {
-  const m = Math.floor(segundos / 60)
-  const s = Math.floor(segundos % 60)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 /** Segundos desde el arranque, leídos del reloj del sistema. */
 function ahora() {
@@ -273,7 +268,7 @@ function registrar() {
       receta: recetaId.value,
       dosis: String(dosis.value),
       agua: String(agua.value),
-      tiempo: reloj_mmss(finGoteo.value ?? transcurrido.value),
+      tiempo: relojDe(finGoteo.value ?? transcurrido.value),
       ...(drawdown.value !== null ? { drawdown: String(drawdown.value) } : {}),
     },
   })
@@ -305,7 +300,7 @@ onUnmounted(soltar)
       </svg>
 
       <div class="dentro">
-        <p class="crono">{{ reloj_mmss(transcurrido) }}</p>
+        <p class="crono">{{ relojDe(transcurrido) }}</p>
         <template v-if="actual">
           <p class="accion">{{ etiquetaPaso(actual.accion, actual.estilo) }}</p>
           <!-- El espacio va explícito: Vue se come el salto de línea entre
@@ -375,7 +370,7 @@ onUnmounted(soltar)
     </template>
 
     <div v-if="finGoteo !== null" class="tarjeta">
-      <p><strong>{{ reloj_mmss(finGoteo) }}</strong> en total</p>
+      <p><strong>{{ relojDe(finGoteo) }}</strong> en total</p>
       <p v-if="drawdown !== null" class="meta">Goteo: {{ drawdown }} s, medido solo</p>
       <button @click="registrar">Registrar esta extracción</button>
       <!-- Marcar el goteo cerraba la extracción sin vuelta atrás, y se pulsa

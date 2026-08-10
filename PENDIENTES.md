@@ -6,53 +6,18 @@ lleva anotado lo que ya se sabe, para no volver a investigarlo desde cero.
 
 Anotadas el 2026-08-07, sobre la versión 0.1.40.
 
-(La fila mala que motivó el punto 5 ya está corregida: la extracción del
-2026-08-07 tiene su goteo en 42 s y la corrección explicada en sus notas.)
-
 **Hechos el 2026-08-10**, y por eso ya no están aquí: partir `/crono` en dos
 rutas, vaciar el reloj al guardar la extracción —con la regla de caducidad de
 los borradores escrita en `useCrono()`—, confirmar antes de tirar algo medido,
-el defecto como lista ordenada, y enseñar las notas de cata en la tarjeta de
-guardado. Quedan los dos gordos.
+el defecto como lista ordenada, enseñar las notas de cata en la tarjeta de
+guardado y **el punto 5**, el goteo atado al tiempo total. Queda el gordo.
 
-## 5. El goteo y el tiempo total están atados, y nadie lo comprueba
-
-Los dos **terminan en el mismo instante** —el fin del goteo—; lo que cambia es
-desde dónde se miden: el total desde el primer vertido, el goteo desde el final
-del último. O sea:
-
-    tiempo_total = fin_del_último_vertido + drawdown_s
-
-Y el fin del último vertido no hay que adivinarlo: sale de la receta que la
-propia extracción referencia. Corregir uno a mano y dejar el otro quieto rompe
-la fila, porque no son dos medidas independientes sino la misma marca vista
-desde dos orígenes.
-
-Pasó de verdad el 2026-08-07: el crono siguió corriendo al tirar el filtro, se
-corrigió el tiempo total a 3:32 y el goteo se quedó en 64 s. Con la receta base
-—último vertido de 145 a 170 s— esos 64 implican que 90 g cayeron en tres
-segundos. El valor coherente eran ~42 s. Las otras dos extracciones cuadran al
-segundo (217 − 47 = 170; 205 − 30 = 175), así que la comprobación funciona.
-
-Dos arreglos, y hacen falta los dos:
-
-- ~~**Validar en el núcleo**~~ **hecho el 2026-08-10**, con la división que ya
-  usaba `extraido_g`: `goteoImposible()` rechaza con 422 lo que no puede ser
-  —el goteo va por dentro del total— y `vertidoDesviado()` avisa de lo que solo
-  es sospechoso, comparando contra `finDeLosVertidos()` de la receta. El aviso
-  sale también **al corregir** (`PATCH` devuelve `avisos`), que es donde se
-  rompió la fila de verdad: los dos valores de aquel día eran posibles por
-  separado, así que la comprobación dura sola no habría visto nada.
-- **Atarlos al editar**: en el alta y en la corrección, cambiar el tiempo total
-  debería mover el goteo el mismo delta, que es lo que hace el reloj cuando los
-  calcula él. Hoy esa atadura solo existe dentro del cronómetro y se pierde en
-  cuanto tocas el campo a mano. El aviso ya lo delata después; esto es que no
-  llegue a pasar.
-
-Y una lección que va más allá del campo: un dato mal medido no se queda quieto,
-se convierte en conclusión. Ese 64 sostuvo un diagnóstico entero —«el lecho se
-está cerrando cada día»— que era falso, porque los otros dos valores sí subían
-y el malo remataba la tendencia. Los avisos de coherencia no son cosmética.
+Del 5 conviene recordar la lección, que va más allá del campo: un dato mal
+medido no se queda quieto, se convierte en conclusión. Aquel goteo de 64 s
+sostuvo un diagnóstico entero —«el lecho se está cerrando cada día»— que era
+falso, porque los otros dos valores sí subían y el malo remataba la tendencia.
+Los avisos de coherencia no son cosmética. Lo que se hizo, en el README bajo
+`drawdown_s`; la fila mala ya estaba corregida a 42 s el mismo 2026-08-07.
 
 ## 7. Volver a una rama anterior: la base de comparación no siempre es la de ayer
 

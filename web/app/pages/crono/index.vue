@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { relojDe } from '@coffee/nucleo/validacion'
+
 /**
  * Preparar: qué café, con qué receta y en qué cantidades.
  *
@@ -46,12 +48,6 @@ watchEffect(() => {
   const base = catalogo.value.find((r) => r.slug === 'kasuya-46-base')
   recetaId.value = (base ?? catalogo.value[0]!).id
 })
-
-function reloj_mmss(segundos: number) {
-  const m = Math.floor(segundos / 60)
-  const s = Math.floor(segundos % 60)
-  return `${m}:${String(s).padStart(2, '0')}`
-}
 
 async function cargar() {
   if (!recetaId.value) return
@@ -159,7 +155,7 @@ function aMano() {
 
     <ol class="plan">
       <li v-for="p in pasos" :key="p.orden">
-        <span class="t">{{ p.t_inicio_s === null ? '—' : reloj_mmss(p.t_inicio_s) }}</span>
+        <span class="t">{{ p.t_inicio_s === null ? '—' : relojDe(p.t_inicio_s) }}</span>
         <span class="que">{{ etiquetaPaso(p.accion, p.estilo) }}</span>
         <span v-if="p.accion === 'verter'" class="ag">hasta {{ p.acumulado_g }} g</span>
       </li>

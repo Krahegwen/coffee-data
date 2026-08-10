@@ -11,7 +11,8 @@ import {
 } from "../src/sugerencias.js";
 import {
   claveDeFoto, defectosDe, extraidoImposible, fechaValida, goteoImposible,
-  MAX_FOTO_BYTES, segundosDe, slugDe, validarCafe, validarCambiosExtraccion,
+  goteoTrasMoverTotal, MAX_FOTO_BYTES, relojDe, segundosDe, slugDe,
+  totalTrasMoverGoteo, validarCafe, validarCambiosExtraccion,
   validarExtraccion, validarFoto, validarReceta,
 } from "../src/validacion.js";
 
@@ -280,6 +281,23 @@ describe("el goteo va por dentro del tiempo total", () => {
     assert.equal(segundosDe(null), null);
   });
 
+  it("y lo escribe de vuelta como lo guarda la base", () => {
+    assert.equal(relojDe(210), "3:30");
+    assert.equal(relojDe(725), "12:05");
+    assert.equal(relojDe(5), "0:05");
+  });
+
+  it("al escribir, los segundos rotos se truncan y no hay tiempos negativos", () => {
+    assert.equal(relojDe(207.8), "3:27");
+    assert.equal(relojDe(-30), "0:00");
+  });
+
+  it("ida y vuelta no cambia nada, que es lo que ata los dos campos", () => {
+    for (const texto of ["0:00", "3:30", "12:05"]) {
+      assert.equal(relojDe(segundosDe(texto)), texto);
+    }
+  });
+
   it("un goteo más largo que el total es imposible, no una taza rara", () => {
     assert.ok(goteoImposible(220, "3:32").includes("no puede llegar"));
   });
@@ -310,6 +328,43 @@ describe("el goteo va por dentro del tiempo total", () => {
       variable_cambiada: "prueba", defecto: "equilibrado", nota: 7, drawdown_s: 240,
     });
     assert.ok(errores.some((e) => e.includes("no puede llegar al tiempo total")));
+  });
+});
+
+describe("mover uno mueve el otro", () => {
+  it("alargar el tiempo total alarga el goteo lo mismo", () => {
+    assert.equal(goteoTrasMoverTotal("3:10", "3:32", 42), 64);
+  });
+
+  it("y acortarlo lo acorta", () => {
+    assert.equal(goteoTrasMoverTotal("3:32", "3:10", 64), 42);
+  });
+
+  it("nunca hasta un goteo negativo: ahí lo que hay es otra cosa", () => {
+    assert.equal(goteoTrasMoverTotal("3:32", "0:30", 64), null);
+  });
+
+  it("sin goteo no hay nada que arrastrar, que es opcional", () => {
+    assert.equal(goteoTrasMoverTotal("3:10", "3:32", null), null);
+  });
+
+  it("ni con un tiempo que no se deja leer", () => {
+    assert.equal(goteoTrasMoverTotal("un rato", "3:32", 42), null);
+    assert.equal(goteoTrasMoverTotal("3:10", "", 42), null);
+  });
+
+  it("y quieto es quieto: sin cambio no devuelve nada que escribir", () => {
+    assert.equal(goteoTrasMoverTotal("3:32", "3:32", 42), null);
+  });
+
+  it("por el otro lado igual: mover el goteo mueve el total", () => {
+    assert.equal(totalTrasMoverGoteo(42, 64, "3:10"), "3:32");
+    assert.equal(totalTrasMoverGoteo(64, 42, "3:32"), "3:10");
+  });
+
+  it("sin dejar el total en cero o por debajo", () => {
+    assert.equal(totalTrasMoverGoteo(64, 0, "1:00"), null);
+    assert.equal(totalTrasMoverGoteo(42, 42, "3:10"), null);
   });
 });
 

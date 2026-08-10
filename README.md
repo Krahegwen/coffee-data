@@ -297,6 +297,11 @@ detrás del último vertido. De ahí salen dos comprobaciones:
   `DESVIO_VERTIDO_S` de lo que dice la receta, sale un aviso. Es blanda porque
   verter a mano varía y porque puedes mandar tu propio `reparto`.
 
+Y en la app los dos campos van **atados**: tocar uno mueve el otro el mismo
+delta, que es lo que hace el cronómetro cuando los calcula él. Eso es que la
+fila no llegue a romperse; las dos comprobaciones de arriba son la red por
+debajo, y siguen ahí para todo lo que entre por `curl`.
+
 Pasó de verdad: un reloj que siguió corriendo al tirar el filtro, el tiempo
 total corregido a mano y el goteo quieto en 64 s. Los dos valores eran posibles
 por separado, así que la comprobación dura no lo habría visto — y ese 64

@@ -579,6 +579,15 @@ export function segundosDe(texto) {
 }
 
 /**
+ * Y de vuelta: 210 -> `"3:30"`. Es cómo se escribe `tiempo_total` en la base,
+ * así que vive aquí al lado de quien lo lee y no en cada pantalla que lo pinta.
+ */
+export function relojDe(segundos) {
+  const t = Math.max(0, Math.floor(Number(segundos) || 0));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+}
+
+/**
  * El goteo y el tiempo total **acaban en el mismo instante**: el fin del goteo.
  * Lo que cambia es desde dónde se miden —el total desde el primer vertido, el
  * goteo desde el final del último—, así que el goteo es un tramo *dentro* del
@@ -598,6 +607,38 @@ export function goteoImposible(drawdown, tiempoTotal) {
     `drawdown_s (${drawdown} s) no puede llegar al tiempo total (${tiempoTotal}): ` +
     "el goteo se cuenta desde el final del último vertido, así que va por dentro"
   );
+}
+
+/**
+ * El goteo puesto al día tras mover el tiempo total: el mismo delta, porque el
+ * fin del último vertido no se ha movido de donde lo puso la receta.
+ *
+ * Es la otra cara de `goteoImposible`. Aquélla es la red de seguridad del
+ * servidor; ésta es para que los formularios no dejen la fila incoherente de
+ * entrada, que corregir un campo y dejar el otro quieto no es una decisión
+ * sino un descuido.
+ *
+ * `null` cuando no hay nada que mover: falta alguno de los tres, el tiempo no
+ * se deja leer, o el resultado sería un goteo negativo.
+ */
+export function goteoTrasMoverTotal(antes, ahora, goteo) {
+  const desde = segundosDe(antes);
+  const hasta = segundosDe(ahora);
+  if (desde === null || hasta === null || goteo === null || goteo === undefined) return null;
+
+  const nuevo = goteo + (hasta - desde);
+  return nuevo === goteo || nuevo < 0 ? null : nuevo;
+}
+
+/** Y al revés: mover el goteo alarga o acorta el total lo mismo. */
+export function totalTrasMoverGoteo(antes, ahora, total) {
+  if (antes === null || antes === undefined) return null;
+  if (ahora === null || ahora === undefined) return null;
+  const desde = segundosDe(total);
+  if (desde === null) return null;
+
+  const nuevo = desde + (ahora - antes);
+  return nuevo === desde || nuevo <= 0 ? null : relojDe(nuevo);
 }
 
 export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];

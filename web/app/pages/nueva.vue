@@ -224,6 +224,9 @@ const hayMedido = computed(
   () => String(form.tiempo_total).trim() !== '' || String(form.drawdown_s).trim() !== '',
 )
 
+// Y los dos son la misma marca vista desde dos sitios, así que van atados.
+const { movido, anotar, desdeElTiempo, desdeElGoteo } = useAtadura(form)
+
 const dialogo = ref<HTMLDialogElement | null>(null)
 
 /** Vaciar en blanco no necesita ceremonia; vaciar una medición, sí. */
@@ -403,10 +406,20 @@ async function enviar() {
       </select>
     </label>
 
+    <!-- Atados: el goteo se cuenta dentro del total, así que tocar uno mueve
+         el otro. Ver `useAtadura`. -->
     <div class="pareja">
-      <label>Tiempo total<input v-model="form.tiempo_total" placeholder="3:30" required></label>
-      <label>Goteo (s)<input v-model="form.drawdown_s" type="number" step="1" min="0" placeholder="45"></label>
+      <label>Tiempo total<input
+        v-model="form.tiempo_total" placeholder="3:30" required
+        @focus="anotar" @change="desdeElTiempo"></label>
+      <label>Goteo (s)<input
+        v-model="form.drawdown_s" type="number" step="1" min="0" placeholder="45"
+        @focus="anotar" @change="desdeElGoteo"></label>
     </div>
+    <p v-if="movido" class="meta">
+      {{ movido === 'goteo' ? 'El goteo' : 'El tiempo total' }} se ha movido lo
+      mismo: el goteo va por dentro del total, no aparte.
+    </p>
 
     <label>
       En la taza (g)

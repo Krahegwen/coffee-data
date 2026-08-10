@@ -67,6 +67,11 @@ watchEffect(() => {
   for (const campo of EDITABLES) form[campo] = (original.value as Extraccion)[campo] ?? ''
 })
 
+// El tiempo total y el goteo son la misma marca vista desde dos sitios, así
+// que tocar uno mueve el otro. Corregir aquí uno solo es cómo se rompió la
+// fila del 2026-08-07.
+const { movido, anotar, desdeElTiempo, desdeElGoteo } = useAtadura(form)
+
 /**
  * Lo que de verdad cambió respecto a la anterior, mirando las columnas.
  *
@@ -246,7 +251,10 @@ async function retirar() {
 
       <div class="pareja">
         <label>Fecha<input v-model="form.fecha" type="date"></label>
-        <label>Tiempo total<input v-model="form.tiempo_total" placeholder="3:30"></label>
+        <!-- Atado al goteo, que va por dentro: ver `useAtadura`. -->
+        <label>Tiempo total<input
+          v-model="form.tiempo_total" placeholder="3:30"
+          @focus="anotar" @change="desdeElTiempo"></label>
       </div>
 
       <div class="pareja">
@@ -266,8 +274,14 @@ async function retirar() {
             <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
           </select>
         </label>
-        <label>Goteo (s)<input v-model="form.drawdown_s" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label>Goteo (s)<input
+          v-model="form.drawdown_s" type="number" step="1" min="0" inputmode="numeric"
+          @focus="anotar" @change="desdeElGoteo"></label>
       </div>
+      <p v-if="movido" class="meta">
+        {{ movido === 'goteo' ? 'El goteo' : 'El tiempo total' }} se ha movido lo
+        mismo: el goteo va por dentro del total, no aparte.
+      </p>
 
       <div class="pareja">
         <label>
