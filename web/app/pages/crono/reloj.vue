@@ -12,7 +12,13 @@ import { relojDe } from '@coffee/nucleo/validacion'
  * entre navegaciones, así que el tiempo sigue corriendo aunque la pantalla no
  * esté.
  */
-useHead({ title: 'Cronómetro' })
+// El catálogo de etiquetas y las rutas, los dos conscientes del idioma:
+// desde el inglés, un `/crono` pelado llevaría al castellano.
+const { t } = useI18n()
+const { etiquetaPaso } = useTextos()
+const localePath = useLocalePath()
+
+useHead({ title: () => t('reloj.titulo') })
 
 const router = useRouter()
 const { estado, soltarReloj } = useCrono()
@@ -28,7 +34,7 @@ const {
  * que el estado vive en memoria. Se vuelve a preparar, que es donde se
  * eligen.
  */
-if (!pasos.value.length) await router.replace('/crono')
+if (!pasos.value.length) await router.replace(localePath('/crono'))
 
 let animacion = 0
 let despierta: WakeLockSentinel | null = null
@@ -77,8 +83,8 @@ const enMarcha = computed(
 const pausado = computed(() => enMarcha.value && !corriendo.value)
 
 const etiquetaEsfera = computed(() => {
-  if (!enMarcha.value) return 'Iniciar el cronómetro'
-  return corriendo.value ? 'Pausar' : 'Reanudar el cronómetro'
+  if (!enMarcha.value) return t('reloj.iniciar_esfera')
+  return corriendo.value ? t('reloj.pausar') : t('reloj.reanudar_esfera')
 })
 
 // El anillo: la bola da una vuelta entera por paso.
@@ -240,14 +246,14 @@ const dialogo = ref<HTMLDialogElement | null>(null)
  */
 function pedirReiniciar() {
   if (enMarcha.value || finGoteo.value !== null) dialogo.value?.showModal()
-  else void router.push('/crono')
+  else void router.push(localePath('/crono'))
 }
 
 function reiniciar() {
   dialogo.value?.close()
   soltar()
   soltarReloj()
-  void router.push('/crono')
+  void router.push(localePath('/crono'))
 }
 
 /**
@@ -262,7 +268,7 @@ onMounted(() => {
 /** Al alta, con lo que el cronómetro ya sabe. */
 function registrar() {
   router.push({
-    path: '/nueva',
+    path: localePath('/nueva'),
     query: {
       cafe: cafeId.value,
       receta: recetaId.value,
@@ -278,7 +284,7 @@ onUnmounted(soltar)
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Preparar', a: '/crono' }, { texto: 'Cronómetro' }]" />
+  <Migas :ruta="[{ texto: $t('preparar.titulo'), a: '/crono' }, { texto: $t('reloj.titulo') }]" />
 
   <section class="corriendo">
     <!-- El anillo es decorativo: lo que hay que saber está en los números.
@@ -305,38 +311,40 @@ onUnmounted(soltar)
           <p class="accion">{{ etiquetaPaso(actual.accion, actual.estilo) }}</p>
           <!-- El espacio va explícito: Vue se come el salto de línea entre
                etiquetas y quedaba «60 g(+60)». -->
-          <p v-if="actual.accion === 'verter'" class="objetivo">
-            hasta <strong>{{ actual.acumulado_g }} g</strong>&#32;<span
-              class="delta"
-            >(+{{ actual.agua_g }})</span>
-          </p>
+          <i18n-t v-if="actual.accion === 'verter'" keypath="reloj.hasta" tag="p" class="objetivo" scope="global">
+            <template #agua>
+              <strong>{{ $t('reloj.hasta_agua', { n: actual.acumulado_g }) }}</strong>&#32;<span
+                class="delta"
+              >(+{{ actual.agua_g }})</span>
+            </template>
+          </i18n-t>
         </template>
-        <p v-else class="accion">preparados…</p>
+        <p v-else class="accion">{{ $t('reloj.preparados') }}</p>
       </div>
     </button>
 
     <!-- Fuera del anillo: los textos largos no caben dentro sin estrujarlo. -->
-    <p v-if="actual && !actual.lectura_fiable" class="ojo">
-      No mires la báscula: la cuchara pesa mientras está dentro.
-    </p>
+    <p v-if="actual && !actual.lectura_fiable" class="ojo">{{ $t('reloj.bascula_no') }}</p>
     <p v-if="actual" class="notas" :class="{ vacia: !actual.notas }">{{ actual.notas }}</p>
 
     <p v-if="siguiente && corriendo" class="faltan">
-      {{ etiquetaPaso(siguiente.accion, siguiente.estilo) }}{{ siguiente.accion === 'verter' ? ` hasta ${siguiente.acumulado_g} g` : '' }}
-      en <strong>{{ Math.ceil(faltan ?? 0) }} s</strong>
+      {{ etiquetaPaso(siguiente.accion, siguiente.estilo)
+        }}{{ siguiente.accion === 'verter'
+          ? $t('reloj.siguiente_hasta', { n: siguiente.acumulado_g }) : '' }}
+      <i18n-t keypath="reloj.en_segundos" tag="span" scope="global">
+        <template #s><strong>{{ $t('reloj.segundos', { n: Math.ceil(faltan ?? 0) }) }}</strong></template>
+      </i18n-t>
     </p>
 
-    <p v-else-if="pausado" class="faltan">
-      En pausa · toca el círculo para seguir
-    </p>
+    <p v-else-if="pausado" class="faltan">{{ $t('reloj.en_pausa') }}</p>
 
     <!-- Que se sepa que el círculo también arranca: es un gesto que nadie
          descubre solo. -->
     <p v-else-if="!enMarcha && finGoteo === null" class="faltan">
-      Toca el círculo cuando empieces a verter
+      {{ $t('reloj.toca_para_empezar') }}
     </p>
 
-    <button v-if="!enMarcha && finGoteo === null" @click="iniciar">Iniciar</button>
+    <button v-if="!enMarcha && finGoteo === null" @click="iniciar">{{ $t('reloj.iniciar') }}</button>
 
     <template v-else-if="finGoteo === null">
       <!-- Los saltos a los lados del mando grande: te fuiste del guion —un
@@ -345,7 +353,7 @@ onUnmounted(soltar)
            inicio del paso, y recién entrado, al de antes. -->
       <div class="mando-pasos">
         <button
-          type="button" class="salto" aria-label="Volver al inicio del paso"
+          type="button" class="salto" :aria-label="$t('reloj.inicio_del_paso')"
           @click="alInicioDePaso"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
@@ -354,10 +362,10 @@ onUnmounted(soltar)
           </svg>
         </button>
         <button class="pausa" @click="tocarEsfera">
-          {{ corriendo ? 'Pausa' : 'Reanudar' }}
+          {{ corriendo ? $t('reloj.pausa') : $t('reloj.reanudar') }}
         </button>
         <button
-          type="button" class="salto" aria-label="Saltar al siguiente paso"
+          type="button" class="salto" :aria-label="$t('reloj.siguiente_paso')"
           :disabled="!siguiente" @click="alSiguientePaso"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
@@ -366,35 +374,34 @@ onUnmounted(soltar)
           </svg>
         </button>
       </div>
-      <button class="goteo" @click="marcarFinGoteo">Dejó de gotear</button>
+      <button class="goteo" @click="marcarFinGoteo">{{ $t('reloj.dejo_de_gotear') }}</button>
     </template>
 
     <div v-if="finGoteo !== null" class="tarjeta">
-      <p><strong>{{ relojDe(finGoteo) }}</strong> en total</p>
-      <p v-if="drawdown !== null" class="meta">Goteo: {{ drawdown }} s, medido solo</p>
-      <button @click="registrar">Registrar esta extracción</button>
+      <i18n-t keypath="reloj.en_total" tag="p" scope="global">
+        <template #tiempo><strong>{{ relojDe(finGoteo) }}</strong></template>
+      </i18n-t>
+      <p v-if="drawdown !== null" class="meta">{{ $t('reloj.goteo_medido', { n: drawdown }) }}</p>
+      <button @click="registrar">{{ $t('reloj.registrar') }}</button>
       <!-- Marcar el goteo cerraba la extracción sin vuelta atrás, y se pulsa
            sin querer con el hervidor en la mano. -->
       <button class="secundario" @click="seguirGoteando">
-        Fue sin querer: seguir contando
+        {{ $t('reloj.sin_querer') }}
       </button>
     </div>
 
     <button class="secundario" @click="pedirReiniciar">
-      {{ enMarcha || finGoteo !== null ? 'Reiniciar' : 'Atrás' }}
+      {{ enMarcha || finGoteo !== null ? $t('reloj.reiniciar') : $t('reloj.atras') }}
     </button>
   </section>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Reiniciar?</h3>
-    <p class="ojo">
-      Se pierde el tiempo cronometrado, y eso no se puede volver a medir: el
-      café ya está colado.
-    </p>
-    <p>Si esa taza merece quedar apuntada, regístrala antes de reiniciar.</p>
+    <h3>{{ $t('reloj.reiniciar_titulo') }}</h3>
+    <p class="ojo">{{ $t('reloj.reiniciar_ojo') }}</p>
+    <p>{{ $t('reloj.reiniciar_alternativa') }}</p>
     <div class="botones">
-      <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>
-      <button type="button" class="peligro" @click="reiniciar">Reiniciar</button>
+      <button type="button" class="secundario" @click="dialogo?.close()">{{ $t('comun.cancelar') }}</button>
+      <button type="button" class="peligro" @click="reiniciar">{{ $t('reloj.reiniciar') }}</button>
     </div>
   </dialog>
 </template>

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+// Navegar por ruta pasa por aquí: desde el inglés, `/crono` llevaría al
+// castellano y se perdería el idioma a mitad de camino.
+const localePath = useLocalePath()
+
 import type { Extraccion } from '~/composables/useApi'
 import { defectosDe } from '@coffee/nucleo/validacion'
 const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
@@ -241,7 +245,7 @@ async function retirar() {
   try {
     await retirarExtraccion(id)
     dialogo.value?.close()
-    await router.push('/')
+    await router.push(localePath('/'))
   } catch (fallo) {
     errores.value = erroresDe(fallo)
     dialogo.value?.close()

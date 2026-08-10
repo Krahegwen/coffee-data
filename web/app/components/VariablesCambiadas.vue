@@ -98,13 +98,11 @@ function cambiarVariable(i: number, clave: string) {
 
 <template>
   <div class="variables">
-    <p v-if="!anterior" class="pista">
-      No hay ninguna extracción previa con la que comparar: esta es la primera.
-    </p>
+    <p v-if="!anterior" class="pista">{{ $t('tabla.sin_previa') }}</p>
 
     <div v-for="(clave, i) in elegidas" :key="clave" class="fila">
       <select
-        :value="clave" aria-label="variable"
+        :value="clave" :aria-label="$t('tabla.variable')"
         @change="cambiarVariable(i, ($event.target as HTMLSelectElement).value)"
       >
         <option v-for="c in disponibles(clave)" :key="c" :value="c">{{ VARIABLES[c] }}</option>
@@ -112,11 +110,11 @@ function cambiarVariable(i: number, clave: string) {
 
       <div class="par">
         <label>
-          antes
+          {{ $t('tabla.antes') }}
           <input :value="anteriorDe(clave)" readonly tabindex="-1">
         </label>
         <label>
-          ahora
+          {{ $t('tabla.ahora') }}
           <select
             v-if="opciones?.[clave]" :value="valores[clave]"
             @change="emit('cambia', clave, ($event.target as HTMLSelectElement).value)"
@@ -132,20 +130,17 @@ function cambiarVariable(i: number, clave: string) {
         </label>
       </div>
 
-      <button type="button" class="quitar" aria-label="quitar" @click="quitar(i)">✕</button>
+      <button type="button" class="quitar" :aria-label="$t('tabla.quitar')" @click="quitar(i)">✕</button>
     </div>
 
     <button
       v-if="elegidas.length < claves.length" type="button" class="anadir"
       @click="anadir"
     >
-      + Añadir variable
+      {{ $t('tabla.anadir') }}
     </button>
 
-    <p v-if="elegidas.length > 1" class="ojo">
-      Dos variables a la vez: el dato no servirá para comparar. Regístralo si
-      quieres, pero sabiendo que ese par no dirá nada.
-    </p>
+    <p v-if="elegidas.length > 1" class="ojo">{{ $t('tabla.dos_a_la_vez') }}</p>
   </div>
 </template>
 

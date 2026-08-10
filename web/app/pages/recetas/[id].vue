@@ -1,4 +1,8 @@
 <script setup lang="ts">
+// Navegar por ruta pasa por aquí: desde el inglés, `/crono` llevaría al
+// castellano y se perdería el idioma a mitad de camino.
+const localePath = useLocalePath()
+
 import type { PasoEditable } from '~/components/RecetaPasos.vue'
 
 /**
@@ -115,7 +119,7 @@ async function enviar() {
       // recargarlo, la ficha recién creada aterrizaba en «no hay ninguna
       // receta con ese id».
       await recargarCatalogo()
-      await router.push(`/recetas/${receta.slug}`)
+      await router.push(localePath(`/recetas/${receta.slug}`))
     } else {
       await guardarReceta(id, cuerpo)
       guardado.value = true
@@ -149,7 +153,7 @@ async function borrar() {
     await borrarReceta(id)
     dialogoBorrar.value?.close()
     await recargarCatalogo()
-    await router.push('/recetas')
+    await router.push(localePath('/recetas'))
   } catch (fallo) {
     dialogoBorrar.value?.close()
     errores.value = erroresDe(fallo)

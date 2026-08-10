@@ -75,7 +75,7 @@ function subir(i: number) {
         <span class="que">{{ DEFECTOS[clave] ?? clave }}</span>
         <button
           type="button" class="subir" :disabled="i === 0"
-          :aria-label="`Subir ${DEFECTOS[clave] ?? clave}`"
+          :aria-label="$t('defecto.subir', { que: DEFECTOS[clave] ?? clave })"
           @click="subir(i)"
         >
           ↑
@@ -83,12 +83,9 @@ function subir(i: number) {
       </li>
     </ol>
 
-    <p v-if="elegidos.length > 1" class="pista">
-      Quedan apuntados todos, pero el ajuste sale solo del primero
-      (<strong>{{ DEFECTOS[elegidos[0]!] ?? elegidos[0] }}</strong>):
-      corrige lo que más molesta y vuelve a medir. Si el segundo sigue ahí, ya
-      será el primero de la próxima.
-    </p>
+    <i18n-t v-if="elegidos.length > 1" keypath="defecto.orden_pista" tag="p" class="pista" scope="global">
+      <template #principal><strong>{{ DEFECTOS[elegidos[0]!] ?? elegidos[0] }}</strong></template>
+    </i18n-t>
   </div>
 </template>
 

@@ -11,7 +11,13 @@ import { relojDe } from '@coffee/nucleo/validacion'
  * recordaba nada; desde que el estado sobrevive a salir y volver, estorbaba de
  * verdad.
  */
-useHead({ title: 'Preparar' })
+const { t } = useI18n()
+// El catálogo de etiquetas y las rutas, los dos conscientes del idioma:
+// desde el inglés, un `/crono` pelado llevaría al castellano.
+const { etiquetaPaso } = useTextos()
+const localePath = useLocalePath()
+
+useHead({ title: () => t('preparar.titulo') })
 
 const { cafes, recetas, guion } = useApi()
 const router = useRouter()
@@ -62,7 +68,7 @@ watch([recetaId, agua], cargar, { immediate: true })
  */
 async function alCronometro() {
   if (!pasos.value.length) await cargar()
-  await router.push('/crono/reloj')
+  await router.push(localePath('/crono/reloj'))
 }
 
 const dialogo = ref<HTMLDialogElement | null>(null)
@@ -92,7 +98,7 @@ function restablecer() {
  */
 function aMano() {
   router.push({
-    path: '/nueva',
+    path: localePath('/nueva'),
     query: {
       cafe: cafeId.value,
       receta: recetaId.value,
@@ -104,34 +110,34 @@ function aMano() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Preparar' }]" />
+  <Migas :ruta="[{ texto: $t('preparar.titulo') }]" />
 
   <section>
     <div class="titulo">
-      <h2>Preparar</h2>
+      <h2>{{ $t('preparar.titulo') }}</h2>
       <!-- La selección y las cantidades se quedan puestas entre visitas; esto
            las devuelve a las de siempre cuando lo que hay es un despiste. -->
-      <button type="button" class="vaciar" @click="pedirRestablecer">Restablecer</button>
+      <button type="button" class="vaciar" @click="pedirRestablecer">{{ $t('comun.restablecer') }}</button>
     </div>
 
     <!-- Con el reloj a medias, la vuelta tiene que estar a la vista: si no, la
          única forma de volver a una medición en marcha era el botón de atrás
          del navegador, que es justo lo que esta ruta vino a arreglar. -->
     <p v-if="hayMedicion" class="enmarcha">
-      Tienes una medición a medias.
-      <NuxtLink to="/crono/reloj">Vuelve al reloj</NuxtLink>.
+      {{ $t('preparar.medicion_a_medias') }}
+      <NuxtLinkLocale to="/crono/reloj">{{ $t('preparar.vuelve_al_reloj') }}</NuxtLinkLocale>.
     </p>
 
     <!-- Sin bolsa se puede cronometrar y también registrar: la extracción
          queda suelta. El aviso ofrece el alta porque sin ficha no hay
          historial que comparar, no porque haga falta. -->
     <p v-if="!abiertas.length" class="sin-bolsas">
-      No tienes ninguna bolsa abierta: la extracción se registrará sin bolsa
-      y no comparará con nada.
-      <NuxtLink to="/cafes/nueva">Dala de alta</NuxtLink> si el café lo merece.
+      {{ $t('preparar.sin_bolsas') }}
+      <NuxtLinkLocale to="/cafes/nueva">{{ $t('preparar.dala_de_alta') }}</NuxtLinkLocale>
+      {{ $t('preparar.si_lo_merece') }}
     </p>
     <label v-else>
-      Café
+      {{ $t('preparar.cafe') }}
       <select v-model="cafeId">
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
@@ -139,25 +145,26 @@ function aMano() {
 
     <!-- Este sí corta: sin receta no hay guion que seguir. -->
     <p v-if="sinRecetas" class="sin-recetas">
-      No queda ninguna receta, y sin receta el cronómetro no tiene qué guiar.
-      <NuxtLink to="/recetas/nueva">Crea una</NuxtLink> para seguir.
+      {{ $t('preparar.sin_recetas') }}
+      <NuxtLinkLocale :to="`/recetas/${$t('rutas.nueva')}`">{{ $t('preparar.crea_una') }}</NuxtLinkLocale>
+      {{ $t('preparar.para_seguir') }}
     </p>
     <label v-else>
-      Receta
+      {{ $t('preparar.receta') }}
       <select v-model="recetaId">
         <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
       </select>
     </label>
     <div class="pareja">
-      <label>Dosis (g)<input v-model.number="dosis" type="number" step="0.1" min="1"></label>
-      <label>Agua (g)<input v-model.number="agua" type="number" step="1" min="1"></label>
+      <label>{{ $t('preparar.dosis') }}<input v-model.number="dosis" type="number" step="0.1" min="1"></label>
+      <label>{{ $t('preparar.agua') }}<input v-model.number="agua" type="number" step="1" min="1"></label>
     </div>
 
     <ol class="plan">
       <li v-for="p in pasos" :key="p.orden">
         <span class="t">{{ p.t_inicio_s === null ? '—' : relojDe(p.t_inicio_s) }}</span>
         <span class="que">{{ etiquetaPaso(p.accion, p.estilo) }}</span>
-        <span v-if="p.accion === 'verter'" class="ag">hasta {{ p.acumulado_g }} g</span>
+        <span v-if="p.accion === 'verter'" class="ag">{{ $t('preparar.hasta', { n: p.acumulado_g }) }}</span>
       </li>
     </ol>
 
@@ -165,23 +172,21 @@ function aMano() {
          delante —café, receta, dosis y agua—, y solo mirando el guion se sabe
          si toca cronometrar o si el café ya está hecho y solo vienes a
          apuntarlo. -->
-    <button :disabled="sinRecetas" @click="alCronometro">Al cronómetro</button>
-    <button class="secundario" @click="aMano">Introducir manualmente</button>
+    <button :disabled="sinRecetas" @click="alCronometro">{{ $t('preparar.al_cronometro') }}</button>
+    <button class="secundario" @click="aMano">{{ $t('preparar.a_mano') }}</button>
   </section>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Restablecer?</h3>
-    <p class="ojo">
-      Hay un tiempo cronometrado y se perderá. Eso no se puede volver a medir:
-      el café ya está colado.
-    </p>
-    <p>
-      Si lo que quieres es apuntar esa taza,
-      <NuxtLink to="/crono/reloj">vuelve al reloj</NuxtLink> y regístrala.
-    </p>
+    <h3>{{ $t('preparar.restablecer_titulo') }}</h3>
+    <p class="ojo">{{ $t('preparar.restablecer_ojo') }}</p>
+    <i18n-t keypath="preparar.restablecer_alternativa" tag="p" scope="global">
+      <template #vuelve>
+        <NuxtLinkLocale to="/crono/reloj">{{ $t('preparar.restablecer_vuelve') }}</NuxtLinkLocale>
+      </template>
+    </i18n-t>
     <div class="botones">
-      <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>
-      <button type="button" class="peligro" @click="restablecer">Restablecer</button>
+      <button type="button" class="secundario" @click="dialogo?.close()">{{ $t('comun.cancelar') }}</button>
+      <button type="button" class="peligro" @click="restablecer">{{ $t('comun.restablecer') }}</button>
     </div>
   </dialog>
 </template>

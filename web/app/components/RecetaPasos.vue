@@ -1,10 +1,14 @@
 <script setup lang="ts">
+
 /**
  * Editor de los pasos de una receta.
  *
  * Los pasos se editan como lista completa, no uno a uno: es como se piensa una
  * receta y es lo que el servidor espera. El orden lo da la posición.
  */
+
+// Las etiquetas de acción y estilo salen del catálogo, que sabe el idioma.
+const { ACCIONES, ESTILOS } = useTextos()
 export interface PasoEditable {
   accion: string
   /** Vacío es «sin especificar», que es lo normal en los pasos de siempre. */
@@ -64,15 +68,15 @@ function mover(i: number, salto: number) {
          esta fila solo repetiría: es ayuda visual. -->
     <div v-if="pasos.length" class="cabeceras" aria-hidden="true">
       <span />
-      <span>acción</span>
-      <span>desde (s)</span>
-      <span>agua (g)</span>
+      <span>{{ $t('pasos.accion') }}</span>
+      <span>{{ $t('pasos.desde') }}</span>
+      <span>{{ $t('pasos.agua') }}</span>
     </div>
 
     <div v-for="(paso, i) in pasos" :key="i" class="paso">
       <div class="linea">
         <span class="num">{{ i + 1 }}</span>
-        <select v-model="paso.accion" aria-label="acción" @change="alCambiarAccion(paso)">
+        <select v-model="paso.accion" :aria-label="$t('pasos.accion')" @change="alCambiarAccion(paso)">
           <!-- Se guarda la clave y se enseña la etiqueta: la base no sabe de
                castellano. -->
           <option v-for="(etiqueta, clave) in ACCIONES" :key="clave" :value="clave">
@@ -81,12 +85,12 @@ function mover(i: number, salto: number) {
         </select>
         <input
           v-model="paso.t_inicio_s" type="number" min="0" step="1"
-          inputmode="numeric" placeholder="seg" aria-label="segundo de inicio"
+          inputmode="numeric" :placeholder="$t('pasos.seg')" :aria-label="$t('pasos.segundo_inicio')"
         >
         <input
           v-if="paso.accion === 'verter'" v-model="paso.agua_g"
           type="number" min="1" step="1" inputmode="numeric"
-          placeholder="g" aria-label="gramos"
+          placeholder="g" :aria-label="$t('pasos.gramos')"
         >
         <span v-else class="singramos">—</span>
       </div>
@@ -96,38 +100,37 @@ function mover(i: number, salto: number) {
       <div class="detalle" :class="{ vertido: paso.accion === 'verter' }">
         <select
           v-if="paso.accion === 'verter'" v-model="paso.estilo"
-          aria-label="estilo del vertido"
+          :aria-label="$t('pasos.estilo_vertido')"
         >
-          <option value="">sin estilo</option>
+          <option value="">{{ $t('pasos.sin_estilo') }}</option>
           <option v-for="(etiqueta, clave) in ESTILOS" :key="clave" :value="clave">
             {{ etiqueta }}
           </option>
         </select>
         <input
           v-model="paso.notas"
-          placeholder="nota: se lee en el cronómetro" aria-label="nota del paso"
+          :placeholder="$t('pasos.nota_ejemplo')" :aria-label="$t('pasos.nota_paso')"
         >
       </div>
       <div class="pie">
-        <span v-if="paso.accion === 'verter'" class="acum">hasta {{ acumulado(i) }} g</span>
+        <span v-if="paso.accion === 'verter'" class="acum">{{ $t('pasos.hasta', { n: acumulado(i) }) }}</span>
         <span v-else-if="paso.accion === 'agitar' || paso.accion === 'remover'" class="ojo">
-          la báscula no vale aquí
+          {{ $t('pasos.bascula_no_vale') }}
         </span>
         <span v-else />
         <span class="mandos">
-          <button type="button" :disabled="i === 0" @click="mover(i, -1)" aria-label="subir">↑</button>
-          <button type="button" :disabled="i === pasos.length - 1" @click="mover(i, 1)" aria-label="bajar">↓</button>
-          <button type="button" class="quitar" @click="quitar(i)" aria-label="quitar">✕</button>
+          <button type="button" :disabled="i === 0" :aria-label="$t('pasos.subir')" @click="mover(i, -1)">↑</button>
+          <button type="button" :disabled="i === pasos.length - 1" :aria-label="$t('pasos.bajar')" @click="mover(i, 1)">↓</button>
+          <button type="button" class="quitar" :aria-label="$t('pasos.quitar')" @click="quitar(i)">✕</button>
         </span>
       </div>
     </div>
 
-    <button type="button" class="anadir" @click="anadir">+ Añadir paso</button>
+    <button type="button" class="anadir" @click="anadir">{{ $t('pasos.anadir') }}</button>
 
-    <p class="nota">
-      Los vertidos suman <strong>{{ referencia }} g</strong>, que es el agua de
-      referencia: si preparas con otra cantidad, se escalan proporcionalmente.
-    </p>
+    <i18n-t keypath="pasos.referencia" tag="p" class="nota" scope="global">
+      <template #agua><strong>{{ $t('pasos.referencia_agua', { n: referencia }) }}</strong></template>
+    </i18n-t>
   </div>
 </template>
 

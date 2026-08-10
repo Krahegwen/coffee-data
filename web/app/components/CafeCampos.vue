@@ -28,24 +28,24 @@ const idPrevisto = computed(() =>
 
 <template>
   <label>
-    Nombre
-    <input v-model="modelo.nombre" placeholder="Etiopía Guji" required>
+    {{ $t('cafe.nombre') }}
+    <input v-model="modelo.nombre" :placeholder="$t('cafe.nombre_ejemplo')" required>
     <span v-if="props.nuevo && idPrevisto" class="idprevisto">
-      se guardará como <code>{{ idPrevisto }}</code>
+      {{ $t('cafe.se_guardara') }} <code>{{ idPrevisto }}</code>
     </span>
   </label>
 
   <div class="pareja">
-    <label>Tostador<input v-model="modelo.tostador"></label>
-    <label>Origen<input v-model="modelo.origen"></label>
+    <label>{{ $t('cafe.tostador') }}<input v-model="modelo.tostador"></label>
+    <label>{{ $t('cafe.origen') }}<input v-model="modelo.origen"></label>
   </div>
 
   <div class="pareja">
-    <label>Peso (g)<input v-model="modelo.peso_g" type="number" step="1" min="1" inputmode="numeric"></label>
+    <label>{{ $t('cafe.peso') }}<input v-model="modelo.peso_g" type="number" step="1" min="1" inputmode="numeric"></label>
     <label>
-      Estado
+      {{ $t('cafe.estado') }}
       <select v-model="modelo.estado">
-        <option v-for="e in ESTADOS" :key="e" :value="e">{{ e }}</option>
+        <option v-for="e in ESTADOS" :key="e" :value="e">{{ $t(`estados.${e}`) }}</option>
       </select>
     </label>
   </div>
@@ -53,40 +53,40 @@ const idPrevisto = computed(() =>
   <!-- Los dos relojes de la frescura, juntos y arriba: mientras la bolsa está
        precintada manda el tueste; desde que la abres, la oxidación. -->
   <div class="pareja">
-    <label>Fecha de tueste<input v-model="modelo.fecha_tueste" type="date"></label>
-    <label>Abierta el<input v-model="modelo.fecha_apertura" type="date"></label>
+    <label>{{ $t('cafe.fecha_tueste') }}<input v-model="modelo.fecha_tueste" type="date"></label>
+    <label>{{ $t('cafe.abierta_el') }}<input v-model="modelo.fecha_apertura" type="date"></label>
   </div>
 
   <label>
-    Conservación
-    <input v-model="modelo.conservacion" placeholder="bolsa, tarro de vacío…">
+    {{ $t('cafe.conservacion') }}
+    <input v-model="modelo.conservacion" :placeholder="$t('cafe.conservacion_ejemplo')">
   </label>
 
   <details>
-    <summary>Más datos</summary>
+    <summary>{{ $t('cafe.mas_datos') }}</summary>
 
     <div class="pareja">
-      <label>Región<input v-model="modelo.region"></label>
-      <label>Proceso<input v-model="modelo.proceso" placeholder="Lavado"></label>
+      <label>{{ $t('cafe.region') }}<input v-model="modelo.region"></label>
+      <label>{{ $t('cafe.proceso') }}<input v-model="modelo.proceso" :placeholder="$t('cafe.proceso_ejemplo')"></label>
     </div>
 
-    <label>Variedad<input v-model="modelo.variedad"></label>
+    <label>{{ $t('cafe.variedad') }}<input v-model="modelo.variedad"></label>
 
     <div class="pareja">
-      <label>Altitud (m)<input v-model="modelo.altitud_m" type="number" step="1" min="1" inputmode="numeric"></label>
-      <label>SCA<input v-model="modelo.sca" type="number" step="0.5" min="0" max="100" inputmode="decimal"></label>
+      <label>{{ $t('cafe.altitud') }}<input v-model="modelo.altitud_m" type="number" step="1" min="1" inputmode="numeric"></label>
+      <label>{{ $t('cafe.sca') }}<input v-model="modelo.sca" type="number" step="0.5" min="0" max="100" inputmode="decimal"></label>
     </div>
 
     <div class="pareja">
-      <label>Precio (€)<input v-model="modelo.precio_eur" type="number" step="0.01" min="0" inputmode="decimal"></label>
-      <label>Consumir antes<input v-model="modelo.consumir_antes" type="date"></label>
+      <label>{{ $t('cafe.precio') }}<input v-model="modelo.precio_eur" type="number" step="0.01" min="0" inputmode="decimal"></label>
+      <label>{{ $t('cafe.consumir_antes') }}<input v-model="modelo.consumir_antes" type="date"></label>
     </div>
 
     <!-- Ni «comprado el» ni «recibido el»: cuándo la pagaste no cambia la taza,
          y no los leía nadie. Se fueron de la tabla en la migración 0008. -->
 
-    <label>Notas del tostador<textarea v-model="modelo.notas_tostador" rows="2" /></label>
-    <label>Ficha del tostador (url)<input v-model="modelo.url" type="url" inputmode="url"></label>
+    <label>{{ $t('cafe.notas_tostador') }}<textarea v-model="modelo.notas_tostador" rows="2" /></label>
+    <label>{{ $t('cafe.url') }}<input v-model="modelo.url" type="url" inputmode="url"></label>
   </details>
 </template>
 

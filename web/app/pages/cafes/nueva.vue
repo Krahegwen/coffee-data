@@ -1,4 +1,8 @@
 <script setup lang="ts">
+// Navegar por ruta pasa por aquí: desde el inglés, `/crono` llevaría al
+// castellano y se perdería el idioma a mitad de camino.
+const localePath = useLocalePath()
+
 const { cafes, crearCafe } = useApi()
 const router = useRouter()
 const route = useRoute()
@@ -117,9 +121,9 @@ async function enviar() {
     // limpia en vez de precargada con esta.
     await vaciar()
     if (destino) {
-      await router.push({ path: destino, query: { bolsa: cafe.id } })
+      await router.push({ path: localePath(destino), query: { bolsa: cafe.id } })
     } else {
-      await router.push(`/cafes/${cafe.slug}`)
+      await router.push(localePath(`/cafes/${cafe.slug}`))
     }
   } catch (fallo) {
     errores.value = erroresDe(fallo)
