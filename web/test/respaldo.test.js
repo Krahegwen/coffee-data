@@ -167,6 +167,11 @@ describe("el respaldo entero, de ida y vuelta", () => {
     assert.equal(despues.filter((e) => e.borrada_en).length, 1);
     // La suelta volvió suelta: sin bolsa, no con una inventada.
     assert.equal(despues.filter((e) => e.cafe_id === null).length, 1);
+    // Y el linaje aguanta el viaje: la segunda sigue colgando de la primera
+    // aunque esté retirada, porque se restauran en orden y la madre ya está.
+    const madres = Object.fromEntries(despues.map((e) => [e.id, e.desde_id]));
+    const hija = despues.find((e) => e.borrada_en);
+    assert.equal(madres[hija.id], despues.find((e) => e.variable_cambiada === "basal").id);
     assert.deepEqual(
       despues.map((e) => e.siguiente_ajuste),
       antes.map((e) => e.siguiente_ajuste),

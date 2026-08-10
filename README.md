@@ -266,7 +266,8 @@ el endpoint de subida, no entra por JSON) · `url`
 `id` · `fecha` · `cafe_id` · `dias_tueste` · `dosis_g` · `agua_g` · `ratio` ·
 `temp_c` · `molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` ·
 `extraido_g` · `variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
-`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper` · `borrada_en`
+`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper` · `desde_id` ·
+`borrada_en`
 
 `extraido_g`: lo que acabó en la taza. Con el agua y la dosis sale la
 **retención** —los gramos que se queda el lecho por gramo de café—, que en V60
@@ -278,6 +279,19 @@ puede pasar del agua; el servidor lo rechaza con 422.
 la detección de pares, y una errata parecería un cambio de variable. La
 cerámica tiene masa térmica: sin precalentar, el mismo `temp_c` de hervidor da
 una temperatura de extracción más baja.
+
+`desde_id`: **de qué extracción es variación ésta**. La exploración no es una
+línea: tras un callejón sin salida se vuelve a una anterior y se mueve otra
+cosa, y comparar eso contra la de ayer serían dos cambios y el par se
+descartaría. Vacío significa que no compara con nada — la primera de una bolsa,
+o una taza suelta—.
+
+No hace falta mandarlo: sin él, el servidor cuelga la nueva de la última de esa
+bolsa, que es el caso de todos los días. **La madre nunca sale de la bolsa** —el
+tueste es lo que hace la taza—, tiene que ser anterior, y una suelta no cuelga
+de nadie. Retirar la madre no rompe nada: `desde_id` se queda, pero la hija pasa
+a contar como primera, porque un delta medido contra un error de registro no
+vale nada. Restaurarla devuelve el par.
 
 `drawdown_s`: segundos entre el final del último vertido y el fin del goteo. Va
 en segundos enteros, no en `m:ss`, porque es el valor con el que se decide si
@@ -419,10 +433,10 @@ siguiente. No hay ningún modelo detrás, y es deliberado:
 - **Reglas fijas.** La tabla de arriba más el goteo. El `drawdown_s` manda sobre
   el sabor: es una señal mecánica y no depende de cómo tengas el paladar ese día.
 - **Deltas emparejados.** Como el protocolo cambia **una** variable entre
-  extracciones, cada par consecutivo del mismo café ya es una comparación
-  controlada. Con dos pares en la misma dirección empieza a informar: «bajar
-  `temp_c` movió la nota +1.5 de media». Una regresión sobre estos datos daría
-  coeficientes de ruido con pinta de precisión.
+  extracciones, cada extracción y aquélla **de la que es variación** ya son una
+  comparación controlada. Con dos pares en la misma dirección empieza a
+  informar: «bajar `temp_c` movió la nota +1.5 de media». Una regresión sobre
+  estos datos daría coeficientes de ruido con pinta de precisión.
 - **Extrapolación.** Solo si las reglas callan. `equilibrado` no tiene palanca,
   así que una taza correcta y sosa se quedaba sin propuesta: ahí se mira el
   último par limpio de ese café y se sigue por el eje que ya se movió —otro

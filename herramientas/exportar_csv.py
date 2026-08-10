@@ -41,6 +41,7 @@ COLUMNAS_EXTRACCIONES = [
     "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
     "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
     "receta_id", "receta_slug", "drawdown_s", "dripper", "borrada_en",
+    "desde_id",
 ]
 
 

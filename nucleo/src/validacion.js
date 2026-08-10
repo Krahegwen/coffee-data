@@ -95,12 +95,13 @@ export const OBLIGATORIOS = [
 ];
 
 // Columnas que acepta el endpoint. reparto entra pero se calcula si falta;
-// ratio y dias_tueste no están: los deriva la vista.
+// ratio y dias_tueste no están: los deriva la vista. desde_id también se
+// calcula si falta —la última de esa bolsa—, que es el caso normal.
 export const CAMPOS = [
   "fecha", "cafe_id", "dosis_g", "agua_g", "temp_c", "molinillo", "clics",
   "metodo", "reparto", "tiempo_total", "variable_cambiada", "defecto",
   "notas_cata", "nota", "siguiente_ajuste", "receta_id", "drawdown_s", "dripper",
-  "extraido_g",
+  "extraido_g", "desde_id",
 ];
 
 export const ESTADOS = ["abierto", "terminado", "pendiente"];
@@ -203,6 +204,24 @@ function validarIdentidad(entrada, valores, errores) {
 }
 
 /**
+ * De qué extracción es variación ésta. Uuid pelado y nunca slug: las
+ * extracciones no tienen, que no hay nombre que teclear — se eligen de una
+ * lista, no se escriben.
+ *
+ * Vacío es «no viene de ninguna», y es un valor legal: la primera de una bolsa
+ * no compara con nada. Quién es la madre por defecto lo decide el manejador,
+ * que es quien tiene el histórico delante.
+ */
+function validarMadre(valor, errores) {
+  if (vacio(valor)) return null;
+  const id = String(valor).trim().toLowerCase();
+  if (!esUuid(id)) {
+    errores.push(`desde_id inválida, se espera un uuid: ${JSON.stringify(valor)}`);
+  }
+  return id;
+}
+
+/**
  * Devuelve { valores, errores }. Si errores tiene algo, no se inserta nada:
  * la fila entra entera o no entra.
  */
@@ -227,6 +246,7 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   }
 
   valores.cafe_id = vacio(entrada.cafe_id) ? null : String(entrada.cafe_id).trim();
+  valores.desde_id = validarMadre(entrada.desde_id, errores);
 
   for (const campo of ["dosis_g", "agua_g"]) {
     const valor = vacio(entrada[campo]) ? POR_DEFECTO[campo] : entrada[campo];
@@ -423,6 +443,11 @@ export function validarCambiosExtraccion(cuerpo) {
   if (dado("cafe_id")) {
     const cafeId = String(entrada.cafe_id ?? "").trim();
     valores.cafe_id = cafeId || null;
+  }
+
+  // Vaciarla también es legal: es decir «ésta no continúa a ninguna».
+  if (dado("desde_id")) {
+    valores.desde_id = validarMadre(entrada.desde_id, errores);
   }
 
   for (const campo of ["dosis_g", "agua_g"]) {

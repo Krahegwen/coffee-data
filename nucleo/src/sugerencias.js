@@ -115,6 +115,33 @@ export function defectoPrincipal(extraccion) {
   return defectosDe(extraccion?.defecto)[0] ?? null;
 }
 
+/**
+ * De qué extracción es variación ésta: su madre, la que dice contra qué se
+ * compara. La exploración es un árbol —cada taza sale de otra, casi siempre la
+ * última y a veces de una anterior a la que se vuelve tras un callejón sin
+ * salida—, y sin esto el motor solo sabía mirar un paso hacia atrás.
+ *
+ * Devuelve `null` en tres casos que valen lo mismo —esta taza no compara con
+ * nada— pero que conviene no confundir:
+ *
+ * - **No tiene madre**: la primera de una bolsa, o una que se declaró suelta
+ *   de la serie a propósito.
+ * - **No tiene bolsa**: dos tazas sueltas no son el mismo café por compartir
+ *   el hueco vacío.
+ * - **La madre está retirada**, y por eso no viene en el histórico. Es una
+ *   decisión, no un descuido del filtro: retirar significa «esto fue un error
+ *   de registro», y un delta medido contra un error no vale nada. La hija pasa
+ *   a contar como primera, y restaurar a la madre devuelve el par sola.
+ */
+export function madreDe(extraccion, historico = []) {
+  const desde = extraccion?.desde_id;
+  if (!desde || !extraccion?.cafe_id) return null;
+  // La madre nunca sale de la bolsa: el tueste es lo que hace la taza.
+  return historico.find(
+    (e) => String(e.id) === String(desde) && e.cafe_id === extraccion.cafe_id,
+  ) ?? null;
+}
+
 // --- capa 1: reglas --------------------------------------------------------
 
 export function avisosDe(extraccion, historico = [], receta = null) {
@@ -130,14 +157,9 @@ export function avisosDe(extraccion, historico = [], receta = null) {
     );
   }
 
-  // Sin bolsa no hay «previa»: dos extracciones sueltas son cafés distintos,
-  // y el aviso del dripper compararía tazas que no tienen nada que ver.
-  const anteriores = extraccion.cafe_id
-    ? historico.filter(
-        (e) => e.cafe_id === extraccion.cafe_id && String(e.id) !== String(extraccion.id),
-      )
-    : [];
-  const previa = anteriores[anteriores.length - 1];
+  // Contra la madre y no contra «la de ayer»: el aviso habla de la variable de
+  // esta extracción, y cuál es depende de contra qué se compara.
+  const previa = madreDe(extraccion, historico);
   if (previa && previa.dripper !== extraccion.dripper) {
     avisos.push(
       `has cambiado de dripper (${previa.dripper} -> ${extraccion.dripper}): ` +
@@ -263,44 +285,34 @@ export function cambiosDe(extraccion) {
 // --- capa 2: deltas emparejados --------------------------------------------
 
 export function pares(historico) {
-  const porCafe = new Map();
-  for (const extraccion of historico) {
-    // Las sueltas no emparejan: compartir «sin bolsa» no las hace el mismo café.
-    if (!extraccion.cafe_id) continue;
-    const lista = porCafe.get(extraccion.cafe_id) ?? [];
-    lista.push(extraccion);
-    porCafe.set(extraccion.cafe_id, lista);
-  }
-
   const emparejados = [];
-  for (const extracciones of porCafe.values()) {
-    for (let i = 1; i < extracciones.length; i += 1) {
-      const antes = extracciones[i - 1];
-      const despues = extracciones[i];
-      const distintas = VARIABLES.filter(
-        (v) => String(antes[v] ?? "") !== String(despues[v] ?? ""),
-      );
-      if (distintas.length !== 1) continue;
+  for (const despues of historico) {
+    const antes = madreDe(despues, historico);
+    if (!antes) continue;
 
-      const notaAntes = num(antes.nota);
-      const notaDespues = num(despues.nota);
-      if (notaAntes === null || notaDespues === null) continue;
+    const distintas = VARIABLES.filter(
+      (v) => String(antes[v] ?? "") !== String(despues[v] ?? ""),
+    );
+    if (distintas.length !== 1) continue;
 
-      const variable = distintas[0];
-      const valorAntes = num(antes[variable]);
-      const valorDespues = num(despues[variable]);
-      let direccion = "cambiar";
-      if (valorAntes !== null && valorDespues !== null) {
-        direccion = valorDespues > valorAntes ? "subir" : "bajar";
-      }
+    const notaAntes = num(antes.nota);
+    const notaDespues = num(despues.nota);
+    if (notaAntes === null || notaDespues === null) continue;
 
-      emparejados.push({
-        cafe_id: despues.cafe_id,
-        variable,
-        direccion,
-        delta_nota: notaDespues - notaAntes,
-      });
+    const variable = distintas[0];
+    const valorAntes = num(antes[variable]);
+    const valorDespues = num(despues[variable]);
+    let direccion = "cambiar";
+    if (valorAntes !== null && valorDespues !== null) {
+      direccion = valorDespues > valorAntes ? "subir" : "bajar";
     }
+
+    emparejados.push({
+      cafe_id: despues.cafe_id,
+      variable,
+      direccion,
+      delta_nota: notaDespues - notaAntes,
+    });
   }
   return emparejados;
 }

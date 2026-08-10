@@ -78,6 +78,14 @@ export interface Extraccion {
   dripper: string | null
   /** Lo que acabó en la taza. Con el agua y la dosis da la retención. */
   extraido_g: number | null
+  /**
+   * De qué extracción es variación ésta: contra ella la compara el motor.
+   *
+   * Null es «no compara con nada» —la primera de la bolsa, o una suelta—. No
+   * confundirla con de dónde salen los valores al abrir el formulario: eso es
+   * otra cadena y puede venir de cualquier bolsa, porque solo rellena campos.
+   */
+  desde_id: string | null
 }
 
 export interface Paso {
@@ -159,6 +167,12 @@ export interface NuevaExtraccion {
   notas_cata?: string
   siguiente_ajuste?: string
   fecha?: string
+  /**
+   * De qué extracción es variación. Sin mandarlo, el servidor cuelga la nueva
+   * de la última de esa bolsa, que es el caso normal; se manda solo al volver
+   * a una rama anterior.
+   */
+  desde_id?: string | null
 }
 
 export function useApi() {

@@ -8,6 +8,10 @@ donde salen los datos que ya había. Este script existe para que la semilla sea
 reproducible y revisable, no escrita a mano.
 
 ratio y dias_tueste no se migran: ahora son derivados y los da la vista.
+
+desde_id tampoco, y no por lo mismo: la semilla entra en el esquema de la
+0001, que todavía no tiene esa columna. Quien cuelga cada extracción de su
+madre es la 0011, y lo hace después. Añadirla aquí rompería la cadena.
 """
 import csv
 import sys

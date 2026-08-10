@@ -299,6 +299,105 @@ export function contratoDelAlmacen(titulo, fabrica) {
         assert.match(datos.errores[0], /no puede pasar del agua/);
       });
 
+      describe("el árbol de exploración", () => {
+        it("la primera de una bolsa no cuelga de nadie", async () => {
+          const { datos } = await crearExtraccion(almacen, EXTRACCION);
+          assert.equal(datos.extraccion.desde_id, null);
+        });
+
+        it("y la siguiente cuelga de ella sin que nadie lo pida", async () => {
+          const primera = await crearExtraccion(almacen, EXTRACCION);
+          const segunda = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          assert.equal(segunda.datos.extraccion.desde_id, primera.datos.extraccion.id);
+        });
+
+        it("volver a una rama anterior es mandarla a mano", async () => {
+          const primera = await crearExtraccion(almacen, EXTRACCION);
+          await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          const vuelta = await crearExtraccion(almacen, {
+            ...EXTRACCION, clics: 30, desde_id: primera.datos.extraccion.id,
+          });
+          assert.equal(vuelta.datos.extraccion.desde_id, primera.datos.extraccion.id);
+        });
+
+        it("la madre nunca sale de la bolsa", async () => {
+          const otra = await crearCafe(almacen, { nombre: "Abbie" });
+          const suya = await crearExtraccion(almacen, {
+            ...EXTRACCION, cafe_id: otra.datos.cafe.id,
+          });
+          const { estado, datos } = await crearExtraccion(almacen, {
+            ...EXTRACCION, desde_id: suya.datos.extraccion.id,
+          });
+          assert.equal(estado, 422);
+          assert.match(datos.errores[0], /solo puede ser variación de otra del mismo café/);
+        });
+
+        it("una suelta no cuelga de nadie, aunque se empeñe quien la manda", async () => {
+          const previa = await crearExtraccion(almacen, EXTRACCION);
+          const { cafe_id: fuera, ...sinBolsa } = EXTRACCION;
+          const { datos } = await crearExtraccion(almacen, {
+            ...sinBolsa, desde_id: previa.datos.extraccion.id,
+          });
+          assert.equal(datos.extraccion.desde_id, null);
+        });
+
+        it("de una retirada no se parte, pero apuntar a ella sigue valiendo", async () => {
+          const primera = await crearExtraccion(almacen, EXTRACCION);
+          const segunda = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          await retirarExtraccion(almacen, segunda.datos.extraccion.id);
+
+          // La automática se salta la retirada y vuelve a la que sigue en pie.
+          const tercera = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 90 });
+          assert.equal(tercera.datos.extraccion.desde_id, primera.datos.extraccion.id);
+
+          // Y pedirla explícitamente no es un error: un desplegable no puede
+          // perder el valor que ya tiene por que la madre se retire después.
+          const atada = await crearExtraccion(almacen, {
+            ...EXTRACCION, temp_c: 89, desde_id: segunda.datos.extraccion.id,
+          });
+          assert.equal(atada.estado, 201);
+        });
+
+        it("mudar la taza de bolsa se lleva su linaje por delante", async () => {
+          await crearExtraccion(almacen, EXTRACCION);
+          const segunda = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          const otra = await crearCafe(almacen, { nombre: "Abbie" });
+
+          const { datos } = await editarExtraccion(almacen, segunda.datos.extraccion.id, {
+            cafe_id: otra.datos.cafe.id,
+          });
+          assert.equal(datos.extraccion.desde_id, null);
+          assert.ok(datos.cambiado.includes("desde_id"));
+        });
+
+        it("y quitarle la bolsa también: sin ficha no hay serie", async () => {
+          await crearExtraccion(almacen, EXTRACCION);
+          const segunda = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          const { datos } = await editarExtraccion(almacen, segunda.datos.extraccion.id, {
+            cafe_id: "",
+          });
+          assert.equal(datos.extraccion.desde_id, null);
+        });
+
+        it("nadie es variación de algo que se hizo después", async () => {
+          const primera = await crearExtraccion(almacen, EXTRACCION);
+          const segunda = await crearExtraccion(almacen, { ...EXTRACCION, temp_c: 88 });
+          const { estado, datos } = await editarExtraccion(almacen, primera.datos.extraccion.id, {
+            desde_id: segunda.datos.extraccion.id,
+          });
+          assert.equal(estado, 422);
+          assert.match(datos.errores[0], /anterior a ésta/);
+        });
+
+        it("ni de sí misma", async () => {
+          const { datos: creada } = await crearExtraccion(almacen, EXTRACCION);
+          const { estado } = await editarExtraccion(almacen, creada.extraccion.id, {
+            desde_id: creada.extraccion.id,
+          });
+          assert.equal(estado, 422);
+        });
+      });
+
       it("el goteo tampoco puede llegar al tiempo total guardado", async () => {
         const creada = await crearExtraccion(almacen, { ...EXTRACCION, drawdown_s: 45 });
         const { estado, datos } = await editarExtraccion(almacen, creada.datos.extraccion.id, {

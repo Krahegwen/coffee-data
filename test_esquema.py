@@ -324,6 +324,99 @@ def test_el_drawdown_no_puede_ser_negativo(db):
         insertar_extraccion(db, drawdown_s="-5")
 
 
+# --- el árbol de exploración -------------------------------------------------
+
+def test_la_madre_tiene_que_existir(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, desde_id=f"'{uuid.uuid4()}'")
+
+
+def test_una_extraccion_no_puede_ser_su_propia_madre(db):
+    clave = str(uuid.uuid4())
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, id=f"'{clave}'", desde_id=f"'{clave}'")
+
+
+def test_la_madre_es_un_uuid_o_no_es(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, desde_id="'la de ayer'")
+
+
+def test_sin_madre_es_lo_normal_y_cuela(db):
+    clave = insertar_extraccion(db, desde_id=SEMILLA)
+    assert db.execute(
+        "SELECT desde_id FROM extracciones WHERE id = ?", (clave,)
+    ).fetchone()[0] is not None
+    assert insertar_extraccion(db)
+
+
+def test_la_vista_saca_la_madre(db):
+    madre = db.execute(f"SELECT id FROM extracciones LIMIT 1").fetchone()[0]
+    insertar_extraccion(db, desde_id=f"'{madre}'")
+    filas = db.execute(
+        "SELECT desde_id FROM v_extracciones WHERE desde_id IS NOT NULL"
+    ).fetchall()
+    assert [f[0] for f in filas] == [madre]
+
+
+def test_la_semilla_se_queda_sin_madre(db):
+    """Es la primera de su bolsa: no hay nada antes contra lo que comparar."""
+    assert db.execute("SELECT desde_id FROM extracciones").fetchone()[0] is None
+
+
+def test_el_relleno_reproduce_lo_que_hacia_el_motor(tmp_path):
+    """
+    La migración que estrena `desde_id` tiene que dejar el histórico contando
+    exactamente la misma historia: cada extracción cuelga de la anterior de su
+    bolsa. Se aplica el esquema **sin** la última migración, se escribe un
+    histórico a mano y solo entonces se aplica: es la única forma de probar un
+    relleno que en la vida real corre una vez y no se repite.
+    """
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys = ON")
+    for migracion in MIGRACIONES[:-1]:
+        db.executescript(migracion.read_text(encoding="utf-8"))
+
+    # Tres de Gary y una de Abbie, con la segunda de Gary retirada.
+    claves = {}
+    for nombre, cafe, sello, retirada in [
+        ("gary1", "gary", "2026-08-01 08:00:00", False),
+        ("gary2", "gary", "2026-08-02 08:00:00", True),
+        ("gary3", "gary", "2026-08-03 08:00:00", False),
+        ("abbie1", "abbie", "2026-08-02 09:00:00", False),
+        ("suelta", None, "2026-08-04 08:00:00", False),
+    ]:
+        claves[nombre] = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO extracciones (id, fecha, cafe_id, dosis_g, agua_g, "
+            "creado_en, borrada_en) VALUES (?, '2026-08-01', "
+            "(SELECT id FROM cafes WHERE slug = ?), 20, 300, ?, ?)",
+            (claves[nombre], cafe, sello, "2026-08-05 10:00:00" if retirada else None),
+        )
+
+    db.executescript(MIGRACIONES[-1].read_text(encoding="utf-8"))
+
+    madres = dict(db.execute("SELECT id, desde_id FROM extracciones").fetchall())
+    # La primera de cada bolsa no cuelga de nadie, y la suelta tampoco: sin
+    # ficha no hay serie.
+    assert madres[claves["gary1"]] is None
+    assert madres[claves["abbie1"]] is None
+    assert madres[claves["suelta"]] is None
+    # La segunda cuelga de la primera aunque esté retirada: lo que se retira
+    # deja de valer **como madre**, no de tener la suya.
+    assert madres[claves["gary2"]] == claves["gary1"]
+    # Y la tercera se salta la retirada, que es lo que el motor ya hacía al
+    # recibir el histórico filtrado.
+    assert madres[claves["gary3"]] == claves["gary1"]
+
+    # Y nadie ha «corregido» nada: el trigger no llegó a mirar.
+    sellos = db.execute(
+        "SELECT COUNT(*) FROM extracciones WHERE actualizado_en IS NOT NULL"
+    ).fetchone()[0]
+    assert sellos == 0
+    db.close()
+
+
 # --- restricciones de pasos --------------------------------------------------
 
 def test_solo_verter_lleva_agua(db):

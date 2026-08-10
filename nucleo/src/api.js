@@ -252,6 +252,36 @@ export async function crearExtraccion(almacen, cuerpo) {
     valores.cafe_id = cafe.id;
   }
 
+  /*
+   * De qué extracción es variación. Sin bolsa no hay serie, así que va a nulo
+   * pase lo que pase; con bolsa, por defecto la última de esa bolsa — el caso
+   * normal no cambia de comportamiento ni pide nada al usuario—. Lo que venga
+   * mandado manda, incluido el vacío explícito de «ésta no continúa a ninguna»,
+   * que es indistinguible de no mandar nada y por eso se resuelve aquí.
+   */
+  const deLaBolsa = (await almacen.extracciones.listar())
+    .filter((e) => valores.cafe_id && e.cafe_id === valores.cafe_id)
+    .sort(cronologico);
+  if (!valores.cafe_id) {
+    valores.desde_id = null;
+  } else if (valores.desde_id) {
+    // Apuntar a una retirada es legal —pudo retirarse después de elegirla, y
+    // un desplegable no debe perder el valor que ya tiene—; lo que no forma es
+    // par, que eso lo decide el motor al no verla en el histórico.
+    if (!deLaBolsa.some((e) => e.id === valores.desde_id)) {
+      return respuesta(422, {
+        errores: [
+          `desde_id desconocida en esta bolsa: ${valores.desde_id}. Una extracción ` +
+            "solo puede ser variación de otra del mismo café",
+        ],
+      });
+    }
+  } else {
+    // La última en pie: de una retirada no se parte, que fue un error.
+    const vivas = deLaBolsa.filter((e) => !e.borrada_en);
+    valores.desde_id = vivas[vivas.length - 1]?.id ?? null;
+  }
+
   const recetas = await almacen.recetas.listar();
   const receta = porRef(recetas, valores.receta_id);
   const pasos = receta?.pasos ?? [];
@@ -327,6 +357,37 @@ export async function editarExtraccion(almacen, id, cuerpo) {
     const cafe = porRef(await almacen.cafes.listar(), valores.cafe_id);
     if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
     valores.cafe_id = cafe.id;
+  }
+
+  /*
+   * Con quién compara esta taza, que depende de en qué bolsa acabe.
+   *
+   * Sin bolsa no hay serie, y mudarla de bolsa se lleva su linaje por delante:
+   * la madre era de la bolsa vieja y el tueste es lo que hace la taza. Las dos
+   * cosas en silencio serían un efecto secundario; van escritas y salen en
+   * `cambiado`.
+   */
+  const bolsaFinal = valores.cafe_id !== undefined ? valores.cafe_id : guardada.cafe_id;
+  const mudaDeBolsa = valores.cafe_id !== undefined && valores.cafe_id !== guardada.cafe_id;
+  if (!bolsaFinal && (guardada.desde_id || valores.desde_id)) {
+    valores.desde_id = null;
+  } else if (mudaDeBolsa && valores.desde_id === undefined && guardada.desde_id) {
+    valores.desde_id = null;
+  }
+
+  if (valores.desde_id) {
+    const madre = (await almacen.extracciones.listar())
+      .find((e) => e.id === valores.desde_id);
+    // Anterior a ésta, además de suya: no se puede ser variación de algo que
+    // se hizo después, y así dos filas no pueden apuntarse la una a la otra.
+    if (!madre || madre.cafe_id !== bolsaFinal || cronologico(madre, guardada) >= 0) {
+      return respuesta(422, {
+        errores: [
+          `desde_id no vale: ${valores.desde_id}. La madre tiene que ser otra ` +
+            "extracción de la misma bolsa y anterior a ésta",
+        ],
+      });
+    }
   }
 
   // Aquí hace falta la fila: el agua puede venir en este PATCH o llevar

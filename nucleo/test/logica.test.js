@@ -7,7 +7,7 @@ import {
 } from "../src/recetas.js";
 import {
   avisosDe, cambiosDe, cobertura, defectoPrincipal, efectos, extrapolar, pares,
-  retencion, sugerir, textoCorto, vertidoDesviado,
+  madreDe, retencion, sugerir, textoCorto, vertidoDesviado,
 } from "../src/sugerencias.js";
 import {
   claveDeFoto, defectosDe, extraidoImposible, fechaValida, goteoImposible,
@@ -49,8 +49,16 @@ const extraccion = (campos = {}) => ({
   id: 1, cafe_id: "gary", dias_tueste: 20, temp_c: 94, clics: 28, dosis_g: 20,
   agua_g: 300, reparto: "60-60-90-90", receta_id: "kasuya-46-base",
   molinillo: "Comandante C40", dripper: "v60-02-plastico", drawdown_s: null,
-  defecto: "equilibrado", nota: 7, ...campos,
+  defecto: "equilibrado", nota: 7, desde_id: null, ...campos,
 });
+
+/**
+ * Un histórico en línea: cada una cuelga de la anterior, que es lo que pone el
+ * alta cuando no le dices otra cosa. Las ids son 1, 2, 3… porque lo único que
+ * se compara es la igualdad, y unos uuid de verdad harían el test ilegible.
+ */
+const serie = (...filas) =>
+  filas.map((campos, i) => extraccion({ id: i + 1, desde_id: i || null, ...campos }));
 
 describe("escalado de recetas", () => {
   it("no cambia nada con el agua de referencia", () => {
@@ -426,52 +434,46 @@ describe("retención", () => {
 });
 
 describe("extrapolar cuando no hay defecto", () => {
-  const equilibrada = (campos) => extraccion({ defecto: "equilibrado", nota: 7, ...campos });
+  const equilibrada = (campos) => ({ defecto: "equilibrado", nota: 7, ...campos });
+  const serieEquilibrada = (...filas) => serie(...filas.map(equilibrada));
 
   it("sigue por el eje que se movió si no empeoró", () => {
-    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91 })];
+    const historico = serieEquilibrada({ temp_c: 94 }, { temp_c: 91 });
     const siguiente = extrapolar(historico[1], historico);
     assert.equal(siguiente.variable, "temp_c");
     assert.equal(siguiente.cambio, "-3");
   });
 
   it("da media vuelta si el último cambio empeoró la nota", () => {
-    const historico = [
-      equilibrada({ id: 1, temp_c: 94, nota: 8 }),
-      equilibrada({ id: 2, temp_c: 91, nota: 6 }),
-    ];
+    const historico = serieEquilibrada({ temp_c: 94, nota: 8 }, { temp_c: 91, nota: 6 });
     assert.equal(extrapolar(historico[1], historico).cambio, "+3");
   });
 
   it("no se mete si hay defecto: para eso están las palancas", () => {
-    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91, defecto: "amargor" })];
+    const historico = serieEquilibrada({ temp_c: 94 }, { temp_c: 91, defecto: "amargor" });
     assert.equal(extrapolar(historico[1], historico), null);
   });
 
   it("no se mete si la taza ya está buena", () => {
-    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91, nota: 9 })];
+    const historico = serieEquilibrada({ temp_c: 94 }, { temp_c: 91, nota: 9 });
     assert.equal(extrapolar(historico[1], historico), null);
   });
 
   it("calla si no hay ningún par del que tirar", () => {
-    const sola = equilibrada({ id: 1 });
+    const [sola] = serieEquilibrada({});
     assert.equal(extrapolar(sola, [sola]), null);
   });
 
   it("no extrapola sobre lo que no tiene salto conocido", () => {
-    const historico = [
-      equilibrada({ id: 1, receta_id: "kasuya-46-base" }),
-      equilibrada({ id: 2, receta_id: "kasuya-46-claridad" }),
-    ];
+    const historico = serieEquilibrada(
+      { receta_id: "kasuya-46-base" }, { receta_id: "kasuya-46-claridad" },
+    );
     assert.equal(extrapolar(historico[1], historico), null);
   });
 
   it("solo habla cuando las reglas callan", () => {
     // Con goteo corto hay palanca, así que la extrapolación no pinta nada.
-    const historico = [
-      equilibrada({ id: 1, temp_c: 94 }),
-      equilibrada({ id: 2, temp_c: 91, drawdown_s: 15 }),
-    ];
+    const historico = serieEquilibrada({ temp_c: 94 }, { temp_c: 91, drawdown_s: 15 });
     const { cambios } = sugerir(historico[1], historico);
     assert.equal(cambios.length, 1);
     assert.equal(cambios[0].variable, "clics");
@@ -479,7 +481,7 @@ describe("extrapolar cuando no hay defecto", () => {
   });
 
   it("y la principal acaba en siguiente_ajuste", () => {
-    const historico = [equilibrada({ id: 1, temp_c: 94 }), equilibrada({ id: 2, temp_c: 91 })];
+    const historico = serieEquilibrada({ temp_c: 94 }, { temp_c: 91 });
     assert.equal(textoCorto(sugerir(historico[1], historico)), "temp_c -3");
   });
 });
@@ -515,29 +517,37 @@ describe("avisos", () => {
     assert.ok(avisos.some((a) => a.includes("masa térmica")));
   });
 
+  const cambioDeDripper = (historico) =>
+    avisosDe(historico.at(-1), historico).some((a) => a.includes("cambiado de dripper"));
+
   it("avisa al cambiar de dripper", () => {
-    const previa = extraccion({ id: 1 });
-    const nueva = extraccion({ id: 2, dripper: "v60-02-ceramica" });
-    assert.ok(avisosDe(nueva, [previa, nueva]).some((a) => a.includes("cambiado de dripper")));
+    assert.ok(cambioDeDripper(serie({}, { dripper: "v60-02-ceramica" })));
   });
 
   it("el dripper de otro café no cuenta como cambio", () => {
-    const otro = extraccion({ id: 1, cafe_id: "abbie", dripper: "v60-02-ceramica" });
-    const nueva = extraccion({ id: 2 });
-    assert.ok(!avisosDe(nueva, [otro, nueva]).some((a) => a.includes("cambiado de dripper")));
+    assert.ok(!cambioDeDripper(serie({ cafe_id: "abbie", dripper: "v60-02-ceramica" }, {})));
   });
 
-  it("dos sueltas no se comparan: sin bolsa no hay «previa»", () => {
-    const suelta = extraccion({ id: 1, cafe_id: null, dripper: "v60-02-ceramica" });
-    const nueva = extraccion({ id: 2, cafe_id: null });
-    assert.ok(!avisosDe(nueva, [suelta, nueva]).some((a) => a.includes("cambiado de dripper")));
+  it("dos sueltas no se comparan: sin bolsa no hay madre", () => {
+    assert.ok(!cambioDeDripper(serie(
+      { cafe_id: null, dripper: "v60-02-ceramica" }, { cafe_id: null },
+    )));
+  });
+
+  // La cara nueva del mismo aviso: al volver a una rama anterior, el dripper
+  // que cuenta es el de la madre y no el de la taza de ayer.
+  it("compara con la madre, no con la última", () => {
+    const historico = serie({}, { dripper: "v60-02-ceramica" }, {});
+    historico[2].desde_id = 1;
+    assert.ok(!cambioDeDripper(historico));
+    historico[2].desde_id = 2;
+    assert.ok(cambioDeDripper(historico));
   });
 });
 
 describe("deltas emparejados", () => {
   it("empareja cuando cambia una sola variable", () => {
-    const historico = [extraccion({ id: 1, temp_c: 94, nota: 7 }), extraccion({ id: 2, temp_c: 91, nota: 8 })];
-    const [par] = pares(historico);
+    const [par] = pares(serie({ temp_c: 94, nota: 7 }, { temp_c: 91, nota: 8 }));
     assert.deepEqual(
       [par.variable, par.direccion, par.delta_nota],
       ["temp_c", "bajar", 1],
@@ -545,45 +555,92 @@ describe("deltas emparejados", () => {
   });
 
   it("no empareja si cambian dos variables", () => {
-    const historico = [extraccion({ id: 1, temp_c: 94, clics: 28 }), extraccion({ id: 2, temp_c: 91, clics: 26 })];
+    const historico = serie({ temp_c: 94, clics: 28 }, { temp_c: 91, clics: 26 });
     assert.deepEqual(pares(historico), []);
   });
 
   it("no empareja extracciones de cafés distintos", () => {
-    const historico = [extraccion({ id: 1, cafe_id: "gary" }), extraccion({ id: 2, cafe_id: "abbie", temp_c: 91 })];
+    const historico = serie({ cafe_id: "gary" }, { cafe_id: "abbie", temp_c: 91 });
     assert.deepEqual(pares(historico), []);
   });
 
   it("las sueltas tampoco emparejan entre sí: compartir «sin bolsa» no las hace el mismo café", () => {
-    const historico = [
-      extraccion({ id: 1, cafe_id: null, temp_c: 94, nota: 7 }),
-      extraccion({ id: 2, cafe_id: null, temp_c: 91, nota: 8 }),
-    ];
+    const historico = serie(
+      { cafe_id: null, temp_c: 94, nota: 7 },
+      { cafe_id: null, temp_c: 91, nota: 8 },
+    );
+    assert.deepEqual(pares(historico), []);
+  });
+
+  it("una sin madre no empareja, aunque haya otra delante", () => {
+    const historico = serie({ temp_c: 94, nota: 7 }, { temp_c: 91, nota: 8 });
+    historico[1].desde_id = null;
     assert.deepEqual(pares(historico), []);
   });
 
   it("un solo par no llega a tendencia", () => {
-    const historico = [extraccion({ id: 1, temp_c: 94, nota: 7 }), extraccion({ id: 2, temp_c: 91, nota: 8 })];
-    assert.deepEqual(efectos(historico), {});
+    assert.deepEqual(efectos(serie({ temp_c: 94, nota: 7 }, { temp_c: 91, nota: 8 })), {});
   });
 
   it("dos pares ya promedian", () => {
-    const historico = [
-      extraccion({ id: 1, temp_c: 94, nota: 6 }),
-      extraccion({ id: 2, temp_c: 91, nota: 8 }),
-      extraccion({ id: 3, temp_c: 88, nota: 9 }),
-    ];
+    const historico = serie(
+      { temp_c: 94, nota: 6 }, { temp_c: 91, nota: 8 }, { temp_c: 88, nota: 9 },
+    );
     const efecto = efectos(historico)["temp_c|bajar"];
     assert.equal(efecto.casos, 2);
     assert.equal(efecto.media, 1.5);
   });
 
   it("cambiar de dripper cuenta como la variable del par", () => {
-    const historico = [
-      extraccion({ id: 1, nota: 7 }),
-      extraccion({ id: 2, dripper: "v60-02-ceramica", nota: 8 }),
-    ];
+    const historico = serie({ nota: 7 }, { dripper: "v60-02-ceramica", nota: 8 });
     assert.equal(pares(historico)[0].variable, "dripper");
+  });
+});
+
+/*
+ * El corazón del cambio: el motor deja de mirar un paso hacia atrás y mira a
+ * la madre. Con la escalera de temperatura de Gary —94 amargo, 91 equilibrado,
+ * 88 astringente— lo razonable es volver al 91 y mover la molienda. Contra la
+ * de ayer eso son dos cambios y el par se descarta; contra la madre es uno.
+ */
+describe("volver a una rama anterior", () => {
+  const escalera = () => serie(
+    { temp_c: 94, nota: 7 }, { temp_c: 91, nota: 7 }, { temp_c: 88, nota: 5 },
+  );
+
+  it("la vuelta empareja contra su madre y no contra la de ayer", () => {
+    const historico = escalera();
+    historico.push(extraccion({ id: 4, desde_id: 2, temp_c: 91, clics: 30, nota: 8 }));
+
+    const ultimo = pares(historico).at(-1);
+    assert.deepEqual(
+      [ultimo.variable, ultimo.direccion, ultimo.delta_nota],
+      ["clics", "subir", 1],
+    );
+  });
+
+  it("y por vecindad se habría descartado: contra el 88 son dos cambios", () => {
+    const historico = escalera();
+    historico.push(extraccion({ id: 4, desde_id: 3, temp_c: 91, clics: 30, nota: 8 }));
+    assert.equal(pares(historico).length, 2);
+  });
+
+  it("la madre retirada no está en el histórico, así que la hija es una primera", () => {
+    // Retirar es decir «esto fue un error de registro»: un delta medido contra
+    // un error no vale nada, y por eso la hija pasa a no comparar con nadie.
+    const historico = escalera().filter((e) => e.id !== 2);
+    assert.deepEqual(pares(historico).map((p) => p.variable), []);
+  });
+
+  it("y restaurarla devuelve el par sola, sin arreglar nada", () => {
+    assert.equal(pares(escalera()).length, 2);
+  });
+
+  it("madreDe la encuentra, y calla cuando no hay de qué tirar", () => {
+    const historico = escalera();
+    assert.equal(madreDe(historico[2], historico).id, 2);
+    assert.equal(madreDe(historico[0], historico), null);
+    assert.equal(madreDe(extraccion({ id: 9, desde_id: 1, cafe_id: null }), historico), null);
   });
 });
 
