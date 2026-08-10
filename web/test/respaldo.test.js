@@ -111,10 +111,13 @@ async function bitacoraDePrueba(almacen) {
     variable_cambiada: "basal", defecto: "equilibrado", nota: 7,
     notas_cata: "cítrico, algo corto",
   });
+  // Con dos defectos: desde que son una lista, `defecto` lleva dentro la
+  // propia coma del CSV y tiene que salir entrecomillado y volver entero. Es
+  // el único campo cerrado que puede contener el delimitador.
   const segunda = await crearExtraccion(almacen, {
     cafe_id: "etiopia_guji", receta_id: receta.datos.receta.id,
     temp_c: 88, clics: 28, tiempo_total: "3:25",
-    variable_cambiada: "Temperatura 91 → 88", defecto: "plano", nota: 5,
+    variable_cambiada: "Temperatura 91 → 88", defecto: "plano,salado", nota: 5,
   });
   await retirarExtraccion(almacen, segunda.datos.extraccion.id);
   // Y una suelta: sin bolsa, el cafe_id viaja vacío en el CSV y tiene que

@@ -95,6 +95,18 @@ def como_csv(filas, columnas):
     return salida.getvalue()
 
 
+def filas_de(contenido):
+    """
+    Cuántos registros tiene un CSV ya escrito, sin la cabecera.
+
+    Se relee con el propio `csv` en vez de contar saltos de línea: un campo
+    entrecomillado puede llevar dentro los suyos —las notas de cata los
+    llevan— y contando a ojo salían más filas de las que hay. Llegó a
+    parecer que una migración había perdido datos.
+    """
+    return max(0, sum(1 for _ in csv.reader(io.StringIO(contenido))) - 1)
+
+
 def exportar_extracciones():
     """Activas y retiradas juntas.
 
@@ -145,7 +157,7 @@ def main():
             print(f"  {fichero}: sin cambios")
             continue
         destino.write_bytes(nuevo)
-        print(f"  {fichero}: actualizado ({contenido.count(chr(10)) - 1} filas)")
+        print(f"  {fichero}: actualizado ({filas_de(contenido)} filas)")
         cambiados += 1
 
     print(f"\n{cambiados} fichero(s) actualizado(s) desde {API}")
