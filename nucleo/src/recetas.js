@@ -57,6 +57,31 @@ export function escalarPasos(pasos, aguaG) {
   return salida;
 }
 
+/**
+ * El segundo en que se deja de verter, que es desde donde cuenta el goteo.
+ *
+ * No es el `t_inicio_s` del último vertido sino el del paso que va detrás: la
+ * receta apunta cuándo empiezas a echar el agua y cuándo pasas a lo siguiente,
+ * y el vertido es lo de en medio. Si el último vertido cierra la receta, nadie
+ * apuntó cuándo dejaste de verter: devuelve `null`, que quien pregunte lo trate
+ * como «no consta» y no como cero.
+ */
+export function finDeLosVertidos(pasos) {
+  const lista = pasos ?? [];
+  let ultimo = -1;
+  lista.forEach((paso, i) => {
+    if (paso.accion === CON_AGUA) ultimo = i;
+  });
+  if (ultimo < 0) return null;
+
+  // Por posición y no comparando tiempos: el orden de los pasos lo da la lista.
+  for (let i = ultimo + 1; i < lista.length; i += 1) {
+    const t = lista[i].t_inicio_s;
+    if (t !== null && t !== undefined && t !== "") return Number(t);
+  }
+  return null;
+}
+
 /** Reparto listo para guardar: '60-60-90-90'. */
 export function repartoDe(pasos, aguaG) {
   return vertidos(escalarPasos(pasos, aguaG))

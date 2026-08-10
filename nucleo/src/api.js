@@ -21,9 +21,9 @@
 import { derivar } from "./derivar.js";
 import { uuidv7 } from "./ids.js";
 import { guion, repartoDe } from "./recetas.js";
-import { sugerir, textoCorto } from "./sugerencias.js";
+import { avisosDe, sugerir, textoCorto } from "./sugerencias.js";
 import {
-  CAMPOS, CAMPOS_CAFE, extraidoImposible, validarCafe,
+  CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, validarCafe,
   validarCambiosExtraccion, validarExtraccion, validarReceta,
 } from "./validacion.js";
 
@@ -295,7 +295,7 @@ export async function crearExtraccion(almacen, cuerpo) {
     .sort(cronologico)
     .map((e) => conDerivados(e, cafes, recetas));
   const mia = historico.find((e) => e.id === fila.id) ?? conDerivados(fila, cafes, recetas);
-  const sugerencia = sugerir(mia, historico);
+  const sugerencia = sugerir(mia, historico, receta);
   const resumen = textoCorto(sugerencia);
 
   /*
@@ -337,6 +337,15 @@ export async function editarExtraccion(almacen, id, cuerpo) {
   );
   if (imposible) return respuesta(422, { errores: [imposible] });
 
+  // Y lo mismo con el goteo, por el mismo motivo: corregir el tiempo total a
+  // mano dejando el goteo quieto —o al revés— es exactamente cómo se rompe la
+  // fila, porque no son dos medidas independientes.
+  const goteoMalo = goteoImposible(
+    valores.drawdown_s !== undefined ? valores.drawdown_s : guardada.drawdown_s,
+    valores.tiempo_total !== undefined ? valores.tiempo_total : guardada.tiempo_total,
+  );
+  if (goteoMalo) return respuesta(422, { errores: [goteoMalo] });
+
   const columnas = CAMPOS.filter((c) => valores[c] !== undefined);
   const cambios = {};
   for (const campo of columnas) cambios[campo] = valores[campo];
@@ -352,7 +361,26 @@ export async function editarExtraccion(almacen, id, cuerpo) {
     almacen.cafes.listar(), almacen.recetas.listar(), almacen.extracciones.listar(),
   ]);
   const fila = todas.find((e) => e.id === id);
-  return respuesta(200, { extraccion: conDerivados(fila, cafes, recetas), cambiado: columnas });
+  const extraccion = conDerivados(fila, cafes, recetas);
+
+  /*
+   * Los avisos también al corregir, y no solo al dar de alta: la fila que
+   * motivó todo esto se rompió justo aquí, arreglando el tiempo total a mano y
+   * dejando el goteo como estaba. Uno que solo mirase los altas no habría visto
+   * nada. Las palancas no vienen: cambian el molinillo de la próxima taza y
+   * corregir una fila vieja no es motivo para replantearla.
+   */
+  const historico = todas
+    .filter((e) => !e.borrada_en && (fila.cafe_id ? e.cafe_id === fila.cafe_id : e.id === fila.id))
+    .sort(cronologico)
+    .map((e) => conDerivados(e, cafes, recetas));
+  const receta = recetas.find((r) => r.id === fila.receta_id) ?? null;
+
+  return respuesta(200, {
+    extraccion,
+    cambiado: columnas,
+    avisos: avisosDe(extraccion, historico, receta),
+  });
 }
 
 export async function retirarExtraccion(almacen, id) {

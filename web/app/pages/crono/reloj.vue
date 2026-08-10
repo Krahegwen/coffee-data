@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { finDeLosVertidos } from '@coffee/nucleo/recetas'
+
 /**
  * El reloj. La otra mitad de `/crono`, ahora con URL propia: se puede volver
  * aquí desde preparar, y el botón de atrás del navegador hace lo que parece.
@@ -30,15 +32,14 @@ if (!pasos.value.length) await router.replace('/crono')
 let animacion = 0
 let despierta: WakeLockSentinel | null = null
 
-/** Cuando acaba el último vertido: desde ahí se cuenta el goteo. */
-const finVertidos = computed(() => {
-  const conAgua = pasos.value.filter((p) => p.accion === 'verter')
-  const ultimo = conAgua[conAgua.length - 1]
-  const siguiente = pasos.value.find(
-    (p) => p.accion !== 'verter' && p.t_inicio_s !== null && p.t_inicio_s >= (ultimo?.t_inicio_s ?? 0),
-  )
-  return siguiente?.t_inicio_s ?? null
-})
+/**
+ * Cuando acaba el último vertido: desde ahí se cuenta el goteo.
+ *
+ * La regla es del núcleo y no de aquí: el servidor la usa para comprobar que
+ * el goteo y el tiempo total de una fila cuadran, y si el reloj midiera desde
+ * otro sitio se avisaría de sus propias mediciones.
+ */
+const finVertidos = computed(() => finDeLosVertidos(pasos.value))
 
 const indiceActual = computed(() => {
   let i = -1

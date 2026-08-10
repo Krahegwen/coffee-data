@@ -221,9 +221,15 @@ export function useApi() {
     return r
   }
 
-  /** Corrige una extracción. Solo se manda lo que cambia. */
+  /**
+   * Corrige una extracción. Solo se manda lo que cambia.
+   *
+   * Devuelve avisos como el alta: corregir a mano es justo donde una fila se
+   * queda incoherente —el tiempo total movido y el goteo quieto—, así que la
+   * corrección se mira con los mismos ojos que el registro.
+   */
   const editarExtraccion = async (id: string, cambios: Record<string, unknown>) => {
-    const r = await local<{ extraccion: Extraccion; cambiado: string[] }>(
+    const r = await local<{ extraccion: Extraccion; cambiado: string[]; avisos: string[] }>(
       (a) => nucleo.editarExtraccion(a, id, cambios),
     )
     await subir({ metodo: 'PATCH', camino: `/api/extracciones/${r.extraccion.id}`, cuerpo: cambios })

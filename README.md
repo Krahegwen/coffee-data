@@ -283,6 +283,26 @@ una temperatura de extracción más baja.
 en segundos enteros, no en `m:ss`, porque es el valor con el que se decide si
 hay que mover la molienda.
 
+**El goteo y el tiempo total no son dos medidas independientes**: los dos
+terminan en el mismo instante —el fin del goteo— y lo que cambia es desde dónde
+se cuentan, el total desde el primer vertido y el goteo desde el final del
+último. O sea `tiempo_total = fin del último vertido + drawdown_s`, y ese fin lo
+dice la receta que la extracción referencia: es cuándo empieza el paso que va
+detrás del último vertido. De ahí salen dos comprobaciones:
+
+- **Dura**: el goteo no puede llegar al tiempo total, porque va por dentro. 422,
+  tanto al registrar como al corregir, y también cuando solo mandas uno de los
+  dos y el otro está guardado.
+- **Blanda**: si lo que la fila implica —total menos goteo— se aleja más de
+  `DESVIO_VERTIDO_S` de lo que dice la receta, sale un aviso. Es blanda porque
+  verter a mano varía y porque puedes mandar tu propio `reparto`.
+
+Pasó de verdad: un reloj que siguió corriendo al tirar el filtro, el tiempo
+total corregido a mano y el goteo quieto en 64 s. Los dos valores eran posibles
+por separado, así que la comprobación dura no lo habría visto — y ese 64
+sostuvo un diagnóstico entero que era falso. Un dato mal medido no se queda
+quieto: se convierte en conclusión.
+
 ## Esquema · `recetas.csv` y `pasos.csv`
 
 `recetas.csv`: `id` · `nombre` · `ratio` · `notas`
@@ -410,9 +430,10 @@ La principal se guarda en `siguiente_ajuste` **si no mandas uno**. Lo que
 escribas manda siempre; el automático solo rellena el hueco, que es el campo
 que le da continuidad a la bitácora y el que se quedaba vacío.
 
-Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`...) están al principio de
-`nucleo/src/sugerencias.js` y son puntos de partida, no verdades: cámbialos cuando
-tengas extracciones suficientes para saber cuáles son los tuyos.
+Los umbrales (`DRAWDOWN_LARGO_S`, `DIAS_TUESTE_VIEJO`, `DESVIO_VERTIDO_S`...)
+están al principio de `nucleo/src/sugerencias.js` y son puntos de partida, no
+verdades: cámbialos cuando tengas extracciones suficientes para saber cuáles
+son los tuyos.
 
 ## Registrar una extracción
 

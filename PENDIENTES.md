@@ -36,15 +36,18 @@ segundo (217 − 47 = 170; 205 − 30 = 175), así que la comprobación funciona
 
 Dos arreglos, y hacen falta los dos:
 
-- **Validar en el núcleo**, con la misma división que ya usa `extraido_g`: dura
-  la que es imposible —`drawdown_s` nunca puede llegar a `tiempo_total`— y
-  aviso la que solo es sospechosa, que el vertido dure mucho menos o mucho más
-  de lo que dice la receta. Blanda porque el vertido real varía y porque se
-  puede mandar un `reparto` propio; el aviso avisa, no bloquea.
+- ~~**Validar en el núcleo**~~ **hecho el 2026-08-10**, con la división que ya
+  usaba `extraido_g`: `goteoImposible()` rechaza con 422 lo que no puede ser
+  —el goteo va por dentro del total— y `vertidoDesviado()` avisa de lo que solo
+  es sospechoso, comparando contra `finDeLosVertidos()` de la receta. El aviso
+  sale también **al corregir** (`PATCH` devuelve `avisos`), que es donde se
+  rompió la fila de verdad: los dos valores de aquel día eran posibles por
+  separado, así que la comprobación dura sola no habría visto nada.
 - **Atarlos al editar**: en el alta y en la corrección, cambiar el tiempo total
   debería mover el goteo el mismo delta, que es lo que hace el reloj cuando los
   calcula él. Hoy esa atadura solo existe dentro del cronómetro y se pierde en
-  cuanto tocas el campo a mano.
+  cuanto tocas el campo a mano. El aviso ya lo delata después; esto es que no
+  llegue a pasar.
 
 Y una lección que va más allá del campo: un dato mal medido no se queda quieto,
 se convierte en conclusión. Ese 64 sostuvo un diagnóstico entero —«el lecho se

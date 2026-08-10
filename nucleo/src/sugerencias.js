@@ -6,7 +6,8 @@
  * extracciones consecutivas del mismo café.
  */
 
-import { defectosDe, SIN_DEFECTO } from "./validacion.js";
+import { finDeLosVertidos } from "./recetas.js";
+import { defectosDe, segundosDe, SIN_DEFECTO } from "./validacion.js";
 
 // Umbrales de partida, no verdades reveladas: están aquí para calibrarlos con
 // datos propios cuando haya extracciones suficientes.
@@ -82,6 +83,17 @@ export const PASOS = { temp_c: 3, clics: 2, dosis_g: 1 };
  */
 export const RETENCION_NORMAL = [1.5, 2.6];
 
+/**
+ * Cuánto puede desviarse el vertido real de lo que dice la receta antes de que
+ * la fila huela mal, en segundos.
+ *
+ * Blando a propósito y no un `CHECK`: verter a mano varía, y quien se desvía de
+ * la receta puede mandar su propio `reparto`. El umbral sale de la bitácora —
+ * las filas sanas se desvían unos cinco segundos y la que estaba mal se desviaba
+ * veintidós—, así que es un punto de partida como los demás.
+ */
+export const DESVIO_VERTIDO_S = 20;
+
 /** Número o null. */
 function num(valor) {
   if (valor === null || valor === undefined || valor === "") return null;
@@ -105,8 +117,11 @@ export function defectoPrincipal(extraccion) {
 
 // --- capa 1: reglas --------------------------------------------------------
 
-export function avisosDe(extraccion, historico = []) {
+export function avisosDe(extraccion, historico = [], receta = null) {
   const avisos = [];
+
+  const desviado = vertidoDesviado(extraccion, receta);
+  if (desviado) avisos.push(desviado);
 
   if (DRIPPERS_CON_INERCIA.includes(extraccion.dripper)) {
     avisos.push(
@@ -170,6 +185,37 @@ export function avisosDe(extraccion, historico = []) {
   }
 
   return avisos;
+}
+
+/**
+ * Lo que la fila dice que duraron los vertidos, contra lo que dice la receta.
+ *
+ * `tiempo_total - drawdown_s` es el instante en que se dejó de verter, medido
+ * desde el primer vertido — y ese instante la receta lo sabe: es cuándo empieza
+ * el paso que va detrás del último vertido. Cuando no cuadran, lo que suele
+ * fallar es la medida y no el café: un reloj que siguió corriendo mientras se
+ * tiraba el filtro, o un campo corregido a mano sin mover el otro.
+ *
+ * Avisa, no bloquea: puede que ese día se vertiera más despacio a propósito.
+ * Devuelve `null` en cuanto falte cualquiera de las tres piezas, que es lo
+ * normal —el goteo es opcional y hay recetas que acaban en un vertido—.
+ */
+export function vertidoDesviado(extraccion, receta) {
+  const total = segundosDe(extraccion?.tiempo_total);
+  const goteo = num(extraccion?.drawdown_s);
+  const plan = finDeLosVertidos(receta?.pasos);
+  if (total === null || goteo === null || plan === null) return null;
+
+  const medido = total - goteo;
+  const desvio = medido - plan;
+  if (Math.abs(desvio) <= DESVIO_VERTIDO_S) return null;
+
+  return (
+    `según esta fila dejaste de verter en el segundo ${medido} (${total} s de total ` +
+    `menos ${goteo} s de goteo) y la receta da los vertidos por acabados en el ` +
+    `${plan}: ${Math.abs(desvio)} s de diferencia. Si no vertiste a otro ritmo a ` +
+    "propósito, repasa el tiempo total y el goteo antes de fiarte de esta taza"
+  );
 }
 
 /**
@@ -342,7 +388,7 @@ export function extrapolar(extraccion, historico = []) {
   };
 }
 
-export function sugerir(extraccion, historico = []) {
+export function sugerir(extraccion, historico = [], receta = null) {
   const cambios = cambiosDe(extraccion);
   // La extrapolación es el último recurso: solo habla si las reglas callan.
   if (!cambios.length) {
@@ -351,7 +397,7 @@ export function sugerir(extraccion, historico = []) {
   }
 
   return {
-    avisos: avisosDe(extraccion, historico),
+    avisos: avisosDe(extraccion, historico, receta),
     cambios,
     efectos: efectos(historico),
     cobertura: cobertura(extraccion.cafe_id, historico),

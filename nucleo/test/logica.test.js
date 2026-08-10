@@ -2,14 +2,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { escalarPasos, guion, repartoDe, vertidos } from "../src/recetas.js";
+import {
+  escalarPasos, finDeLosVertidos, guion, repartoDe, vertidos,
+} from "../src/recetas.js";
 import {
   avisosDe, cambiosDe, cobertura, defectoPrincipal, efectos, extrapolar, pares,
-  retencion, sugerir, textoCorto,
+  retencion, sugerir, textoCorto, vertidoDesviado,
 } from "../src/sugerencias.js";
 import {
-  claveDeFoto, defectosDe, extraidoImposible, fechaValida, MAX_FOTO_BYTES, slugDe,
-  validarCafe, validarCambiosExtraccion, validarExtraccion, validarFoto, validarReceta,
+  claveDeFoto, defectosDe, extraidoImposible, fechaValida, goteoImposible,
+  MAX_FOTO_BYTES, segundosDe, slugDe, validarCafe, validarCambiosExtraccion,
+  validarExtraccion, validarFoto, validarReceta,
 } from "../src/validacion.js";
 
 const paso = (orden, accion, agua_g, t_inicio_s = "") => ({
@@ -26,6 +29,19 @@ const CON_AGITACION = [
   paso(1, "verter", 60, 0), paso(2, "agitar", 0, 30),
   paso(3, "verter", 60, 45), paso(4, "remover", 0, 60),
   paso(5, "verter", 180, 90),
+];
+
+/*
+ * La receta que siembra el modo local: cada vertido con su espera detrás, así
+ * que el último acaba en el 170. Es la que hay que usar para todo lo que mire
+ * cuándo se deja de verter — BASE no lleva las esperas y da el 180.
+ */
+const CON_ESPERAS = [
+  paso(1, "verter", 60, 0), paso(2, "esperar", 0, 15),
+  paso(3, "verter", 60, 45), paso(4, "esperar", 0, 60),
+  paso(5, "verter", 90, 90), paso(6, "esperar", 0, 115),
+  paso(7, "verter", 90, 145), paso(8, "esperar", 0, 170),
+  paso(9, "retirar", 0, 200),
 ];
 
 const extraccion = (campos = {}) => ({
@@ -81,6 +97,28 @@ describe("escalado de recetas", () => {
 
   it("rechaza agua no positiva", () => {
     assert.throws(() => escalarPasos(BASE, 0), /mayor que 0/);
+  });
+});
+
+describe("cuándo se deja de verter", () => {
+  it("lo dice el paso que va detrás del último vertido, no el vertido", () => {
+    assert.equal(finDeLosVertidos(CON_ESPERAS), 170);
+    assert.equal(finDeLosVertidos(BASE), 180);
+  });
+
+  it("una receta que acaba vertiendo no lo sabe, y lo dice", () => {
+    assert.equal(finDeLosVertidos(CON_AGITACION), null);
+  });
+
+  it("se salta los pasos sin hora hasta encontrar uno que la tenga", () => {
+    const sinHora = [paso(1, "verter", 300, 0), paso(2, "retirar", 0), paso(3, "esperar", 0, 90)];
+    assert.equal(finDeLosVertidos(sinHora), 90);
+  });
+
+  it("sin vertidos no hay nada que terminar", () => {
+    assert.equal(finDeLosVertidos([paso(1, "esperar", 0, 10)]), null);
+    assert.equal(finDeLosVertidos([]), null);
+    assert.equal(finDeLosVertidos(null), null);
   });
 });
 
@@ -226,6 +264,88 @@ describe("lo extraído contra el agua", () => {
       agua_g: 300, extraido_g: 400,
     });
     assert.ok(errores.some((e) => e.includes("no puede pasar del agua")));
+  });
+});
+
+describe("el goteo va por dentro del tiempo total", () => {
+  it("lee el reloj de la fila, que es texto", () => {
+    assert.equal(segundosDe("3:30"), 210);
+    assert.equal(segundosDe("3:5"), 185);
+    assert.equal(segundosDe("12:05"), 725);
+  });
+
+  it("y calla con lo que no sepa leer, que la columna es libre", () => {
+    assert.equal(segundosDe("tres y medio"), null);
+    assert.equal(segundosDe("3:75"), null);
+    assert.equal(segundosDe(null), null);
+  });
+
+  it("un goteo más largo que el total es imposible, no una taza rara", () => {
+    assert.ok(goteoImposible(220, "3:32").includes("no puede llegar"));
+  });
+
+  it("y llegar justo tampoco: el total arranca en el primer vertido", () => {
+    assert.ok(goteoImposible(212, "3:32"));
+  });
+
+  /*
+   * La fila del 2026-08-07, que es la que motivó todo esto: el reloj siguió
+   * corriendo al tirar el filtro, se corrigió el total a mano y el goteo se
+   * quedó en 64. Los dos valores son posibles por separado — por eso la
+   * comprobación dura no basta y hace falta el aviso.
+   */
+  it("64 s de goteo en 3:32 no es imposible, solo está mal medido", () => {
+    assert.equal(goteoImposible(64, "3:32"), null);
+  });
+
+  it("sin uno de los dos no hay nada que comparar", () => {
+    assert.equal(goteoImposible(null, "3:30"), null);
+    assert.equal(goteoImposible(45, null), null);
+    assert.equal(goteoImposible(45, "un rato"), null);
+  });
+
+  it("el alta lo rechaza con su mensaje", () => {
+    const { errores } = validarExtraccion({
+      cafe_id: "gary", temp_c: 91, clics: 28, tiempo_total: "3:30",
+      variable_cambiada: "prueba", defecto: "equilibrado", nota: 7, drawdown_s: 240,
+    });
+    assert.ok(errores.some((e) => e.includes("no puede llegar al tiempo total")));
+  });
+});
+
+describe("el vertido de la fila contra el de la receta", () => {
+  const receta = { pasos: CON_ESPERAS };
+  const medida = (tiempo_total, drawdown_s) => extraccion({ tiempo_total, drawdown_s });
+
+  it("delata la fila mal medida del 2026-08-07", () => {
+    const aviso = vertidoDesviado(medida("3:32", 64), receta);
+    assert.ok(aviso.includes("148"));
+    assert.ok(aviso.includes("170"));
+    assert.ok(aviso.includes("22 s de diferencia"));
+  });
+
+  it("y calla con la corrección buena, que cuadra al segundo", () => {
+    assert.equal(vertidoDesviado(medida("3:32", 42), receta), null);
+  });
+
+  it("cinco segundos de desvío son verter a mano, no un error", () => {
+    assert.equal(vertidoDesviado(medida("3:25", 30), receta), null);
+  });
+
+  it("sin goteo, sin reloj o sin receta no hay nada que cruzar", () => {
+    assert.equal(vertidoDesviado(medida("3:32", null), receta), null);
+    assert.equal(vertidoDesviado(medida(null, 64), receta), null);
+    assert.equal(vertidoDesviado(medida("3:32", 64), null), null);
+  });
+
+  it("ni con una receta que no sabe cuándo se deja de verter", () => {
+    assert.equal(vertidoDesviado(medida("3:32", 64), { pasos: CON_AGITACION }), null);
+  });
+
+  it("sale por los avisos, que es donde se lee", () => {
+    const avisos = avisosDe(medida("3:32", 64), [], receta);
+    assert.ok(avisos.some((a) => a.includes("de diferencia")));
+    assert.deepEqual(avisosDe(medida("3:32", 42), [], receta), []);
   });
 });
 

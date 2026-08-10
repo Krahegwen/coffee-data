@@ -301,6 +301,10 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
   }
 
+  // Aquí y no en el bloque del goteo: hace falta el tiempo total ya leído.
+  const goteoMalo = goteoImposible(valores.drawdown_s, valores.tiempo_total);
+  if (goteoMalo) errores.push(goteoMalo);
+
   validarIdentidad(entrada, valores, errores);
 
   return { valores, errores };
@@ -556,6 +560,44 @@ export function extraidoImposible(extraido, agua) {
   if (agua === null || agua === undefined) return null;
   if (extraido <= agua) return null;
   return `extraido_g (${extraido}) no puede pasar del agua (${agua})`;
+}
+
+/**
+ * El tiempo de una extracción en segundos: `"3:30"` -> 210.
+ *
+ * `tiempo_total` es texto libre y lo seguirá siendo —hay filas escritas a mano
+ * y la columna nunca ha tenido formato—, así que esto devuelve `null` en vez de
+ * quejarse cuando no reconoce lo que lee. Quien pregunte se calla, que es mejor
+ * que rechazar una fila por cómo está escrita la hora.
+ */
+export function segundosDe(texto) {
+  const partido = /^(\d+):(\d{1,2})$/.exec(String(texto ?? "").trim());
+  if (!partido) return null;
+  const segundos = Number(partido[2]);
+  if (segundos > 59) return null;
+  return Number(partido[1]) * 60 + segundos;
+}
+
+/**
+ * El goteo y el tiempo total **acaban en el mismo instante**: el fin del goteo.
+ * Lo que cambia es desde dónde se miden —el total desde el primer vertido, el
+ * goteo desde el final del último—, así que el goteo es un tramo *dentro* del
+ * total y no puede llegar a él. Si llega, no hay taza que lo explique: es que
+ * se corrigió uno a mano y el otro se quedó quieto.
+ *
+ * Vive suelta por lo mismo que `extraidoImposible`: al dar de alta los dos
+ * vienen en el cuerpo, y al corregir uno puede venir en el PATCH mientras el
+ * otro está ya guardado, y eso solo lo sabe quien tiene la fila delante.
+ */
+export function goteoImposible(drawdown, tiempoTotal) {
+  if (drawdown === null || drawdown === undefined) return null;
+  const total = segundosDe(tiempoTotal);
+  if (total === null) return null;
+  if (drawdown < total) return null;
+  return (
+    `drawdown_s (${drawdown} s) no puede llegar al tiempo total (${tiempoTotal}): ` +
+    "el goteo se cuenta desde el final del último vertido, así que va por dentro"
+  );
 }
 
 export const ACCIONES = ["verter", "agitar", "remover", "esperar", "retirar"];

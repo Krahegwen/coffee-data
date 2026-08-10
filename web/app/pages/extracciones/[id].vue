@@ -58,6 +58,7 @@ const form = reactive<Record<string, any>>({})
 const enviando = ref(false)
 const errores = ref<string[]>([])
 const guardado = ref<string[] | null>(null)
+const avisos = ref<string[]>([])
 const dialogo = ref<HTMLDialogElement | null>(null)
 const retirando = ref(false)
 
@@ -177,10 +178,12 @@ const hayCambios = computed(() => Object.keys(cambios.value).length > 0)
 async function guardar() {
   errores.value = []
   guardado.value = null
+  avisos.value = []
   enviando.value = true
   try {
     const r = await editarExtraccion(id, cambios.value)
     guardado.value = r.cambiado
+    avisos.value = r.avisos
     /*
      * Lista nueva y no el hueco de siempre: `useAsyncData` devuelve un
      * shallowRef, así que cambiar un elemento por su índice no despierta a
@@ -343,6 +346,9 @@ async function retirar() {
   <section v-if="guardado" class="tarjeta exito">
     <strong>Guardado</strong>
     <p class="meta">Cambiado: {{ guardado.join(', ') }}</p>
+    <!-- Los mismos avisos que al registrar: corregir un campo puede dejar la
+         fila diciendo algo que no se sostiene, y eso se ve aquí o no se ve. -->
+    <p v-for="a in avisos" :key="a" class="aviso">⚠ {{ a }}</p>
   </section>
 </template>
 
@@ -452,5 +458,6 @@ dialog .ojo { color: #c2410c; }
 .errores { border-color: #c2410c; }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
 .exito { border-color: var(--acento); }
+.aviso { font-size: 0.85rem; margin: 0.5rem 0; }
 a { color: var(--acento); }
 </style>

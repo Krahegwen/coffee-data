@@ -299,6 +299,41 @@ export function contratoDelAlmacen(titulo, fabrica) {
         assert.match(datos.errores[0], /no puede pasar del agua/);
       });
 
+      it("el goteo tampoco puede llegar al tiempo total guardado", async () => {
+        const creada = await crearExtraccion(almacen, { ...EXTRACCION, drawdown_s: 45 });
+        const { estado, datos } = await editarExtraccion(almacen, creada.datos.extraccion.id, {
+          tiempo_total: "0:30",
+        });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /no puede llegar al tiempo total/);
+      });
+
+      it("y corregir devuelve avisos, que es donde se rompió la fila de verdad", async () => {
+        // Con una espera detrás del último vertido, la receta sabe cuándo se
+        // deja de verter; sin ella no hay nada contra lo que comparar.
+        await guardarReceta(almacen, { nuevo: true }, {
+          nombre: "4:6 con esperas",
+          ratio: 15,
+          pasos: [
+            { accion: "verter", agua_g: 120, t_inicio_s: 0 },
+            { accion: "verter", agua_g: 180, t_inicio_s: 145 },
+            { accion: "esperar", t_inicio_s: 170 },
+          ],
+        });
+        const creada = await crearExtraccion(almacen, {
+          ...EXTRACCION, receta_id: "4_6_con_esperas", tiempo_total: "3:32", drawdown_s: 42,
+        });
+        const desviado = (avisos) => avisos.some((a) => a.includes("de diferencia"));
+        assert.equal(desviado(creada.datos.sugerencias.avisos), false);
+
+        // 3:10 menos 42 s deja los vertidos acabando en el 148, y la receta
+        // los da por acabados en el 170: uno de los dos campos está mal.
+        const { datos } = await editarExtraccion(almacen, creada.datos.extraccion.id, {
+          tiempo_total: "3:10",
+        });
+        assert.equal(desviado(datos.avisos), true);
+      });
+
       it("retirar es lógico, avisa si ya estaba, y restaurar la devuelve", async () => {
         const creada = await crearExtraccion(almacen, EXTRACCION);
         const id = creada.datos.extraccion.id;
