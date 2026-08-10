@@ -229,11 +229,13 @@ Por orden de lo que más duele.
    - Las fotos **no** están: en el CSV solo va la clave de R2.
 
    Proteger los `GET` no esconde nada de eso, y el histórico de git guarda
-   además todas las versiones anteriores. No es información sensible —son
-   cafés— pero conviene decidirlo a propósito y no por inercia: si `datos/` se
-   va, el respaldo pasa a ser solo D1 y hay que buscarle otro sitio, porque hoy
-   ese directorio **es** la red de seguridad de un despliegue que se puede
-   caer.
+   además todas las versiones anteriores.
+
+   **Decidido el 2026-08-10: se quedan.** No hay nada personal ahí dentro —son
+   cafés, sus fechas y lo que sabían—, así que el motivo para sacarlos no
+   existe y el que hay para dejarlos sí: `datos/` **es** la red de seguridad de
+   un despliegue que se puede caer, y quitarlos obligaría a buscarle otro sitio
+   al respaldo sin ganar nada a cambio.
 
 5. **ZIP no es sincronizar.** Dos dispositivos en paralelo acaban en «cuál
    importo». Para alguien que registre en el móvil y mire en el portátil está
@@ -495,11 +497,13 @@ se guarda: es una vista, no un dato.
 - **Refresco**: vaciar cola, traer todo y reemplazar. Al abrir, al volver a la
   pestaña, al recuperar red y a mano.
 
-## Lo que queda por decidir
+## Lo que quedaba por decidir
 
-1. ¿Los CSV de `datos/` se quedan en el repo público? Hoy son la única red de
-   seguridad si D1 se cae, así que quitarlos obliga a buscarle otro sitio al
-   respaldo.
+Nada: las dos se cerraron.
+
+1. ~~¿Los CSV de `datos/` se quedan en el repo público?~~ **Se quedan**
+   (2026-08-10): no hay nada personal dentro, y son la red de seguridad si D1
+   se cae. Está razonado en la contraindicación 4.
 2. ~~Al llegar a la fase 5, si el modo local arranca con las recetas base
    sembradas o con la casa vacía.~~ **Sembradas** (fase 5): sin una receta el
    cronómetro no tiene qué guiar, y la app se estrenaría inservible.
