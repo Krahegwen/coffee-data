@@ -1,0 +1,52 @@
+#!/bin/sh
+# Antes de subir, comprueba que los CSV de `datos/` reflejan lo que hay en la
+# base. Activar tras clonar:  git config core.hooksPath hooks
+#
+# Va aquí y no en pre-commit por dos motivos. El exportador habla con la API,
+# y colgar cada commit de que haya red y de que el Worker conteste sería
+# insoportable —commitear tiene que funcionar en un tren—. Y el respaldo lo
+# que tiene que estar al día es **en GitHub**: un CSV viejo en el disco no le
+# hace daño a nadie, uno viejo en el remoto sí, porque es la única copia que
+# queda si D1 se cae.
+#
+# **No commitea por su cuenta**: un hook no puede meter ficheros en un push que
+# ya está en marcha —las refs se calcularon antes de llegar aquí—, así que
+# escribirlos y dejar seguir el push subiría la versión vieja igual y encima
+# con el árbol sucio. Lo que hace es exportar, y si algo cambió, parar y
+# decírtelo para que lo commitees y vuelvas a empujar.
+
+PYTHON=""
+for candidato in python3 python py; do
+    if command -v "$candidato" >/dev/null 2>&1 && "$candidato" -c "import sys" >/dev/null 2>&1; then
+        PYTHON="$candidato"
+        break
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo "pre-push: no se encuentra Python; me salto el respaldo de los CSV." >&2
+    exit 0
+fi
+
+echo "pre-push: comprobando que los CSV están al día..."
+
+# Sin red o sin token no se puede saber, y eso **no** es motivo para cortar un
+# push: subir código no debería exigir que la API esté en pie. Se avisa y pasa.
+if ! "$PYTHON" herramientas/exportar_csv.py; then
+    echo "pre-push: no se pudo leer la API, así que los CSV se quedan como estaban." >&2
+    echo "pre-push: el push sigue; acuérdate de exportar cuando vuelvas a tener red." >&2
+    exit 0
+fi
+
+if [ -n "$(git status --porcelain -- datos)" ]; then
+    echo "" >&2
+    echo "pre-push: los CSV de datos/ estaban desfasados y acabo de regenerarlos." >&2
+    echo "pre-push: commitéalos y vuelve a empujar — el respaldo es el fichero" >&2
+    echo "          en GitHub, no el de tu disco." >&2
+    echo "" >&2
+    git status --short -- datos >&2
+    echo "" >&2
+    echo "          git add datos" >&2
+    echo "          git commit -m \"Poner el respaldo al dia\"" >&2
+    exit 1
+fi
