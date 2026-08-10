@@ -5,6 +5,7 @@ const localePath = useLocalePath()
 
 import type { Extraccion } from '~/composables/useApi'
 import { defectosDe } from '@coffee/nucleo/validacion'
+const { t } = useI18n()
 const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
 
 const { cafes, recetas, extracciones, retiradas, editarExtraccion, retirarExtraccion } = useApi()
@@ -25,7 +26,7 @@ const original = computed(() => (historial.value ?? []).find((e) => e.id === id)
 const titulo = computed(() =>
   original.value
     ? `${nombreCafe(original.value.cafe_nombre)} · ${fechaCorta(original.value.fecha)}`
-    : 'Extracción',
+    : t('extraccion.titulo'),
 )
 
 useHead({ title: () => titulo.value })
@@ -258,7 +259,7 @@ async function retirar() {
 <template>
   <Migas :ruta="[{ texto: titulo }]" />
 
-  <p v-if="!original" class="meta">No hay ninguna extracción con esa dirección.</p>
+  <p v-if="!original" class="meta">{{ $t('extraccion.no_existe') }}</p>
 
   <template v-else>
     <form @submit.prevent="guardar">
@@ -268,9 +269,9 @@ async function retirar() {
       <!-- «Sin bolsa» suelta la extracción de su ficha; elegir una la ata.
            Vaciar aquí es corregir, no borrar: la taza se queda. -->
       <label>
-        Café
+        {{ $t('alta.cafe') }}
         <select v-model="form.cafe_id">
-          <option value="">Sin bolsa</option>
+          <option value="">{{ $t('comun.sin_bolsa') }}</option>
           <option v-for="c in bolsas ?? []" :key="c.id" :value="c.id">{{ c.nombre }}</option>
         </select>
       </label>
@@ -278,73 +279,81 @@ async function retirar() {
       <!-- De qué extracción es variación ésta: contra ella se miden los
            deltas. Solo si hay alguna anterior en su bolsa de la que serlo. -->
       <label v-if="candidatas.length">
-        Variación de
+        {{ $t('alta.variacion_de') }}
         <select v-model="form.desde_id">
-          <option value="">Ninguna: ésta empieza una serie</option>
+          <option value="">{{ $t('extraccion.madre_ninguna') }}</option>
           <option v-for="e in candidatas" :key="e.id" :value="e.id">
-            {{ fechaCorta(e.fecha) }} · {{ e.temp_c }} °C, {{ e.clics }} clics<template
-              v-if="e.nota"> · {{ e.nota }}/10</template><template
-              v-if="e.borrada_en"> · retirada</template>
+            {{ $t('alta.opcion_madre', {
+              fecha: fechaCorta(e.fecha), temp: e.temp_c, clics: e.clics,
+            }) }}{{ e.nota ? $t('alta.opcion_nota', { n: e.nota }) : ''
+            }}{{ e.borrada_en ? $t('extraccion.opcion_retirada') : '' }}
           </option>
         </select>
       </label>
       <!-- El camino de vuelta lo pone ?volver=: el alta reenvía aquí con la
            bolsa nueva ya elegida, y atarla es solo guardar. -->
-      <p class="meta">
-        ¿La bolsa no existe todavía?
-        <NuxtLink :to="{ path: '/cafes/nueva', query: { volver: `/extracciones/${id}` } }">
-          Dala de alta</NuxtLink>: al guardarla vuelves aquí con ella puesta.
-      </p>
+      <i18n-t keypath="extraccion.bolsa_no_existe" tag="p" class="meta" scope="global">
+        <template #enlace>
+          <NuxtLinkLocale :to="{ path: '/cafes/nueva', query: { volver: `/extracciones/${id}` } }">
+            {{ $t('extraccion.bolsa_dala_de_alta') }}
+          </NuxtLinkLocale>
+        </template>
+      </i18n-t>
 
       <div class="pareja">
-        <label>Fecha<input v-model="form.fecha" type="date"></label>
+        <label>{{ $t('extraccion.fecha') }}<input v-model="form.fecha" type="date"></label>
         <!-- Atado al goteo, que va por dentro: ver `useAtadura`. -->
-        <label>Tiempo total<input
+        <label>{{ $t('alta.tiempo_total') }}<input
           v-model="form.tiempo_total" placeholder="3:30"
           @focus="anotar" @change="desdeElTiempo"></label>
       </div>
 
       <div class="pareja">
-        <label>Dosis (g)<input v-model="form.dosis_g" type="number" step="0.1" min="1" inputmode="decimal"></label>
-        <label>Agua (g)<input v-model="form.agua_g" type="number" step="1" min="1" inputmode="numeric"></label>
+        <label>{{ $t('alta.dosis') }}<input
+          v-model="form.dosis_g" type="number" step="0.1" min="1" inputmode="decimal"></label>
+        <label>{{ $t('alta.agua') }}<input
+          v-model="form.agua_g" type="number" step="1" min="1" inputmode="numeric"></label>
       </div>
 
       <div class="pareja">
-        <label>Temperatura (°C)<input v-model="form.temp_c" type="number" step="1" min="0" max="100" inputmode="numeric"></label>
-        <label>Clics<input v-model="form.clics" type="number" step="1" min="0" inputmode="numeric"></label>
+        <label>{{ $t('alta.temp') }}<input
+          v-model="form.temp_c" type="number" step="1" min="0" max="100" inputmode="numeric"></label>
+        <label>{{ $t('alta.clics') }}<input
+          v-model="form.clics" type="number" step="1" min="0" inputmode="numeric"></label>
       </div>
 
       <div class="pareja">
         <label>
-          Receta
+          {{ $t('alta.receta') }}
           <select v-model="form.receta_id">
             <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
           </select>
         </label>
-        <label>Goteo (s)<input
+        <label>{{ $t('alta.goteo') }}<input
           v-model="form.drawdown_s" type="number" step="1" min="0" inputmode="numeric"
           @focus="anotar" @change="desdeElGoteo"></label>
       </div>
       <p v-if="movido" class="meta">
-        {{ movido === 'goteo' ? 'El goteo' : 'El tiempo total' }} se ha movido lo
-        mismo: el goteo va por dentro del total, no aparte.
+        {{ movido === 'goteo' ? $t('alta.movido_goteo') : $t('alta.movido_tiempo') }}
       </p>
 
       <div class="pareja">
         <label>
-          Dripper
+          {{ $t('alta.dripper') }}
           <select v-model="form.dripper">
             <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
               {{ etiqueta }}
             </option>
           </select>
         </label>
-        <label>En la taza (g)<input v-model="form.extraido_g" type="number" step="1" min="1" inputmode="numeric"></label>
+        <label>{{ $t('alta.en_la_taza') }}<input
+          v-model="form.extraido_g" type="number" step="1" min="1" inputmode="numeric"></label>
       </div>
 
-      <label>Reparto<input v-model="form.reparto" placeholder="60-60-90-90"></label>
+      <label>{{ $t('extraccion.reparto') }}<input
+        v-model="form.reparto" placeholder="60-60-90-90"></label>
 
-      <h3 class="apartado">Variable(s) cambiada(s)</h3>
+      <h3 class="apartado">{{ $t('alta.variables_titulo') }}</h3>
       <VariablesCambiadas
         v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
         @cambia="(clave, valor) => (form[clave] = valor)"
@@ -355,66 +364,61 @@ async function retirar() {
            columna— se enseña lo que quedó escrito, para leerlo y no para
            teclearlo. -->
       <p v-if="!cambiadas.length && form.variable_cambiada" class="guardado">
-        Anotado como «{{ form.variable_cambiada }}»
+        {{ $t('extraccion.anotado_como', { texto: form.variable_cambiada }) }}
       </p>
 
       <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
-      <h3 class="apartado">Defecto(s)</h3>
+      <h3 class="apartado">{{ $t('alta.defectos_titulo') }}</h3>
       <DefectosElegidos v-model="defectos" />
 
       <label>
-        Nota: <strong>{{ form.nota }}</strong>
+        {{ $t('alta.nota') }} <strong>{{ form.nota }}</strong>
         <input v-model.number="form.nota" type="range" min="1" max="10" step="1">
       </label>
 
-      <label>Notas de cata<textarea v-model="form.notas_cata" rows="2" /></label>
-      <label>Siguiente ajuste<input v-model="form.siguiente_ajuste"></label>
+      <label>{{ $t('alta.notas_cata') }}<textarea v-model="form.notas_cata" rows="2" /></label>
+      <label>{{ $t('extraccion.siguiente_ajuste') }}<input v-model="form.siguiente_ajuste"></label>
 
       <button type="submit" :disabled="enviando || !hayCambios">
-        {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
+        {{ enviando ? $t('comun.guardando')
+          : hayCambios ? $t('bolsa.guardar_cambios') : $t('comun.sin_cambios') }}
       </button>
 
       <button type="button" class="retirar" @click="dialogo?.showModal()">
-        Retirar esta extracción
+        {{ $t('extraccion.retirar') }}
       </button>
     </form>
   </template>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Retirar esta extracción?</h3>
-    <p>
-      No se borra: queda marcada y deja de contar para las sugerencias. Se puede
-      restaurar.
-    </p>
-    <p class="ojo">
-      Retira solo <strong>errores de registro</strong>. Si quitas las
-      extracciones que salieron mal, las medias suben solas y los deltas
-      emparejados dejan de significar nada.
-    </p>
+    <h3>{{ $t('extraccion.retirar_titulo') }}</h3>
+    <p>{{ $t('extraccion.retirar_que_pasa') }}</p>
+    <i18n-t keypath="extraccion.retirar_ojo" tag="p" class="ojo" scope="global">
+      <template #errores><strong>{{ $t('extraccion.retirar_ojo_enfasis') }}</strong></template>
+    </i18n-t>
     <!-- Blando y no un 409 como el de las recetas en uso: esto se deshace, y
          restaurarla devuelve los pares sola. -->
     <p v-if="hijas.length" class="ojo">
-      De ésta cuelga{{ hijas.length === 1 ? '' : 'n' }}
-      <strong>{{ hijas.length }}</strong>
-      extracci{{ hijas.length === 1 ? 'ón' : 'ones' }}: al retirarla se
-      quedan sin base con la que compararse y pasan a contar como primeras.
+      {{ hijas.length === 1
+        ? $t('extraccion.hijas_una', { n: hijas.length })
+        : $t('extraccion.hijas_varias', { n: hijas.length }) }}
     </p>
     <div class="botones">
-      <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>
+      <button type="button" class="secundario" @click="dialogo?.close()">{{ $t('comun.cancelar') }}</button>
       <button type="button" class="peligro" :disabled="retirando" @click="retirar">
-        {{ retirando ? 'Retirando…' : 'Retirar' }}
+        {{ retirando ? $t('extraccion.retirando') : $t('extraccion.retirar_corto') }}
       </button>
     </div>
   </dialog>
 
   <section v-if="errores.length" class="tarjeta errores">
-    <strong>No se ha guardado nada</strong>
+    <strong>{{ $t('comun.no_guardado') }}</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
   </section>
 
   <section v-if="guardado" class="tarjeta exito">
-    <strong>Guardado</strong>
-    <p class="meta">Cambiado: {{ guardado.join(', ') }}</p>
+    <strong>{{ $t('comun.guardado') }}</strong>
+    <p class="meta">{{ $t('extraccion.cambiado', { lista: guardado.join(', ') }) }}</p>
     <!-- Los mismos avisos que al registrar: corregir un campo puede dejar la
          fila diciendo algo que no se sostiene, y eso se ve aquí o no se ve. -->
     <p v-for="a in avisos" :key="a" class="aviso">⚠ {{ a }}</p>

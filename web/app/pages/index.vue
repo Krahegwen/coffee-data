@@ -123,8 +123,8 @@ async function instalar() {
        esto. -->
   <div v-if="copiaVieja" class="aviso">
     {{ copiaVieja.nunca
-      ? $t('portada.respaldo_nunca', { dias: copiaVieja.dias })
-      : $t('portada.respaldo_viejo', { dias: copiaVieja.dias }) }}
+      ? $t('portada.respaldo_nunca', { dias: copiaVieja.dias }, copiaVieja.dias)
+      : $t('portada.respaldo_viejo', { dias: copiaVieja.dias }, copiaVieja.dias) }}
     <NuxtLinkLocale to="/respaldo">{{ $t('portada.respaldo_descarga') }}</NuxtLinkLocale>{{ $t('portada.respaldo_solo_aqui') }}
   </div>
 

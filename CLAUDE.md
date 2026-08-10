@@ -174,9 +174,8 @@ necesita al menos un vertido o el cronómetro no sabría qué guiar.
 
 Un vertido puede llevar `estilo`: `espiral` o `centro`. Es **cómo** se vierte,
 no una acción aparte, así que ningún otro paso lo admite. A la base va la clave
-(`espiral`); el castellano («en espiral») vive en
-`web/app/composables/textos.ts`, el catálogo que se duplicará por idioma
-cuando haya i18n. **Ningún texto visible se guarda en la base.**
+(`espiral`); la frase de cada idioma vive en `web/i18n/locales/`.
+**Ningún texto visible se guarda en la base.**
 
 Editar una receta **no cambia las extracciones ya registradas**: cada una
 guardó su propio `reparto`. Para variar una que funciona, la app la duplica
@@ -189,6 +188,33 @@ devuelve 409 si alguna extracción la usa, retiradas incluidas.
 curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
   -H "Authorization: Bearer $COFFEE_TOKEN"
 ```
+
+## Dos idiomas
+
+La app está en castellano e inglés, y el idioma llega hasta el fondo:
+
+- **El núcleo también habla los dos.** Los mensajes de validación, los avisos y
+  los porqués de las palancas son claves con su catálogo en
+  `nucleo/src/textos.js`. Cada función recibe su `t` y por defecto es
+  castellano, así que curl y los scripts se leen igual que siempre. El Worker
+  saca el idioma del `Accept-Language`; en local se le pasa a la llamada.
+- **Las rutas están traducidas**, no solo prefijadas: `/crono/reloj` y
+  `/en/brew/timer`. El castellano no lleva prefijo y sus URLs no se mueven —la
+  app instalada arranca en `/`—. El mapa está en `i18n.pages` de
+  `web/nuxt.config.ts`.
+- **En las plantillas no queda texto**: todo sale de `web/i18n/locales/`, y las
+  etiquetas de las claves de la base (`verter`, `amargor`) las sirve
+  `useTextos()`.
+
+Tres reglas al tocarlo:
+
+- **Nada de HTML dentro de un mensaje**: el módulo lo rechaza. Lo que lleva
+  énfasis se parte en dos claves y lo compone `<i18n-t>` con una ranura.
+- **Todo enlace es `NuxtLinkLocale`** y toda navegación pasa por `localePath`, o
+  desde el inglés se vuelve al castellano a mitad de camino.
+- **Si añades una frase, va a los dos ficheros.** Falta una clave en inglés y
+  se cae al castellano, que es mejor que enseñar la clave, pero pasa
+  desapercibido.
 
 ## Estructura
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
-useHead({ title: 'Registrar extracción' })
+const { t } = useI18n()
+useHead({ title: () => t('alta.titulo') })
 
 import { defectosDe } from '@coffee/nucleo/validacion'
 const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
@@ -401,75 +402,77 @@ async function enviar() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Registrar extracción' }]" />
+  <Migas :ruta="[{ texto: $t('alta.titulo') }]" />
 
   <form @submit.prevent="enviar">
     <div class="titulo">
-      <h2>Nueva extracción</h2>
+      <h2>{{ $t('alta.nueva') }}</h2>
       <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
            propósito cuando el borrador ya no es verdad. Con una medición
            dentro pregunta antes: eso no se puede volver a medir. -->
-      <button type="button" class="limpiar" @click="pedirVaciar">Vaciar</button>
+      <button type="button" class="limpiar" @click="pedirVaciar">{{ $t('comun.vaciar') }}</button>
     </div>
 
-    <p v-if="desdeCrono" class="delcrono">
-      Tiempo y goteo vienen del cronómetro.
-    </p>
+    <p v-if="desdeCrono" class="delcrono">{{ $t('alta.del_crono') }}</p>
 
     <!-- La bolsa ya no es obligatoria: el café de un amigo o una muestra
          suelta se guardan sin ficha. Eso sí, una taza suelta no compara con
          nada, y el aviso ofrece el alta antes que inventarse una bolsa. -->
     <label>
-      Café
+      {{ $t('alta.cafe') }}
       <select v-model="form.cafe_id">
-        <option value="">Sin bolsa</option>
+        <option value="">{{ $t('comun.sin_bolsa') }}</option>
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
     </label>
-    <p v-if="!form.cafe_id" class="meta">
-      Sin bolsa la taza queda apuntada, pero no compara con nada ni suma a
-      ningún historial. Si este café va a repetir,
-      <NuxtLink :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
-        dale de alta su bolsa</NuxtLink>: al guardarla vuelves aquí con ella
-      puesta, y lo escrito no se pierde.
-    </p>
+    <i18n-t v-if="!form.cafe_id" keypath="alta.sin_bolsa_aviso" tag="p" class="meta" scope="global">
+      <template #enlace>
+        <NuxtLinkLocale :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
+          {{ $t('alta.sin_bolsa_enlace') }}
+        </NuxtLinkLocale>
+      </template>
+    </i18n-t>
 
     <!-- De qué extracción parte ésta. Solo con más de una en la bolsa: con una
          sola no hay nada que elegir, y con ninguna tampoco. -->
     <label v-if="deLaBolsa.length > 1">
-      Variación de
+      {{ $t('alta.variacion_de') }}
       <select v-model="madreElegida">
         <option v-for="e in deLaBolsa" :key="e.id" :value="e.id">
-          {{ fechaCorta(e.fecha) }} · {{ e.temp_c }} °C, {{ e.clics }} clics<template
-            v-if="e.nota"> · {{ e.nota }}/10</template>
+          {{ $t('alta.opcion_madre', {
+            fecha: fechaCorta(e.fecha), temp: e.temp_c, clics: e.clics,
+          }) }}{{ e.nota ? $t('alta.opcion_nota', { n: e.nota }) : '' }}
         </option>
       </select>
     </label>
     <p v-if="deLaBolsa.length > 1 && anterior && anterior.id !== deLaBolsa[0]!.id" class="meta">
-      Vuelves a una anterior: los deltas se miden contra ella y no contra la
-      última, que es lo que hace que este cambio sea uno solo y no dos.
+      {{ $t('alta.vuelves_atras') }}
     </p>
 
     <div class="pareja">
-      <label>Dosis (g)<input v-model.number="form.dosis_g" type="number" step="0.1" min="1" required></label>
-      <label>Agua (g)<input v-model.number="form.agua_g" type="number" step="1" min="1" required></label>
+      <label>{{ $t('alta.dosis') }}<input
+        v-model.number="form.dosis_g" type="number" step="0.1" min="1" required></label>
+      <label>{{ $t('alta.agua') }}<input
+        v-model.number="form.agua_g" type="number" step="1" min="1" required></label>
     </div>
-    <p class="meta">Ratio 1:{{ ratio }}</p>
+    <p class="meta">{{ $t('alta.ratio', { n: ratio }) }}</p>
 
     <div class="pareja">
-      <label>Temperatura (°C)<input v-model.number="form.temp_c" type="number" step="1" min="0" max="100" required></label>
-      <label>Clics<input v-model.number="form.clics" type="number" step="1" min="0" required></label>
+      <label>{{ $t('alta.temp') }}<input
+        v-model.number="form.temp_c" type="number" step="1" min="0" max="100" required></label>
+      <label>{{ $t('alta.clics') }}<input
+        v-model.number="form.clics" type="number" step="1" min="0" required></label>
     </div>
 
     <label>
-      Receta
+      {{ $t('alta.receta') }}
       <select v-model="form.receta_id">
         <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
       </select>
     </label>
 
     <label>
-      Dripper
+      {{ $t('alta.dripper') }}
       <select v-model="form.dripper">
         <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
           {{ etiqueta }}
@@ -480,27 +483,26 @@ async function enviar() {
     <!-- Atados: el goteo se cuenta dentro del total, así que tocar uno mueve
          el otro. Ver `useAtadura`. -->
     <div class="pareja">
-      <label>Tiempo total<input
+      <label>{{ $t('alta.tiempo_total') }}<input
         v-model="form.tiempo_total" placeholder="3:30" required
         @focus="anotar" @change="desdeElTiempo"></label>
-      <label>Goteo (s)<input
+      <label>{{ $t('alta.goteo') }}<input
         v-model="form.drawdown_s" type="number" step="1" min="0" placeholder="45"
         @focus="anotar" @change="desdeElGoteo"></label>
     </div>
     <p v-if="movido" class="meta">
-      {{ movido === 'goteo' ? 'El goteo' : 'El tiempo total' }} se ha movido lo
-      mismo: el goteo va por dentro del total, no aparte.
+      {{ movido === 'goteo' ? $t('alta.movido_goteo') : $t('alta.movido_tiempo') }}
     </p>
 
     <label>
-      En la taza (g)
+      {{ $t('alta.en_la_taza') }}
       <input v-model="form.extraido_g" type="number" step="1" min="1" placeholder="260">
     </label>
     <p v-if="retencion !== null" class="meta">
-      Se queda {{ retencion.toFixed(1) }} g de agua por gramo de café
+      {{ $t('alta.retencion', { n: retencion.toFixed(1) }) }}
     </p>
 
-    <h3>Variable(s) cambiada(s)</h3>
+    <h3>{{ $t('alta.variables_titulo') }}</h3>
     <VariablesCambiadas
       v-model="cambiadas" :valores="form" :anterior="anterior" :opciones="opciones"
       @cambia="(clave, valor) => (form[clave] = valor)"
@@ -508,79 +510,80 @@ async function enviar() {
     <!-- El dato pelado y sin umbral: quién decide qué es «mucho» es el
          servidor, y ya lo dirá en sus avisos al registrar. -->
     <p v-if="bolsaPrevia" class="meta">
-      Los valores vienen de la última de la bolsa anterior
-      ({{ bolsaPrevia.fecha }}<span v-if="bolsaPrevia.dias_abierta !== null">, que
-      llevaba {{ bolsaPrevia.dias_abierta }} días abierta</span>). El tueste es
-      otro, así que esta cuenta como primera extracción y no se compara con
-      aquélla — y esos ajustes pueden estar compensando un café ya apagado.
+      {{ $t('alta.desde_bolsa_previa', {
+        fecha: bolsaPrevia.fecha,
+        abierta: bolsaPrevia.dias_abierta !== null
+          ? $t('alta.dias_abierta', { n: bolsaPrevia.dias_abierta }) : '',
+      }) }}
     </p>
     <!-- El mismo trato que la bolsa anterior: se dice de dónde parten los
          números, y que partir no es comparar. -->
     <!-- El último escalón, y el mismo trato: de dónde parten los números y que
          partir no es comparar. -->
     <p v-if="arranque && arranque === cualquiera" class="meta">
-      Los valores parten de tu última extracción
-      ({{ fechaCorta(cualquiera.fecha) }}<span v-if="cualquiera.cafe_nombre">,
-      {{ cualquiera.cafe_nombre }}</span>). Es otro café, así que no se compara
-      con ella: el molinillo y la mano son los mismos, nada más.
+      {{ $t('alta.desde_cualquiera', {
+        fecha: fechaCorta(cualquiera.fecha),
+        cafe: cualquiera.cafe_nombre
+          ? $t('alta.desde_cualquiera_cafe', { nombre: cualquiera.cafe_nombre }) : '',
+      }) }}
     </p>
     <p v-if="sueltaPrevia" class="meta">
-      Los valores parten de tu última extracción sin bolsa
-      ({{ fechaCorta(sueltaPrevia.fecha) }}). Cada suelta es un café distinto:
-      no se comparan, esto es solo el punto de partida.
+      {{ $t('alta.desde_suelta', { fecha: fechaCorta(sueltaPrevia.fecha) }) }}
     </p>
     <!-- Con la lista puesta el texto lo escribe ella, y enseñarlo aquí sería
          repetir lo de arriba. Sin filas es el único sitio donde decirlo: hay
          cambios que no son una columna —la báscula nueva, el agua de otra
          botella— y la primera de una bolsa no cambia nada. -->
     <label v-if="!cambiadas.length">
-      Variable cambiada
-      <input v-model="form.variable_cambiada" placeholder="Primera extracción" required>
+      {{ $t('alta.variable_cambiada') }}
+      <input
+        v-model="form.variable_cambiada" :placeholder="$t('alta.primera_extraccion')" required>
     </label>
 
     <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
-    <h3>Defecto(s)</h3>
+    <h3>{{ $t('alta.defectos_titulo') }}</h3>
     <DefectosElegidos v-model="defectos" />
 
     <label>
-      Nota: <strong>{{ form.nota }}</strong>
+      {{ $t('alta.nota') }} <strong>{{ form.nota }}</strong>
       <input v-model.number="form.nota" type="range" min="1" max="10" step="1">
     </label>
 
     <label>
-      Notas de cata
+      {{ $t('alta.notas_cata') }}
       <textarea v-model="form.notas_cata" rows="2" />
     </label>
 
     <button type="submit" :disabled="enviando">
-      {{ enviando ? 'Guardando…' : 'Guardar extracción' }}
+      {{ enviando ? $t('comun.guardando') : $t('alta.guardar') }}
     </button>
   </form>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Vaciar el formulario?</h3>
-    <p class="ojo">
-      Hay un tiempo cronometrado y se perderá. Eso no se puede volver a medir:
-      el café ya está colado.
-    </p>
-    <p>El resto —temperatura, clics, receta— se vuelve a teclear en un momento.</p>
+    <h3>{{ $t('alta.vaciar_titulo') }}</h3>
+    <p class="ojo">{{ $t('alta.vaciar_ojo') }}</p>
+    <p>{{ $t('alta.vaciar_resto') }}</p>
     <div class="botones">
-      <button type="button" class="secundario" @click="dialogo?.close()">Cancelar</button>
-      <button type="button" class="peligro" @click="vaciar">Vaciar</button>
+      <button type="button" class="secundario" @click="dialogo?.close()">{{ $t('comun.cancelar') }}</button>
+      <button type="button" class="peligro" @click="vaciar">{{ $t('comun.vaciar') }}</button>
     </div>
   </dialog>
 
   <section v-if="errores.length" class="tarjeta errores">
-    <strong>No se ha guardado nada</strong>
+    <strong>{{ $t('comun.no_guardado') }}</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
   </section>
 
   <section v-if="resultado" class="tarjeta exito">
-    <strong>Guardada · {{ nombreCafe(resultado.cafe) }}, {{ fechaCorta(resultado.extraccion.fecha) }}</strong>
+    <strong>{{ $t('alta.guardada', {
+      cafe: nombreCafe(resultado.cafe), fecha: fechaCorta(resultado.extraccion.fecha),
+    }) }}</strong>
     <p class="meta">
-      reparto {{ resultado.extraccion.reparto }} · 1:{{ resultado.extraccion.ratio }}
+      {{ $t('alta.resumen_guardado', {
+        reparto: resultado.extraccion.reparto, ratio: resultado.extraccion.ratio,
+      }) }}
       <span v-if="resultado.extraccion.dias_tueste !== null">
-        · {{ resultado.extraccion.dias_tueste }} días de tueste
+        {{ $t('alta.dias_tueste', { n: resultado.extraccion.dias_tueste }) }}
       </span>
     </p>
 
@@ -595,14 +598,16 @@ async function enviar() {
       servidor**, no lo que quedó en el formulario.
     -->
     <p v-if="resultado.extraccion.notas_cata" class="notas copiable">
-      <span class="etiqueta">Notas de cata</span>
+      <span class="etiqueta">{{ $t('alta.etiqueta_cata') }}</span>
       «{{ resultado.extraccion.notas_cata }}»
     </p>
 
     <p v-for="a in resultado.sugerencias.avisos" :key="a" class="aviso">⚠ {{ a }}</p>
 
     <template v-if="resultado.sugerencias.cambios.length">
-      <p class="meta">Cambia <strong>una sola</strong> cosa:</p>
+      <i18n-t keypath="alta.cambia_una" tag="p" class="meta" scope="global">
+        <template #una_sola><strong>{{ $t('alta.cambia_una_enfasis') }}</strong></template>
+      </i18n-t>
       <!-- Seleccionable: la sugerencia es lo que uno copia para apuntársela. -->
       <ol class="copiable">
         <li v-for="c in resultado.sugerencias.cambios" :key="c.variable">
@@ -610,9 +615,7 @@ async function enviar() {
         </li>
       </ol>
     </template>
-    <p v-else-if="resultado.sugerencias.conforme">
-      Equilibrado y con buena nota: no toques nada, repite para confirmar.
-    </p>
+    <p v-else-if="resultado.sugerencias.conforme">{{ $t('alta.conforme') }}</p>
   </section>
 </template>
 

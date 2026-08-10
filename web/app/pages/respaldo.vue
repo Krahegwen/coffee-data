@@ -16,7 +16,7 @@ import {
 const { activa } = useSesion()
 const { version } = useRuntimeConfig().public
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 useHead({ title: () => t('respaldo.titulo') })
 
 const { data: resumen, refresh: recontar } = await useAsyncData('respaldo-resumen', async () => {
@@ -126,7 +126,11 @@ async function restaurar() {
 }
 
 const fechaLegible = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+  iso
+    ? new Date(iso).toLocaleDateString(locale.value === 'en' ? 'en-GB' : 'es-ES', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      })
+    : null
 </script>
 
 <template>
@@ -137,7 +141,9 @@ const fechaLegible = (iso: string | null) =>
     <p class="meta">{{ $t('respaldo.que_es') }}</p>
     <p v-if="resumen" class="meta">
       {{ $t('respaldo.ahora_mismo', {
-        cafes: resumen.cafes, recetas: resumen.recetas, extracciones: resumen.extracciones,
+        cafes: $t('respaldo.n_bolsas', { n: resumen.cafes }, resumen.cafes),
+        recetas: $t('respaldo.n_recetas', { n: resumen.recetas }, resumen.recetas),
+        extracciones: $t('respaldo.n_extracciones', { n: resumen.extracciones }, resumen.extracciones),
       }) }}
       {{ ultimo ? $t('respaldo.ultimo', { fecha: fechaLegible(ultimo) }) : $t('respaldo.ninguno') }}
     </p>
@@ -178,15 +184,17 @@ const fechaLegible = (iso: string | null) =>
       <p>
         {{ $t('respaldo.del_dia', {
           fecha: fechaLegible(cargado.contenido.manifiesto.creado),
-          cafes: cargado.preparado.cafes.length,
-          recetas: cargado.preparado.recetas.length,
-          extracciones: cargado.preparado.extracciones.length,
-          fotos: cargado.contenido.fotos.length,
+          cafes: $t('respaldo.n_bolsas', { n: cargado.preparado.cafes.length }, cargado.preparado.cafes.length),
+          recetas: $t('respaldo.n_recetas', { n: cargado.preparado.recetas.length }, cargado.preparado.recetas.length),
+          extracciones: $t('respaldo.n_extracciones', { n: cargado.preparado.extracciones.length }, cargado.preparado.extracciones.length),
+          fotos: $t('respaldo.n_fotos', { n: cargado.contenido.fotos.length }, cargado.contenido.fotos.length),
         }) }}
       </p>
       <p v-if="resumen">
         {{ $t('respaldo.reemplazara', {
-          cafes: resumen.cafes, recetas: resumen.recetas, extracciones: resumen.extracciones,
+          cafes: $t('respaldo.n_bolsas', { n: resumen.cafes }, resumen.cafes),
+          recetas: $t('respaldo.n_recetas', { n: resumen.recetas }, resumen.recetas),
+          extracciones: $t('respaldo.n_extracciones', { n: resumen.extracciones }, resumen.extracciones),
         }) }}
       </p>
       <p v-for="aviso in cargado.preparado.avisos" :key="aviso" class="fallo">{{ aviso }}</p>

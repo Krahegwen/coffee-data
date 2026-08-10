@@ -100,6 +100,19 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
+### Castellano e inglés
+
+El idioma de partida es el del dispositivo, y se cambia desde el pie. Las URLs
+también se traducen: el castellano se queda donde estaba —`/recetas`,
+`/crono/reloj`— y el inglés vive en `/en/recipes` y `/en/brew/timer`. Que el
+castellano no lleve prefijo no es capricho: la app instalada arranca en `/`, y
+cambiarle las rutas a quien ya la tiene sería romperle los marcadores.
+
+**El núcleo habla los dos idiomas.** Los avisos y las palancas son la mitad del
+valor de registrar, así que no valía traducir solo los botones: los mensajes son
+claves con su catálogo, y el idioma viaja en `Accept-Language` cuando la llamada
+va por la red. Sin cabecera, castellano — curl y los scripts no cambian.
+
 ### Offline-first: un solo camino, y la cola de salida
 
 Toda la app lee y escribe **en el IndexedDB del navegador**, con los mismos
@@ -356,9 +369,9 @@ Va de atributo y no de acción aparte a propósito — si `verter_espiral` fuese
 una acción habría que repasar las catorce comparaciones con `verter` de las que
 salen los gramos, el acumulado, el reparto y el agua de referencia.
 
-En la base van las claves, no las frases: `espiral`, no `en espiral`. El
-castellano vive en `web/app/composables/textos.ts`, que es el fichero que se
-duplicará por idioma el día que haya i18n.
+En la base van las claves, no las frases: `espiral`, no `en espiral`. La frase
+de cada idioma vive en `web/i18n/locales/`, y por eso traducir la app no pidió
+tocar ni una fila.
 
 Solo `verter` lleva gramos y solo `verter` escala con el agua: **la suma de los
 vertidos es el agua de referencia**, así que `60-60-90-90` sobre 300 g son
