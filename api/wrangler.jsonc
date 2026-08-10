@@ -21,9 +21,17 @@
   //
   // run_worker_first manda /api/* al script; lo demás sale de los estáticos, y
   // lo que no exista cae en index.html porque la app enruta en el cliente.
+  //
+  // `drop-trailing-slash` porque `nuxt generate` escribe cada ruta como
+  // carpeta —`respaldo/index.html`— y con el trato por defecto Cloudflare
+  // contestaba a `/respaldo` con un 307 hacia `/respaldo/`. La app enlaza
+  // siempre sin barra, así que ese salto sobraba en cada navegación de
+  // entrada; con esto la forma canónica es la que ya usaban los enlaces y la
+  // barra es la que redirige.
   "assets": {
     "directory": "../web/.output/public",
     "binding": "ASSETS",
+    "html_handling": "drop-trailing-slash",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
