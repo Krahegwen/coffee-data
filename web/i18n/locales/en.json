@@ -1,0 +1,73 @@
+{
+  "app": {
+    "nombre": "Coffee log",
+    "cargando": "One moment…",
+    "recetas": "Recipes",
+    "respaldo": "Backup",
+    "kofi": "Buy me a coffee",
+    "licencia": "© 2026 Krahegwen · MIT ·",
+    "en_el_servidor": " · on the server",
+    "idioma": "Language",
+    "sincronizando": "Syncing…",
+    "por_subir": "{n} to upload",
+    "al_dia": "Up to date"
+  },
+  "sesion": {
+    "abrir": "Sign in",
+    "explicacion": "With a session, what you log goes up to the server and what is there comes down here. Without one, everything lives in this browser. The token is asked once and swapped for a cookie this code cannot read.",
+    "token": "token",
+    "entrando": "Signing in…",
+    "entrar": "Sign in",
+    "token_malo": "That token is not it",
+    "abierta": "Session open",
+    "abierta_explicacion": "The log is kept in this browser and the queue uploads it to the server.",
+    "atascada": "There is a write the server will not take: {motivo}",
+    "quedan_por_subir": "{n} still to upload: if you sign out now, they will not go up.",
+    "cerrar": "Sign out"
+  },
+  "acciones": {
+    "verter": "Pour",
+    "agitar": "Swirl",
+    "remover": "Stir",
+    "esperar": "Wait",
+    "retirar": "Remove"
+  },
+  "estilos": {
+    "espiral": "in a spiral",
+    "centro": "in the centre"
+  },
+  "defectos": {
+    "equilibrado": "Balanced",
+    "amargor": "Bitter",
+    "astringente": "Astringent",
+    "plano": "Flat",
+    "agrio": "Sour",
+    "salado": "Salty",
+    "carton": "Cardboard",
+    "aguado": "Watery (no body)"
+  },
+  "variables": {
+    "temp_c": "Temperature (°C)",
+    "clics": "Clicks",
+    "dosis_g": "Dose (g)",
+    "agua_g": "Water (g)",
+    "receta_id": "Recipe",
+    "dripper": "Dripper"
+  },
+  "drippers": {
+    "v60-02-plastico": "V60 02 plastic",
+    "v60-02-ceramica": "V60 02 ceramic"
+  },
+  "comun": {
+    "sin_bolsa": "No bag",
+    "inicio": "Home",
+    "cancelar": "Cancel",
+    "vaciar": "Clear",
+    "guardar": "Save",
+    "guardado": "Saved",
+    "guardando": "Saving…",
+    "sin_cambios": "No changes",
+    "restablecer": "Reset",
+    "no_guardado": "Nothing was saved"
+  }
+}

@@ -1,6 +1,6 @@
 {
   "name": "@coffee/web",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "private": true,
   "type": "module",
   "description": "Bitácora de café: app instalable",
@@ -17,6 +17,7 @@
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@nuxtjs/i18n": "^10.6.0",
     "@vite-pwa/nuxt": "^1.0.0",
     "fake-indexeddb": "^6.2.5"
   }

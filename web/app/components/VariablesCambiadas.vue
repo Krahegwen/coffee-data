@@ -12,7 +12,9 @@
  * lectura por el mismo motivo: ya está guardado en su fila, y copiarlo aquí
  * sería un segundo sitio donde puede mentir.
  */
-import { VARIABLES } from '~/composables/textos'
+import { CLAVES_VARIABLE } from '~/composables/textos'
+
+const { VARIABLES } = useTextos()
 
 export type Opciones = Record<string, { valor: string; etiqueta: string }[]>
 
@@ -38,7 +40,9 @@ const emit = defineEmits<{
 
 const elegidas = defineModel<string[]>({ required: true })
 
-const claves = Object.keys(VARIABLES) as (keyof typeof VARIABLES)[]
+// Las claves son datos y no cambian con el idioma; lo que cambia es la
+// etiqueta, y esa se pide a `VARIABLES` al pintar.
+const claves = [...CLAVES_VARIABLE]
 
 /** Las que quedan libres, para no poder elegir dos veces la misma. */
 function disponibles(actual: string) {

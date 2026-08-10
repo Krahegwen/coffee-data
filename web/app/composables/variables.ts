@@ -1,4 +1,4 @@
-import { VARIABLES } from '~/composables/textos'
+import { CLAVES_VARIABLE } from '~/composables/textos'
 
 /**
  * Mantiene la tabla de variables cambiadas al día cuando el valor se toca
@@ -21,7 +21,8 @@ export function useTablaAlDia(
   previa: () => Record<string, unknown> | null,
   cambiadas: Ref<string[]>,
 ) {
-  const claves = Object.keys(VARIABLES)
+  // Las claves, no las etiquetas: aquí se comparan columnas.
+  const claves = [...CLAVES_VARIABLE]
   const foto = () => claves.map((c) => String(form[c] ?? '')).join('|')
 
   watch(foto, () => {

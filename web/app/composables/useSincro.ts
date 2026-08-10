@@ -28,6 +28,7 @@ export interface EntradaCola {
 export function useSincro() {
   const base = useRuntimeConfig().public.apiBase
   const { activa } = useSesion()
+  const { locale } = useI18n()
 
   /** Cuántas escrituras esperan red. Visible en el pie: la cola nunca calla. */
   const pendientes = useState<number>('cola-pendientes', () => 0)
@@ -49,15 +50,27 @@ export function useSincro() {
     void drenarCola()
   }
 
-  /** Repite una entrada contra el Worker, lanzando como lanza $fetch. */
+  /**
+   * Repite una entrada contra el Worker, lanzando como lanza $fetch.
+   *
+   * El idioma va en `Accept-Language`: si el servidor rechaza una escritura,
+   * su motivo acaba en el pie —«hay una escritura que el servidor no acepta»—
+   * y ahí no puede salir en otro idioma que el resto de la app.
+   */
   const enviar = (entrada: EntradaCola & { id: string }) =>
     $fetch(`${base}${entrada.camino}`, {
       method: entrada.metodo,
       ...(entrada.blob
-        ? { body: entrada.blob, headers: { 'content-type': entrada.tipo ?? '' } }
-        : entrada.cuerpo !== undefined && entrada.cuerpo !== null
-          ? { body: entrada.cuerpo }
-          : {}),
+        ? {
+            body: entrada.blob,
+            headers: { 'content-type': entrada.tipo ?? '', 'accept-language': locale.value },
+          }
+        : {
+            headers: { 'accept-language': locale.value },
+            ...(entrada.cuerpo !== undefined && entrada.cuerpo !== null
+              ? { body: entrada.cuerpo }
+              : {}),
+          }),
     })
 
   /*

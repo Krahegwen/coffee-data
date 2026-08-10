@@ -4,7 +4,7 @@ import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 useHead({ title: 'Registrar extracción' })
 
 import { defectosDe } from '@coffee/nucleo/validacion'
-import { DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
+const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const route = useRoute()
@@ -152,7 +152,7 @@ const cambiadas = useState<string[]>('borrador-extraccion-variables', () => [])
 /** Las variables que son de elegir, no de teclear. */
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: Object.entries(DRIPPERS).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  dripper: Object.entries(DRIPPERS.value).map(([valor, etiqueta]) => ({ valor, etiqueta })),
 }))
 
 /*
@@ -199,7 +199,7 @@ const arranque = computed(
 const arranqueAplicado = useState('borrador-extraccion-arranque', () => '')
 
 function aplicarArranque(previa: Record<string, unknown>) {
-  for (const clave of Object.keys(VARIABLES)) {
+  for (const clave of Object.keys(VARIABLES.value)) {
     const enUrl = DESDE_LA_URL[clave]
     if (enUrl && route.query[enUrl] !== undefined) continue
     const valor = previa[clave]

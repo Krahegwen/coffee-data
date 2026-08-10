@@ -1,0 +1,73 @@
+{
+  "app": {
+    "nombre": "Bitácora de café",
+    "cargando": "Un momento…",
+    "recetas": "Recetas",
+    "respaldo": "Respaldo",
+    "kofi": "Invítame a un café",
+    "licencia": "© 2026 Krahegwen · MIT ·",
+    "en_el_servidor": " · en el servidor",
+    "idioma": "Idioma",
+    "sincronizando": "Sincronizando…",
+    "por_subir": "{n} por subir",
+    "al_dia": "Al día"
+  },
+  "sesion": {
+    "abrir": "Abrir sesión",
+    "explicacion": "Con sesión, lo que registres se sube al servidor y lo que haya allí baja aquí. Sin ella, todo vive en este navegador. El token se pide una vez y se cambia por una cookie que este código no puede leer.",
+    "token": "token",
+    "entrando": "Abriendo…",
+    "entrar": "Entrar",
+    "token_malo": "Ese token no es",
+    "abierta": "Sesión abierta",
+    "abierta_explicacion": "La bitácora se guarda en este navegador y la cola la va subiendo al servidor.",
+    "atascada": "Hay una escritura que el servidor no acepta: {motivo}",
+    "quedan_por_subir": "Quedan {n} por subir: si cierras la sesión ahora, no subirán.",
+    "cerrar": "Cerrar sesión"
+  },
+  "acciones": {
+    "verter": "Verter",
+    "agitar": "Agitar",
+    "remover": "Remover",
+    "esperar": "Esperar",
+    "retirar": "Retirar"
+  },
+  "estilos": {
+    "espiral": "en espiral",
+    "centro": "al centro"
+  },
+  "defectos": {
+    "equilibrado": "Equilibrado",
+    "amargor": "Amargor",
+    "astringente": "Astringente",
+    "plano": "Plano",
+    "agrio": "Agrio",
+    "salado": "Salado",
+    "carton": "Cartón",
+    "aguado": "Aguado (sin cuerpo)"
+  },
+  "variables": {
+    "temp_c": "Temperatura (°C)",
+    "clics": "Clics",
+    "dosis_g": "Dosis (g)",
+    "agua_g": "Agua (g)",
+    "receta_id": "Receta",
+    "dripper": "Dripper"
+  },
+  "drippers": {
+    "v60-02-plastico": "V60 02 plástico",
+    "v60-02-ceramica": "V60 02 cerámica"
+  },
+  "comun": {
+    "sin_bolsa": "Sin bolsa",
+    "inicio": "Inicio",
+    "cancelar": "Cancelar",
+    "vaciar": "Vaciar",
+    "guardar": "Guardar",
+    "guardado": "Guardado",
+    "guardando": "Guardando…",
+    "sin_cambios": "Sin cambios",
+    "restablecer": "Restablecer",
+    "no_guardado": "No se ha guardado nada"
+  }
+}

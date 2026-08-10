@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { avisoRespaldo } from '~/almacen/respaldo'
-import { fechaCorta, nombreCafe } from '~/composables/textos'
+const { fechaCorta, nombreCafe } = useTextos()
 
 const { cafes, extracciones } = useApi()
 const { activa } = useSesion()

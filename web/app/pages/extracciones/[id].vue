@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Extraccion } from '~/composables/useApi'
 import { defectosDe } from '@coffee/nucleo/validacion'
-import { DRIPPERS, fechaCorta, nombreCafe, textoDeCambios, VARIABLES } from '~/composables/textos'
+const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
 
 const { cafes, recetas, extracciones, retiradas, editarExtraccion, retirarExtraccion } = useApi()
 const route = useRoute()
@@ -53,7 +53,7 @@ const cambiadas = ref<string[]>([])
 
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: Object.entries(DRIPPERS).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  dripper: Object.entries(DRIPPERS.value).map(([valor, etiqueta]) => ({ valor, etiqueta })),
 }))
 
 const EDITABLES = [
@@ -111,7 +111,7 @@ const derivadas = computed(() => {
   if (!anterior.value || !original.value) return []
   const antes = anterior.value as Record<string, unknown>
   const ahora = original.value as unknown as Record<string, unknown>
-  return Object.keys(VARIABLES).filter(
+  return Object.keys(VARIABLES.value).filter(
     (c) => String(antes[c] ?? '') !== String(ahora[c] ?? ''),
   )
 })
@@ -168,7 +168,7 @@ const tocada = computed(() => {
   if (!original.value) return false
   if (manoseada.value) return true
   const fila = original.value as unknown as Record<string, unknown>
-  if (Object.keys(VARIABLES).some((c) => String(form[c] ?? '') !== String(fila[c] ?? ''))) {
+  if (Object.keys(VARIABLES.value).some((c) => String(form[c] ?? '') !== String(fila[c] ?? ''))) {
     return true
   }
   return compuesta.value !== null && compuesta.value !== String(form.variable_cambiada ?? '')

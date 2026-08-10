@@ -18,7 +18,48 @@ export default defineNuxtConfig({
   // el prerender solo para esas rutas y el resto sigue siendo cliente.
   ssr: false,
 
-  modules: ['@vite-pwa/nuxt'],
+  modules: ['@vite-pwa/nuxt', '@nuxtjs/i18n'],
+
+  /*
+   * Dos idiomas, y el castellano es la casa: con `prefix_except_default` sus
+   * URLs no se mueven ni una letra. Eso no es cosmético — la app instalada
+   * arranca en `/`, y cambiar las rutas de quien ya la tiene sería romperle
+   * los marcadores y el atajo del escritorio para que otro pueda leerla.
+   *
+   * Las rutas del inglés se traducen enteras y no solo se prefijan: `/en/brew`
+   * y no `/en/crono`. Una URL a medias en dos idiomas se lee peor que en uno.
+   */
+  i18n: {
+    defaultLocale: 'es',
+    strategy: 'prefix_except_default',
+    locales: [
+      { code: 'es', language: 'es-ES', name: 'Español', file: 'es.json' },
+      { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
+    ],
+    // La cookie recuerda lo que se elige a mano; sin ella manda el idioma del
+    // dispositivo. Solo redirige en la raíz: entrar por un enlace directo a
+    // una ruta ya dice en qué idioma se quiere leer.
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'coffee.idioma',
+      redirectOn: 'root',
+      fallbackLocale: 'es',
+    },
+    customRoutes: 'config',
+    pages: {
+      index: { es: '/', en: '/' },
+      nueva: { es: '/nueva', en: '/new' },
+      respaldo: { es: '/respaldo', en: '/backup' },
+      'cafes/index': { es: '/cafes', en: '/coffees' },
+      'cafes/nueva': { es: '/cafes/nueva', en: '/coffees/new' },
+      'cafes/[id]': { es: '/cafes/[id]', en: '/coffees/[id]' },
+      'crono/index': { es: '/crono', en: '/brew' },
+      'crono/reloj': { es: '/crono/reloj', en: '/brew/timer' },
+      'recetas/index': { es: '/recetas', en: '/recipes' },
+      'recetas/[id]': { es: '/recetas/[id]', en: '/recipes/[id]' },
+      'extracciones/[id]': { es: '/extracciones/[id]', en: '/brews/[id]' },
+    },
+  },
 
   runtimeConfig: {
     public: {

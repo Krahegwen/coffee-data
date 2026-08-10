@@ -6,7 +6,19 @@ import { almacenLocal } from '~/almacen/local'
  * lo que parece: es lo que se lee en la pestaña, en los marcadores y, ya
  * instalada, en el conmutador de aplicaciones del móvil.
  */
-const APP = 'Bitácora de café'
+const { t, locale, locales, setLocale } = useI18n()
+const APP = computed(() => t('app.nombre'))
+
+/**
+ * El idioma se puede cambiar a mano, y el módulo lo recuerda en su cookie: a
+ * partir de ahí manda lo elegido y no lo que diga el dispositivo. Está en el
+ * pie porque es una preferencia y se toca una vez, no algo que estorbe arriba
+ * cada día.
+ */
+const idiomas = computed(() => locales.value.map((l) => ({
+  code: typeof l === 'string' ? l : l.code,
+  nombre: typeof l === 'string' ? l : (l.name ?? l.code),
+})))
 
 /**
  * La versión la sube el hook de pre-commit y viaja dentro del bundle. En el
@@ -39,7 +51,10 @@ const ruta = useRoute()
  * En /recetas era un enlace a la página que ya estás viendo, y en el resto
  * compite con las migas, que ya llevan a todas partes.
  */
-const conAtajo = computed(() => ruta.path === '/' || ruta.path === '/crono')
+const localePath = useLocalePath()
+const conAtajo = computed(
+  () => ruta.path === localePath('/') || ruta.path === localePath('/crono'),
+)
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const tokenVisible = ref('')
 const errorSesion = ref('')
@@ -96,7 +111,7 @@ async function iniciarSesion() {
     await refrescar()
     await refreshNuxtData()
   } catch {
-    errorSesion.value = 'Ese token no es'
+    errorSesion.value = t('sesion.token_malo')
   } finally {
     abriendo.value = false
   }
@@ -123,34 +138,37 @@ useHead({
   // El título estático del HTML ya es el nombre de la app: si se colase por
   // la plantilla saldría repetido en la portada.
   titleTemplate: (pantalla?: string) =>
-    !pantalla || pantalla === APP ? APP : `${pantalla} · ${APP}`,
+    !pantalla || pantalla === APP.value ? APP.value : `${pantalla} · ${APP.value}`,
+  // Que el `lang` del documento diga la verdad: de ahí tiran el lector de
+  // pantalla, el corrector y la traducción automática del navegador.
+  htmlAttrs: computed(() => ({ lang: locale.value === 'en' ? 'en-GB' : 'es-ES' })),
 })
 </script>
 
 <template>
   <div class="marco">
     <header>
-      <h1>Bitácora de café</h1>
+      <h1>{{ $t('app.nombre') }}</h1>
       <!-- Las recetas se consultan a menudo y se editan poco, así que viven
            arriba y siempre a la misma altura en vez de ocupar un botón en la
            portada. -->
-      <NuxtLink v-if="conAtajo" to="/recetas" class="atajo">
+      <NuxtLinkLocale v-if="conAtajo" to="/recetas" class="atajo">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
           <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
           <path d="M8 7.5h7M8 11h5" />
         </svg>
-        Recetas
-      </NuxtLink>
+        {{ $t('app.recetas') }}
+      </NuxtLinkLocale>
     </header>
     <main>
-      <p v-if="!comprobada || !lista" class="meta-sesion">Un momento…</p>
+      <p v-if="!comprobada || !lista" class="meta-sesion">{{ $t('app.cargando') }}</p>
       <NuxtPage v-else />
     </main>
     <footer>
       <!-- Cinco toques abren el panel de sesión. La coletilla dice el modo:
            sin nada, tus datos viven en este navegador. -->
-      <p @click="tocarVersion">v{{ version }}<template v-if="activa"> · en el servidor</template></p>
+      <p @click="tocarVersion">v{{ version }}<template v-if="activa">{{ $t('app.en_el_servidor') }}</template></p>
       <!-- El estado de la cola, siempre a la vista: una cola en silencio es
            una pérdida de datos esperando. Y de paso es el tirador de
            actualizar, para cuando uno desconfía. -->
@@ -159,57 +177,60 @@ useHead({
           type="button" class="sincro" :class="{ pendiente: pendientes, atascada: atasco }"
           :disabled="sincronizando" @click="actualizar()"
         >
-          {{ sincronizando ? 'Sincronizando…'
-            : pendientes ? `${pendientes} por subir` : 'Al día' }}
+          {{ sincronizando ? $t('app.sincronizando')
+            : pendientes ? $t('app.por_subir', { n: pendientes }) : $t('app.al_dia') }}
         </button>
       </p>
       <!-- El respaldo vive en el pie: se usa poco, pero tiene que poder
            encontrarse sin que nadie te lo cuente. -->
-      <p><NuxtLink to="/respaldo" class="enlace-pie">Respaldo</NuxtLink></p>
+      <p><NuxtLinkLocale to="/respaldo" class="enlace-pie">{{ $t('app.respaldo') }}</NuxtLinkLocale></p>
+
+      <!-- El idioma, junto al resto de lo que se toca una vez. Cambia la app
+           entera y también las URLs: el castellano se queda en /recetas y el
+           inglés vive en /en/recipes. -->
+      <p>
+        <label class="idioma">
+          <span class="visualmente-oculto">{{ $t('app.idioma') }}</span>
+          <select :value="locale" @change="setLocale(($event.target as HTMLSelectElement).value as any)">
+            <option v-for="i in idiomas" :key="i.code" :value="i.code">{{ i.nombre }}</option>
+          </select>
+        </label>
+      </p>
       <!-- Un enlace y no el widget de Ko-fi: un script de terceros no pinta
            nada en una app que presume de no mandar datos a ningún sitio. Y
            servir esto no cuesta nada — es para quien quiera invitar, no para
            cubrir gastos. -->
       <p>
-        © 2026 Krahegwen · MIT ·
+        {{ $t('app.licencia') }}
         <a class="kofi" href="https://ko-fi.com/krahegwen" target="_blank" rel="noopener">
-          Invítame a un café
+          {{ $t('app.kofi') }}
         </a>
       </p>
 
       <section v-if="panelSesion" class="portero">
         <template v-if="!activa">
-          <h2>Abrir sesión</h2>
-          <p>
-            Con sesión, lo que registres se sube al servidor y lo que haya
-            allí baja aquí. Sin ella, todo vive en este navegador. El token se
-            pide una vez y se cambia por una cookie que este código no puede
-            leer.
-          </p>
+          <h2>{{ $t('sesion.abrir') }}</h2>
+          <p>{{ $t('sesion.explicacion') }}</p>
           <input
-            v-model="tokenVisible" type="password" placeholder="token"
+            v-model="tokenVisible" type="password" :placeholder="$t('sesion.token')"
             autocomplete="off" @keyup.enter="iniciarSesion"
           >
           <p v-if="errorSesion" class="fallo-sesion">{{ errorSesion }}</p>
           <button type="button" :disabled="abriendo || !tokenVisible.trim()" @click="iniciarSesion">
-            {{ abriendo ? 'Abriendo…' : 'Entrar' }}
+            {{ abriendo ? $t('sesion.entrando') : $t('sesion.entrar') }}
           </button>
         </template>
         <template v-else>
-          <h2>Sesión abierta</h2>
-          <p>
-            La bitácora se guarda en este navegador y la cola la va subiendo
-            al servidor.
-          </p>
+          <h2>{{ $t('sesion.abierta') }}</h2>
+          <p>{{ $t('sesion.abierta_explicacion') }}</p>
           <p v-if="atasco" class="fallo-sesion">
-            Hay una escritura que el servidor no acepta: {{ atasco }}
+            {{ $t('sesion.atascada', { motivo: atasco }) }}
           </p>
           <p v-if="pendientes" class="fallo-sesion">
-            Quedan {{ pendientes }} por subir: si cierras la sesión ahora, no
-            subirán.
+            {{ $t('sesion.quedan_por_subir', { n: pendientes }) }}
           </p>
           <button type="button" class="cerrar" :disabled="pendientes > 0" @click="cerrarSesion">
-            Cerrar sesión
+            {{ $t('sesion.cerrar') }}
           </button>
         </template>
       </section>
@@ -353,6 +374,31 @@ footer {
 }
 
 footer p { margin: 0.15rem 0; }
+
+/* El selector de idioma se comporta como el resto del pie: pequeño, sin peso
+   y sin caja, que es una preferencia y no un control de la bitácora. */
+.idioma select {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--suave);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.idioma select:hover { color: var(--acento); }
+
+/* Para el lector de pantalla, no para la vista: el desplegable ya dice qué es
+   con su propio valor. */
+.visualmente-oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 /*
  * El estado de la cola, como texto discreto que además es botón. El color

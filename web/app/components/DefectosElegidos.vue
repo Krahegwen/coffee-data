@@ -15,11 +15,14 @@
 // El castellano sale del catálogo; la regla de qué es «sin defecto» es del
 // dominio y vive en el núcleo, que es quien la hace cumplir al validar.
 import { SIN_DEFECTO } from '@coffee/nucleo/validacion'
-import { DEFECTOS } from '~/composables/textos'
+import { CLAVES_DEFECTO } from '~/composables/textos'
+
+const { DEFECTOS } = useTextos()
 
 const elegidos = defineModel<string[]>({ required: true })
 
-const claves = Object.keys(DEFECTOS) as (keyof typeof DEFECTOS)[]
+// Las claves son datos: el orden del vocabulario no cambia con el idioma.
+const claves = [...CLAVES_DEFECTO]
 
 const puesto = (clave: string) => elegidos.value.indexOf(clave)
 
@@ -69,10 +72,10 @@ function subir(i: number) {
     <ol v-if="elegidos.length > 1" class="orden">
       <li v-for="(clave, i) in elegidos" :key="clave">
         <span class="puesto">{{ i + 1 }}</span>
-        <span class="que">{{ DEFECTOS[clave as keyof typeof DEFECTOS] ?? clave }}</span>
+        <span class="que">{{ DEFECTOS[clave] ?? clave }}</span>
         <button
           type="button" class="subir" :disabled="i === 0"
-          :aria-label="`Subir ${DEFECTOS[clave as keyof typeof DEFECTOS] ?? clave}`"
+          :aria-label="`Subir ${DEFECTOS[clave] ?? clave}`"
           @click="subir(i)"
         >
           ↑
@@ -82,7 +85,7 @@ function subir(i: number) {
 
     <p v-if="elegidos.length > 1" class="pista">
       Quedan apuntados todos, pero el ajuste sale solo del primero
-      (<strong>{{ DEFECTOS[elegidos[0] as keyof typeof DEFECTOS] ?? elegidos[0] }}</strong>):
+      (<strong>{{ DEFECTOS[elegidos[0]!] ?? elegidos[0] }}</strong>):
       corrige lo que más molesta y vuelve a medir. Si el segundo sigue ahí, ya
       será el primero de la próxima.
     </p>

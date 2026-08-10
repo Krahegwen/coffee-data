@@ -11,6 +11,7 @@
  */
 
 import * as nucleo from '@coffee/nucleo/api'
+import { textos } from '@coffee/nucleo/textos'
 import { claveDeFoto, validarFoto } from '@coffee/nucleo/validacion'
 
 import { cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta } from '~/almacen/cola'
@@ -178,6 +179,19 @@ export interface NuevaExtraccion {
 export function useApi() {
   const { activa } = useSesion()
   const { encolar } = useSincro()
+  const { locale } = useI18n()
+
+  /*
+   * En qué idioma habla el núcleo. Los manejadores corren **aquí**, en el
+   * navegador, así que el idioma no viaja a ninguna parte: se le pasa a la
+   * llamada. Es lo que hace que un 422 o una sugerencia salgan en el mismo
+   * idioma que el botón que los provocó.
+   *
+   * Lo que sí viaja es al reenviar por la cola, y eso lo resuelve el Worker
+   * leyendo `Accept-Language` — ver `useSincro`.
+   */
+  const t = computed(() => textos(locale.value))
+  const idioma = () => ({ t: t.value })
 
   /*
    * El cajón, sembrado solo sin sesión: a quien trabaja contra el servidor
@@ -221,7 +235,7 @@ export function useApi() {
 
   /** Los pasos de una receta, ya escalados al agua y con el acumulado. */
   const guion = (recetaId: string, aguaG: number) =>
-    local<PasoGuion[]>((a) => nucleo.guionDe(a, recetaId, String(aguaG)))
+    local<PasoGuion[]>((a) => nucleo.guionDe(a, recetaId, String(aguaG), idioma()))
 
   /**
    * Registra una extracción. Entera o ninguna: si algo se rechaza, no se
@@ -230,7 +244,7 @@ export function useApi() {
    * el servidor escribe exactamente lo mismo.
    */
   const crear = async (datos: NuevaExtraccion): Promise<Creada> => {
-    const r = await local<Creada>((a) => nucleo.crearExtraccion(a, datos as unknown as Record<string, unknown>))
+    const r = await local<Creada>((a) => nucleo.crearExtraccion(a, datos as unknown as Record<string, unknown>, idioma()))
     await subir({ metodo: 'POST', camino: '/api/extracciones', cuerpo: cuerpoDeExtraccion(r.extraccion) })
     return r
   }
@@ -244,7 +258,7 @@ export function useApi() {
    */
   const editarExtraccion = async (id: string, cambios: Record<string, unknown>) => {
     const r = await local<{ extraccion: Extraccion; cambiado: string[]; avisos: string[] }>(
-      (a) => nucleo.editarExtraccion(a, id, cambios),
+      (a) => nucleo.editarExtraccion(a, id, cambios, idioma()),
     )
     await subir({ metodo: 'PATCH', camino: `/api/extracciones/${r.extraccion.id}`, cuerpo: cambios })
     return r
@@ -252,34 +266,34 @@ export function useApi() {
 
   /** Retira una extracción. Borrado lógico: la fila se queda, marcada. */
   const retirarExtraccion = async (id: string) => {
-    const r = await local<{ retirada: boolean }>((a) => nucleo.retirarExtraccion(a, id))
+    const r = await local<{ retirada: boolean }>((a) => nucleo.retirarExtraccion(a, id, idioma()))
     await subir({ metodo: 'DELETE', camino: `/api/extracciones/${id}` })
     return r
   }
 
   const restaurarExtraccion = async (id: string) => {
-    const r = await local<{ extraccion: Extraccion }>((a) => nucleo.restaurarExtraccion(a, id))
+    const r = await local<{ extraccion: Extraccion }>((a) => nucleo.restaurarExtraccion(a, id, idioma()))
     await subir({ metodo: 'POST', camino: `/api/extracciones/${id}/restaurar` })
     return r
   }
 
   /** Da de alta una bolsa. */
   const crearCafe = async (datos: Record<string, unknown>) => {
-    const r = await local<{ cafe: Cafe }>((a) => nucleo.crearCafe(a, datos))
+    const r = await local<{ cafe: Cafe }>((a) => nucleo.crearCafe(a, datos, idioma()))
     await subir({ metodo: 'POST', camino: '/api/cafes', cuerpo: cuerpoDeCafe(r.cafe) })
     return r
   }
 
   /** Corrige una ficha. Solo se manda lo que cambia. */
   const editarCafe = async (id: string, cambios: Record<string, unknown>) => {
-    const r = await local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios))
+    const r = await local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios, idioma()))
     await subir({ metodo: 'PATCH', camino: `/api/cafes/${r.cafe.id}`, cuerpo: cambios })
     return r
   }
 
   /** Crea una receta con sus pasos. */
   const crearReceta = async (datos: Record<string, unknown>) => {
-    const r = await local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { nuevo: true }, datos))
+    const r = await local<{ receta: Receta }>((a) => nucleo.guardarReceta(a, { nuevo: true }, datos, idioma()))
     await subir({ metodo: 'POST', camino: '/api/recetas', cuerpo: cuerpoDeReceta(r.receta) })
     return r
   }
@@ -287,7 +301,7 @@ export function useApi() {
   /** Guarda una receta: los pasos reemplazan a los que hubiera. */
   const guardarReceta = async (id: string, datos: Record<string, unknown>) => {
     const r = await local<{ receta: Receta }>(
-      (a) => nucleo.guardarReceta(a, { ref: id, nuevo: false }, datos),
+      (a) => nucleo.guardarReceta(a, { ref: id, nuevo: false }, datos, idioma()),
     )
     await subir({
       metodo: 'PUT',
@@ -300,7 +314,7 @@ export function useApi() {
   /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
   const borrarReceta = async (id: string) => {
     const r = await local<{ borrada: boolean; id: string; slug: string }>(
-      (a) => nucleo.borrarReceta(a, id),
+      (a) => nucleo.borrarReceta(a, id, idioma()),
     )
     await subir({ metodo: 'DELETE', camino: `/api/recetas/${r.id}` })
     return r
