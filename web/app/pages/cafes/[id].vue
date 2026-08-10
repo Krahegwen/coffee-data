@@ -11,7 +11,8 @@ const original = computed(
   () => (bolsas.value ?? []).find((c) => c.slug === id || c.id === id) ?? null,
 )
 
-useHead({ title: () => original.value?.nombre ?? 'Bolsa' })
+const { t } = useI18n()
+useHead({ title: () => original.value?.nombre ?? t('bolsas.titulo') })
 
 const form = reactive<Record<string, any>>({})
 const enviando = ref(false)
@@ -117,15 +118,15 @@ async function quitarFoto() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Bolsas', a: '/cafes' }, { texto: original?.nombre ?? id }]" />
+  <Migas :ruta="[{ texto: $t('bolsas.titulo'), a: '/cafes' }, { texto: original?.nombre ?? id }]" />
 
-  <p v-if="!original" class="meta">No hay ninguna bolsa con id «{{ id }}».</p>
+  <p v-if="!original" class="meta">{{ $t('bolsa.no_existe', { id }) }}</p>
 
   <template v-else>
     <!-- Duplicar arriba y sin sesión: enseñar el botón no es escribir, y quien
          acaba de comprar otra bolsa entra aquí a mirarla, no a editarla. -->
     <div class="cabecera">
-      <NuxtLink :to="`/cafes/nueva?de=${id}`" class="secundario">Otra bolsa</NuxtLink>
+      <NuxtLinkLocale :to="`/cafes/nueva?de=${id}`" class="secundario">{{ $t('bolsa.otra_bolsa') }}</NuxtLinkLocale>
     </div>
 
     <!-- La foto va antes del muro de sesión: mirar la bolsa no es editarla, y
@@ -135,10 +136,10 @@ async function quitarFoto() {
       <img
         v-if="original.foto"
         :src="urlFoto(original.foto)!"
-        alt="La bolsa de este café"
+        :alt="$t('bolsa.foto_alt')"
         class="foto"
       >
-      <p v-else class="meta sin-foto">Sin foto todavía.</p>
+      <p v-else class="meta sin-foto">{{ $t('bolsa.sin_foto') }}</p>
       <input
         ref="ficheroFoto"
         type="file"
@@ -147,14 +148,16 @@ async function quitarFoto() {
         @change="subirFoto"
       >
       <p v-if="encogida" class="meta encogida">
-        Encogida antes de subir: {{ pesoLegible(encogida.antes) }} →
-        {{ pesoLegible(encogida.despues) }}.
+        {{ $t('bolsa.encogida', {
+          antes: pesoLegible(encogida.antes), despues: pesoLegible(encogida.despues),
+        }) }}
       </p>
       <div class="botones-foto">
         <button type="button" :disabled="subiendoFoto" @click="ficheroFoto?.click()">
           <!-- Corto a propósito: una etiqueta más larga parte en dos líneas y
                el botón pega un salto en mitad de la subida. -->
-          {{ subiendoFoto ? 'Subiendo…' : original.foto ? 'Cambiar foto' : 'Subir foto' }}
+          {{ subiendoFoto ? $t('bolsa.subiendo')
+            : original.foto ? $t('bolsa.cambiar_foto') : $t('bolsa.subir_foto') }}
         </button>
         <button
           v-if="original.foto"
@@ -163,7 +166,7 @@ async function quitarFoto() {
           :disabled="subiendoFoto"
           @click="dialogoFoto?.showModal()"
         >
-          Quitar
+          {{ $t('bolsa.quitar') }}
         </button>
       </div>
       <p v-if="erroresFoto.length" class="fallo">{{ erroresFoto.join(' · ') }}</p>
@@ -172,41 +175,38 @@ async function quitarFoto() {
     <!-- Quitar borra el objeto de R2 y no se puede deshacer, y en el móvil el
          botón cae al lado del de cambiar la foto. -->
     <dialog ref="dialogoFoto" @cancel="dialogoFoto?.close()">
-      <h3>¿Quitar la foto de {{ original.nombre }}?</h3>
-      <p>
-        Esta sí se borra del todo, no hay papelera: si la quieres de vuelta
-        tendrás que subirla otra vez desde el móvil.
-      </p>
+      <h3>{{ $t('bolsa.quitar_foto_titulo', { nombre: original.nombre }) }}</h3>
+      <p>{{ $t('bolsa.quitar_foto_ojo') }}</p>
       <div class="botones">
-        <button type="button" class="secundario" @click="dialogoFoto?.close()">Cancelar</button>
+        <button type="button" class="secundario" @click="dialogoFoto?.close()">{{ $t('comun.cancelar') }}</button>
         <button type="button" class="peligro" :disabled="subiendoFoto" @click="quitarFoto">
-          {{ subiendoFoto ? 'Quitando…' : 'Quitar' }}
+          {{ subiendoFoto ? $t('bolsa.quitando') : $t('bolsa.quitar') }}
         </button>
       </div>
     </dialog>
 
     <form @submit.prevent="enviar">
-      <p class="meta">
-        id <code>{{ original.id }}</code> — no se puede cambiar: es la clave a la
-        que apuntan las extracciones.
-      </p>
+      <i18n-t keypath="bolsa.id_fijo" tag="p" class="meta" scope="global">
+        <template #id><code>{{ original.id }}</code></template>
+      </i18n-t>
 
       <CafeCampos v-model="form" />
 
       <button type="submit" :disabled="enviando || !hayCambios">
-        {{ enviando ? 'Guardando…' : hayCambios ? 'Guardar cambios' : 'Sin cambios' }}
+        {{ enviando ? $t('comun.guardando')
+          : hayCambios ? $t('bolsa.guardar_cambios') : $t('comun.sin_cambios') }}
       </button>
     </form>
   </template>
 
   <section v-if="errores.length" class="tarjeta errores">
-    <strong>No se ha guardado nada</strong>
+    <strong>{{ $t('comun.no_guardado') }}</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
   </section>
 
   <section v-if="guardado" class="tarjeta exito">
-    <strong>Guardado</strong>
-    <p class="meta">Cambiado: {{ guardado.join(', ') }}</p>
+    <strong>{{ $t('comun.guardado') }}</strong>
+    <p class="meta">{{ $t('bolsa.cambiado', { lista: guardado.join(', ') }) }}</p>
   </section>
 </template>
 

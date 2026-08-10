@@ -22,7 +22,12 @@ const copiaDe = computed(() => {
   return (bolsas.value ?? []).find((c) => c.slug === ref || c.id === ref) ?? null
 })
 
-useHead({ title: () => (copiaDe.value ? `Otra de ${copiaDe.value.nombre}` : 'Nueva bolsa') })
+const { t } = useI18n()
+useHead({
+  title: () => (copiaDe.value
+    ? t('bolsa.otra_de', { nombre: copiaDe.value.nombre })
+    : `${t('bolsas.titulo')} · ${t('comun.nueva')}`),
+})
 
 /**
  * El mismo `?de=` de «Otra bolsa», elegible también desde aquí: no hace
@@ -136,8 +141,8 @@ async function enviar() {
 <template>
   <Migas
     :ruta="[
-      { texto: 'Bolsas', a: '/cafes' },
-      { texto: copiaDe ? `Otra de ${copiaDe.nombre}` : 'Nueva' },
+      { texto: $t('bolsas.titulo'), a: '/cafes' },
+      { texto: copiaDe ? $t('bolsa.otra_de', { nombre: copiaDe.nombre }) : $t('comun.nueva') },
     ]"
   />
 
@@ -145,27 +150,26 @@ async function enviar() {
     <!-- Arriba a la derecha, como en el resto de formularios: lo escrito
          sobrevive a salir y volver, y esto lo tira a propósito. -->
     <div class="cabecera-form">
-      <button type="button" class="limpiar" @click="vaciar">Vaciar</button>
+      <button type="button" class="limpiar" @click="vaciar">{{ $t('comun.vaciar') }}</button>
     </div>
     <label v-if="(bolsas ?? []).length" class="partir">
-      Partir de otra bolsa
+      {{ $t('bolsa.partir_de_otra') }}
       <select v-model="partirDe">
-        <option value="">— desde cero —</option>
+        <option value="">{{ $t('bolsa.desde_cero') }}</option>
         <option v-for="c in bolsas ?? []" :key="c.id" :value="c.slug">{{ c.nombre }}</option>
       </select>
     </label>
-    <p v-if="copiaDe" class="pista">
-      Copiado de <strong>{{ copiaDe.nombre }}</strong>: falta lo que cambia en
-      cada bolsa —tueste, compra, precio y foto—. El id lo pone el servidor.
-    </p>
+    <i18n-t v-if="copiaDe" keypath="bolsa.copiado_de" tag="p" class="pista" scope="global">
+      <template #nombre><strong>{{ copiaDe.nombre }}</strong></template>
+    </i18n-t>
     <CafeCampos v-model="form" nuevo />
     <button type="submit" :disabled="enviando">
-      {{ enviando ? 'Guardando…' : 'Dar de alta' }}
+      {{ enviando ? $t('comun.guardando') : $t('bolsa.dar_de_alta') }}
     </button>
   </form>
 
   <section v-if="errores.length" class="tarjeta errores">
-    <strong>No se ha guardado nada</strong>
+    <strong>{{ $t('comun.no_guardado') }}</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
   </section>
 </template>

@@ -16,7 +16,8 @@ import {
 const { activa } = useSesion()
 const { version } = useRuntimeConfig().public
 
-useHead({ title: 'Respaldo' })
+const { t } = useI18n()
+useHead({ title: () => t('respaldo.titulo') })
 
 const { data: resumen, refresh: recontar } = await useAsyncData('respaldo-resumen', async () => {
   const almacen = await almacenLocal(!activa.value)
@@ -129,86 +130,71 @@ const fechaLegible = (iso: string | null) =>
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: 'Respaldo' }]" />
+  <Migas :ruta="[{ texto: $t('respaldo.titulo') }]" />
 
   <section class="tarjeta">
-    <h2>Descargar respaldo</h2>
-    <p class="meta">
-      Un ZIP con la bitácora entera: bolsas, recetas, extracciones y fotos,
-      en los mismos CSV que guarda el repo. Sirve de copia y de mudanza a
-      otro navegador.
-    </p>
+    <h2>{{ $t('respaldo.descargar_titulo') }}</h2>
+    <p class="meta">{{ $t('respaldo.que_es') }}</p>
     <p v-if="resumen" class="meta">
-      Ahora mismo: {{ resumen.cafes }} bolsas, {{ resumen.recetas }} recetas y
-      {{ resumen.extracciones }} extracciones.
-      <template v-if="ultimo">Último respaldo: {{ fechaLegible(ultimo) }}.</template>
-      <template v-else>Todavía no has descargado ninguno.</template>
+      {{ $t('respaldo.ahora_mismo', {
+        cafes: resumen.cafes, recetas: resumen.recetas, extracciones: resumen.extracciones,
+      }) }}
+      {{ ultimo ? $t('respaldo.ultimo', { fecha: fechaLegible(ultimo) }) : $t('respaldo.ninguno') }}
     </p>
     <button type="button" :disabled="generando" @click="descargar">
-      {{ generando ? 'Preparando…' : 'Descargar respaldo' }}
+      {{ generando ? $t('respaldo.preparando') : $t('respaldo.descargar') }}
     </button>
     <p v-if="erroresDescarga.length" class="fallo">{{ erroresDescarga.join(' · ') }}</p>
-    <p v-if="persistente === true" class="meta">
-      El navegador ha marcado este almacén como persistente: no lo vaciará por
-      hacer sitio.
-    </p>
-    <p v-else-if="persistente === false" class="meta">
-      El navegador no promete conservar este almacén para siempre. Instalar la
-      app ayuda; el respaldo es la garantía.
-    </p>
+    <p v-if="persistente === true" class="meta">{{ $t('respaldo.persistente_si') }}</p>
+    <p v-else-if="persistente === false" class="meta">{{ $t('respaldo.persistente_no') }}</p>
   </section>
 
   <section class="tarjeta">
-    <h2>Restaurar</h2>
+    <h2>{{ $t('respaldo.restaurar_titulo') }}</h2>
     <template v-if="activa">
-      <p class="meta">
-        Con la sesión abierta, la copia buena es el servidor: restaurar aquí
-        no tendría efecto, porque el siguiente refresco volvería a traer lo
-        del servidor. La restauración es para el modo local.
-      </p>
+      <p class="meta">{{ $t('respaldo.con_sesion') }}</p>
     </template>
     <template v-else>
-      <p class="meta">
-        Restaurar <strong>reemplaza</strong> lo que hay en este navegador por
-        lo que traiga el respaldo. No fusiona: lo de ahora se va.
-      </p>
+      <i18n-t keypath="respaldo.reemplaza" tag="p" class="meta" scope="global">
+        <template #reemplaza><strong>{{ $t('respaldo.reemplaza_enfasis') }}</strong></template>
+      </i18n-t>
       <input
         ref="fichero" type="file" accept=".zip,application/zip" hidden
         @change="elegir"
       >
       <button type="button" class="secundario" :disabled="leyendo" @click="fichero?.click()">
-        {{ leyendo ? 'Leyendo…' : 'Elegir un respaldo' }}
+        {{ leyendo ? $t('respaldo.leyendo') : $t('respaldo.elegir') }}
       </button>
       <p v-if="erroresRestauracion.length" class="fallo">
-        No se ha restaurado nada · {{ erroresRestauracion.join(' · ') }}
+        {{ $t('respaldo.no_restaurado') }} · {{ erroresRestauracion.join(' · ') }}
       </p>
-      <p v-if="restaurado" class="exito-linea">
-        Restaurado. La bitácora es ahora la del respaldo.
-      </p>
+      <p v-if="restaurado" class="exito-linea">{{ $t('respaldo.restaurado') }}</p>
     </template>
   </section>
 
   <dialog ref="dialogo" @cancel="dialogo?.close()">
-    <h3>¿Restaurar este respaldo?</h3>
+    <h3>{{ $t('respaldo.confirmar_titulo') }}</h3>
     <template v-if="cargado">
       <p>
-        Del {{ fechaLegible(cargado.contenido.manifiesto.creado) }}:
-        {{ cargado.preparado.cafes.length }} bolsas,
-        {{ cargado.preparado.recetas.length }} recetas,
-        {{ cargado.preparado.extracciones.length }} extracciones y
-        {{ cargado.contenido.fotos.length }} fotos.
+        {{ $t('respaldo.del_dia', {
+          fecha: fechaLegible(cargado.contenido.manifiesto.creado),
+          cafes: cargado.preparado.cafes.length,
+          recetas: cargado.preparado.recetas.length,
+          extracciones: cargado.preparado.extracciones.length,
+          fotos: cargado.contenido.fotos.length,
+        }) }}
       </p>
       <p v-if="resumen">
-        Reemplazará lo que hay ahora — {{ resumen.cafes }} bolsas,
-        {{ resumen.recetas }} recetas y {{ resumen.extracciones }}
-        extracciones — y no hay vuelta atrás.
+        {{ $t('respaldo.reemplazara', {
+          cafes: resumen.cafes, recetas: resumen.recetas, extracciones: resumen.extracciones,
+        }) }}
       </p>
       <p v-for="aviso in cargado.preparado.avisos" :key="aviso" class="fallo">{{ aviso }}</p>
     </template>
     <div class="botones">
-      <button type="button" class="cancelar" @click="dialogo?.close()">Cancelar</button>
+      <button type="button" class="cancelar" @click="dialogo?.close()">{{ $t('comun.cancelar') }}</button>
       <button type="button" class="peligro" :disabled="restaurando" @click="restaurar">
-        {{ restaurando ? 'Restaurando…' : 'Restaurar' }}
+        {{ restaurando ? $t('respaldo.restaurando') : $t('respaldo.restaurar') }}
       </button>
     </div>
   </dialog>

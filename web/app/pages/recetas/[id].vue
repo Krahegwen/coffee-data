@@ -18,7 +18,9 @@ const route = useRoute()
 const router = useRouter()
 
 const id = String(route.params.id)
-const esNueva = computed(() => id === 'nueva')
+// El sentinela de la URL lo pone el idioma: `/recetas/nueva` y `/recipes/new`
+// son la misma pantalla, así que valen los dos.
+const esNueva = computed(() => id === 'nueva' || id === 'new')
 const copiaDe = computed(() => (esNueva.value ? String(route.query.de ?? '') : ''))
 
 const { data: catalogo, refresh: recargarCatalogo } = await useAsyncData('recetas-editar', recetas)
@@ -28,10 +30,13 @@ const buscar = (cual: string) =>
 const original = computed(() => (esNueva.value ? null : buscar(id)))
 const fuente = computed(() => (copiaDe.value ? buscar(copiaDe.value) : null))
 
+const { t } = useI18n()
 useHead({
   title: () => {
-    if (!esNueva.value) return original.value?.nombre ?? 'Receta'
-    return fuente.value ? `Copia de ${fuente.value.nombre}` : 'Nueva receta'
+    if (!esNueva.value) return original.value?.nombre ?? t('recetas.titulo')
+    return fuente.value
+      ? t('receta.copia_de', { nombre: fuente.value.nombre })
+      : `${t('recetas.titulo')} · ${t('comun.nueva')}`
   },
 })
 
@@ -166,54 +171,62 @@ async function borrar() {
 <template>
   <Migas
     :ruta="[
-      { texto: 'Recetas', a: '/recetas' },
-      { texto: esNueva ? (fuente ? `Copia de ${fuente.nombre}` : 'Nueva') : original?.nombre ?? id },
+      { texto: $t('recetas.titulo'), a: '/recetas' },
+      {
+        texto: esNueva
+          ? (fuente ? $t('receta.copia_de', { nombre: fuente.nombre }) : $t('comun.nueva'))
+          : original?.nombre ?? id,
+      },
     ]"
   />
 
-  <p v-if="!esNueva && !original" class="meta">No hay ninguna receta «{{ id }}».</p>
+  <p v-if="!esNueva && !original" class="meta">{{ $t('receta.no_existe', { id }) }}</p>
 
   <template v-else>
     <form @submit.prevent="enviar">
       <!-- Sin título: el nombre de la receta ya está en la última miga. -->
       <div class="cabecera">
-        <NuxtLink v-if="!esNueva" :to="`/recetas/nueva?de=${id}`" class="secundario">Duplicar</NuxtLink>
+        <NuxtLinkLocale
+          v-if="!esNueva" :to="`/recetas/${$t('rutas.nueva')}?de=${id}`" class="secundario"
+        >{{ $t('receta.duplicar') }}</NuxtLinkLocale>
         <!-- El borrador del alta sobrevive a salir y volver; esto lo tira. -->
-        <button v-else type="button" class="limpiar" @click="vaciar">Vaciar</button>
+        <button v-else type="button" class="limpiar" @click="vaciar">{{ $t('comun.vaciar') }}</button>
       </div>
 
       <label v-if="esNueva && (catalogo ?? []).length" class="partir">
-        Partir de otra receta
+        {{ $t('receta.partir_de_otra') }}
         <select v-model="partirDe">
-          <option value="">— desde cero —</option>
+          <option value="">{{ $t('receta.desde_cero') }}</option>
           <option v-for="r in catalogo ?? []" :key="r.id" :value="r.slug">{{ r.nombre }}</option>
         </select>
       </label>
 
       <p v-if="copiaDe && !fuente" class="fallo">
-        No hay ninguna receta «{{ copiaDe }}»: el formulario sale vacío.
+        {{ $t('receta.fuente_no_existe', { id: copiaDe }) }}
       </p>
 
       <!-- Sin campo de id: el slug de la URL sale del nombre, como en las
            bolsas, y la clave de verdad es un uuid que no se enseña. -->
-      <label>Nombre<input v-model="form.nombre" placeholder="4:6 con más cuerpo" required></label>
+      <label>{{ $t('receta.nombre') }}<input
+        v-model="form.nombre" :placeholder="$t('receta.nombre_ejemplo')" required></label>
 
       <div class="pareja">
-        <label>Ratio<input v-model.number="form.ratio" type="number" step="0.5" min="1" inputmode="decimal"></label>
-        <label>Notas<input v-model="form.notas"></label>
+        <label>{{ $t('receta.ratio') }}<input
+          v-model.number="form.ratio" type="number" step="0.5" min="1" inputmode="decimal"></label>
+        <label>{{ $t('receta.notas') }}<input v-model="form.notas"></label>
       </div>
 
-      <h3>Pasos</h3>
+      <h3>{{ $t('receta.pasos') }}</h3>
       <RecetaPasos v-model="pasos" />
 
       <button type="submit" :disabled="enviando">
-        {{ enviando ? 'Guardando…' : esNueva ? 'Crear receta' : 'Guardar receta' }}
+        {{ enviando ? $t('comun.guardando')
+          : esNueva ? $t('receta.crear') : $t('receta.guardar') }}
       </button>
 
-      <p v-if="!esNueva" class="aviso">
-        Al guardar, los pasos reemplazan a los que había. Las extracciones ya
-        registradas no cambian: guardaron su propio <code>reparto</code>.
-      </p>
+      <i18n-t v-if="!esNueva" keypath="receta.reemplazan" tag="p" class="aviso" scope="global">
+        <template #reparto><code>reparto</code></template>
+      </i18n-t>
 
       <!-- Abajo y solo: separado del botón de guardar a propósito, para que no
            se pulse con el pulgar buscando el de al lado. -->
@@ -221,32 +234,28 @@ async function borrar() {
         v-if="!esNueva" type="button" class="peligro"
         :disabled="borrando" @click="dialogoBorrar?.showModal()"
       >
-        Borrar receta
+        {{ $t('receta.borrar') }}
       </button>
     </form>
 
     <dialog ref="dialogoBorrar" @cancel="dialogoBorrar?.close()">
-      <h3>¿Borrar «{{ original?.nombre }}»?</h3>
-      <p>
-        Esta no tiene papelera como las extracciones: se van la receta y sus
-        pasos, y no hay vuelta atrás. Si alguna extracción la usó, el servidor
-        se negará.
-      </p>
+      <h3>{{ $t('receta.borrar_titulo', { nombre: original?.nombre }) }}</h3>
+      <p>{{ $t('receta.borrar_ojo') }}</p>
       <div class="botones">
-        <button type="button" class="cancelar" @click="dialogoBorrar?.close()">Cancelar</button>
+        <button type="button" class="cancelar" @click="dialogoBorrar?.close()">{{ $t('comun.cancelar') }}</button>
         <button type="button" class="peligro" :disabled="borrando" @click="borrar">
-          {{ borrando ? 'Borrando…' : 'Borrar' }}
+          {{ borrando ? $t('receta.borrando') : $t('receta.borrar_corto') }}
         </button>
       </div>
     </dialog>
   </template>
 
   <section v-if="errores.length" class="tarjeta errores">
-    <strong>No se ha guardado nada</strong>
+    <strong>{{ $t('comun.no_guardado') }}</strong>
     <ul><li v-for="e in errores" :key="e">{{ e }}</li></ul>
   </section>
 
-  <section v-if="guardado" class="tarjeta exito"><strong>Guardada</strong></section>
+  <section v-if="guardado" class="tarjeta exito"><strong>{{ $t('receta.guardada') }}</strong></section>
 </template>
 
 <style scoped>
