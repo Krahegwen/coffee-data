@@ -85,6 +85,7 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
 | `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
 | `herramientas/subir_version.py` | Sube el parche en los cuatro `package.json`. Lo llama el hook. |
+| `herramientas/comprobar_despliegue.py` | Se niega a desplegar lo que no está en GitHub. Lo llama `pnpm deploy`. |
 
 Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
 

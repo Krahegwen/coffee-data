@@ -189,6 +189,26 @@ curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
   -H "Authorization: Bearer $COFFEE_TOKEN"
 ```
 
+## Ramas y despliegue
+
+**Una rama por tarea**: `feature/<lo-que-sea>` sale de `main` y vuelve a `main`
+al terminarla, con `git merge --no-ff` para que la tarea se lea como un bloque
+en el histórico. Nada de `develop` ni de ramas de release: eso coordina equipos
+y versiones en paralelo, y aquí hay una persona y un despliegue a mano.
+
+El orden al cerrar una tarea es **commit → merge → push → deploy**, y las dos
+últimas no dependen de que alguien se acuerde:
+
+- El hook de **`pre-push`** exporta los CSV y **corta el push** si estaban
+  desfasados, para que lo commitees. Sin red no corta: avisa y deja pasar.
+- **`pnpm deploy`** llama antes a `herramientas/comprobar_despliegue.py`, que se
+  niega si no estás en `main`, si hay algo sin commitear o si quedan commits sin
+  subir. Producción tiene que poder reconstruirse desde el repo público.
+
+Ninguno de los dos tiene puerta de atrás, igual que el de `pre-commit`. Para una
+vuelta atrás de emergencia con GitHub caído está `pnpm deploy:api`, que se salta
+el guardia y hay que teclear a conciencia.
+
 ## Dos idiomas
 
 La app está en castellano e inglés, y el idioma llega hasta el fondo:
