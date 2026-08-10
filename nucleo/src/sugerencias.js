@@ -7,7 +7,12 @@
  */
 
 import { finDeLosVertidos } from "./recetas.js";
+import { textos } from "./textos.js";
 import { defectosDe, segundosDe, SIN_DEFECTO } from "./validacion.js";
+
+// Como en la validación: el motor razona con claves y la frase la pone el
+// catálogo. Por defecto, castellano.
+const CASTELLANO = textos();
 
 // Umbrales de partida, no verdades reveladas: están aquí para calibrarlos con
 // datos propios cuando haya extracciones suficientes.
@@ -43,30 +48,34 @@ export const DRIPPERS_CON_INERCIA = ["v60-02-ceramica"];
 
 // defecto -> palancas, la primera es la principal. En un Comandante los clics
 // se cuentan desde cerrado: más clics es moler más grueso.
+//
+// El tercer elemento es la **clave** del porqué, no el porqué: la frase vive en
+// el catálogo, que es lo que permite que la misma palanca se explique en dos
+// idiomas sin duplicar la tabla.
 export const PALANCAS = {
   amargor: [
-    ["clics", "+2", "sobreextracción: moler más grueso"],
-    ["temp_c", "-3", "o bajar la temperatura"],
+    ["clics", "+2", "porque_amargor_clics"],
+    ["temp_c", "-3", "porque_amargor_temp"],
   ],
   astringente: [
-    ["clics", "+3", "la astringencia casi siempre es molienda demasiado fina"],
+    ["clics", "+3", "porque_astringente"],
   ],
   plano: [
-    ["clics", "-2", "subextracción: moler más fino"],
-    ["temp_c", "+3", "o subir la temperatura"],
+    ["clics", "-2", "porque_plano_clics"],
+    ["temp_c", "+3", "porque_plano_temp"],
   ],
   agrio: [
-    ["temp_c", "+3", "subextracción: subir la temperatura"],
-    ["clics", "-2", "o moler más fino"],
+    ["temp_c", "+3", "porque_agrio_temp"],
+    ["clics", "-2", "porque_agrio_clics"],
   ],
   salado: [
-    ["clics", "-2", "subextracción: moler más fino"],
-    ["dosis_g", "+1", "o subir la dosis"],
+    ["clics", "-2", "porque_salado_clics"],
+    ["dosis_g", "+1", "porque_salado_dosis"],
   ],
-  carton: [["clics", "-2", "si el café está fresco, moler más fino"]],
+  carton: [["clics", "-2", "porque_carton"]],
   aguado: [
-    ["clics", "-2", "sin cuerpo: moler más fino para extraer más"],
-    ["dosis_g", "+1", "o subir la dosis y dejar el agua donde está"],
+    ["clics", "-2", "porque_aguado_clics"],
+    ["dosis_g", "+1", "porque_aguado_dosis"],
   ],
   equilibrado: [],
 };
@@ -144,35 +153,30 @@ export function madreDe(extraccion, historico = []) {
 
 // --- capa 1: reglas --------------------------------------------------------
 
-export function avisosDe(extraccion, historico = [], receta = null) {
+export function avisosDe(extraccion, historico = [], receta = null, t = CASTELLANO) {
   const avisos = [];
 
-  const desviado = vertidoDesviado(extraccion, receta);
+  const desviado = vertidoDesviado(extraccion, receta, t);
   if (desviado) avisos.push(desviado);
 
   if (DRIPPERS_CON_INERCIA.includes(extraccion.dripper)) {
-    avisos.push(
-      "dripper con masa térmica: si no lo precalentaste, la temperatura real " +
-        "del lecho fue menor que los grados del hervidor",
-    );
+    avisos.push(t("aviso_dripper_inercia"));
   }
 
   // Contra la madre y no contra «la de ayer»: el aviso habla de la variable de
   // esta extracción, y cuál es depende de contra qué se compara.
   const previa = madreDe(extraccion, historico);
   if (previa && previa.dripper !== extraccion.dripper) {
-    avisos.push(
-      `has cambiado de dripper (${previa.dripper} -> ${extraccion.dripper}): ` +
-        "esa es la variable de esta extracción, no compares el resto",
-    );
+    avisos.push(t("aviso_cambio_de_dripper", {
+      antes: previa.dripper, ahora: extraccion.dripper,
+    }));
   }
 
   const dias = num(extraccion.dias_tueste);
   if (dias !== null && dias > DIAS_TUESTE_VIEJO) {
-    avisos.push(
-      `el café lleva ${Math.round(dias)} días de tueste: por encima de ` +
-        `${DIAS_TUESTE_VIEJO} la taza se apaga sola y la receta no tiene la culpa`,
-    );
+    avisos.push(t("aviso_cafe_pasado", {
+      dias: Math.round(dias), umbral: DIAS_TUESTE_VIEJO,
+    }));
   }
   /*
    * Los avisos miran la lista **entera**, no solo la cabeza. Un aviso no
@@ -182,27 +186,23 @@ export function avisosDe(extraccion, historico = [], receta = null) {
    */
   const defectos = defectosDe(extraccion.defecto);
   if (defectos.includes("carton") && (dias === null || dias > DIAS_TUESTE_VIEJO)) {
-    avisos.push("a cartón casi siempre es café pasado, no extracción");
+    avisos.push(t("aviso_carton_pasado"));
   }
 
   const abierta = num(extraccion.dias_abierta);
   if (abierta !== null && abierta > DIAS_ABIERTA_VIEJA) {
-    avisos.push(
-      `la bolsa lleva ${Math.round(abierta)} días abierta (más de ` +
-        `${DIAS_ABIERTA_VIEJA}): a partir de ahí el café se apaga por oxidación ` +
-        "y no por lo que hagas al prepararlo, salvo que la guardes al vacío",
-    );
+    avisos.push(t("aviso_bolsa_vieja", {
+      dias: Math.round(abierta), umbral: DIAS_ABIERTA_VIEJA,
+    }));
   }
 
   const retenido = retencion(extraccion);
   if (retenido !== null) {
     const [minimo, maximo] = RETENCION_NORMAL;
     if (retenido < minimo || retenido > maximo) {
-      avisos.push(
-        `retención de ${retenido.toFixed(1)} g por gramo de café (lo normal es ` +
-          `${minimo}-${maximo}): repasa el agua, la dosis o lo que pesaste en la ` +
-          "jarra, porque con una medida torcida esta extracción no compara con las demás",
-      );
+      avisos.push(t("aviso_retencion", {
+        retenido: retenido.toFixed(1), minimo, maximo,
+      }));
     }
   }
 
@@ -222,7 +222,7 @@ export function avisosDe(extraccion, historico = [], receta = null) {
  * Devuelve `null` en cuanto falte cualquiera de las tres piezas, que es lo
  * normal —el goteo es opcional y hay recetas que acaban en un vertido—.
  */
-export function vertidoDesviado(extraccion, receta) {
+export function vertidoDesviado(extraccion, receta, t = CASTELLANO) {
   const total = segundosDe(extraccion?.tiempo_total);
   const goteo = num(extraccion?.drawdown_s);
   const plan = finDeLosVertidos(receta?.pasos);
@@ -232,12 +232,9 @@ export function vertidoDesviado(extraccion, receta) {
   const desvio = medido - plan;
   if (Math.abs(desvio) <= DESVIO_VERTIDO_S) return null;
 
-  return (
-    `según esta fila dejaste de verter en el segundo ${medido} (${total} s de total ` +
-    `menos ${goteo} s de goteo) y la receta da los vertidos por acabados en el ` +
-    `${plan}: ${Math.abs(desvio)} s de diferencia. Si no vertiste a otro ritmo a ` +
-    "propósito, repasa el tiempo total y el goteo antes de fiarte de esta taza"
-  );
+  return t("aviso_vertido_desviado", {
+    medido, total, goteo, plan, desvio: Math.abs(desvio),
+  });
 }
 
 /**
@@ -253,7 +250,7 @@ export function retencion(extraccion) {
   return (agua - extraido) / dosis;
 }
 
-export function cambiosDe(extraccion) {
+export function cambiosDe(extraccion, t = CASTELLANO) {
   const cambios = [];
 
   const goteo = num(extraccion.drawdown_s);
@@ -262,21 +259,25 @@ export function cambiosDe(extraccion) {
       cambios.push({
         variable: "clics",
         cambio: "+2",
-        porque: `el goteo tardó ${Math.round(goteo)} s (más de ${DRAWDOWN_LARGO_S}): la molienda está atascando el filtro`,
+        porque: t("porque_goteo_largo", {
+          goteo: Math.round(goteo), umbral: DRAWDOWN_LARGO_S,
+        }),
       });
     } else if (goteo < DRAWDOWN_CORTO_S) {
       cambios.push({
         variable: "clics",
         cambio: "-2",
-        porque: `el goteo tardó ${Math.round(goteo)} s (menos de ${DRAWDOWN_CORTO_S}): el agua pasa de largo`,
+        porque: t("porque_goteo_corto", {
+          goteo: Math.round(goteo), umbral: DRAWDOWN_CORTO_S,
+        }),
       });
     }
   }
 
   // Solo la cabeza de la lista mueve una palanca: ver `defectoPrincipal`.
-  for (const [variable, cambio, porque] of PALANCAS[defectoPrincipal(extraccion)] ?? []) {
+  for (const [variable, cambio, clave] of PALANCAS[defectoPrincipal(extraccion)] ?? []) {
     if (cambios.some((c) => c.variable === variable)) continue;
-    cambios.push({ variable, cambio, porque });
+    cambios.push({ variable, cambio, porque: t(clave) });
   }
 
   return cambios;
@@ -372,7 +373,7 @@ export function cobertura(cafeId, historico) {
  * Solo se extrapola sobre variables con salto conocido. De un cambio de
  * receta o de molinillo no se sabe cuál sería «el siguiente».
  */
-export function extrapolar(extraccion, historico = []) {
+export function extrapolar(extraccion, historico = [], t = CASTELLANO) {
   if (defectoPrincipal(extraccion) !== SIN_DEFECTO) return null;
   if ((num(extraccion.nota) ?? 0) >= NOTA_BUENA) return null;
 
@@ -389,27 +390,30 @@ export function extrapolar(extraccion, historico = []) {
     : ultimo.direccion === "bajar" ? "subir" : "bajar";
 
   const delta = ultimo.delta_nota > 0 ? `+${ultimo.delta_nota}` : String(ultimo.delta_nota);
+  // La dirección es una clave —`subir`, `bajar`— porque agrupa los efectos; en
+  // la frase entra ya traducida. La variable no: es el nombre de la columna.
+  const datos = {
+    variable: ultimo.variable,
+    direccion: t(`direccion_${ultimo.direccion}`),
+    delta,
+  };
   return {
     variable: ultimo.variable,
     cambio: `${hacia === "bajar" ? "-" : "+"}${paso}`,
-    porque: sigue
-      ? `sin defecto pero sin nota: ${ultimo.variable} ${ultimo.direccion} salió ${delta}, ` +
-        "así que otro paso por ahí para ver dónde está el techo"
-      : `sin defecto pero sin nota: ${ultimo.variable} ${ultimo.direccion} salió ${delta}, ` +
-        "así que media vuelta",
+    porque: t(sigue ? "porque_extrapolar_sigue" : "porque_extrapolar_vuelve", datos),
   };
 }
 
-export function sugerir(extraccion, historico = [], receta = null) {
-  const cambios = cambiosDe(extraccion);
+export function sugerir(extraccion, historico = [], receta = null, t = CASTELLANO) {
+  const cambios = cambiosDe(extraccion, t);
   // La extrapolación es el último recurso: solo habla si las reglas callan.
   if (!cambios.length) {
-    const siguiente = extrapolar(extraccion, historico);
+    const siguiente = extrapolar(extraccion, historico, t);
     if (siguiente) cambios.push(siguiente);
   }
 
   return {
-    avisos: avisosDe(extraccion, historico, receta),
+    avisos: avisosDe(extraccion, historico, receta, t),
     cambios,
     efectos: efectos(historico),
     cobertura: cobertura(extraccion.cafe_id, historico),
@@ -421,9 +425,9 @@ export function sugerir(extraccion, historico = [], receta = null) {
 }
 
 /** La sugerencia principal, para meterla en siguiente_ajuste. */
-export function textoCorto(sugerencia) {
+export function textoCorto(sugerencia, t = CASTELLANO) {
   if (sugerencia.conforme && !sugerencia.cambios.length) {
-    return "Repetir igual para confirmar";
+    return t("repetir_igual");
   }
   if (!sugerencia.cambios.length) return "";
   const principal = sugerencia.cambios[0];

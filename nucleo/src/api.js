@@ -22,10 +22,18 @@ import { derivar } from "./derivar.js";
 import { uuidv7 } from "./ids.js";
 import { guion, repartoDe } from "./recetas.js";
 import { avisosDe, sugerir, textoCorto } from "./sugerencias.js";
+import { textos } from "./textos.js";
 import {
   CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, validarCafe,
   validarCambiosExtraccion, validarExtraccion, validarReceta,
 } from "./validacion.js";
+
+/*
+ * Los mensajes salen del catálogo del núcleo. Cada manejador recibe su `t` y,
+ * si no le dicen otra cosa, habla castellano: la API por curl y los scripts de
+ * siempre siguen leyéndose igual.
+ */
+const CASTELLANO = textos();
 
 const respuesta = (estado, datos) => ({ estado, datos });
 
@@ -80,8 +88,8 @@ export async function listaCafes(almacen) {
   return respuesta(200, filas);
 }
 
-export async function crearCafe(almacen, cuerpo) {
-  const { valores, errores } = validarCafe(cuerpo, { nuevo: true });
+export async function crearCafe(almacen, cuerpo, { t = CASTELLANO } = {}) {
+  const { valores, errores } = validarCafe(cuerpo, { nuevo: true, t });
   if (errores.length) return respuesta(422, { errores });
 
   // La id puede venir puesta: es lo que reenvía la cola de salida de una fila
@@ -89,7 +97,7 @@ export async function crearCafe(almacen, cuerpo) {
   // y `repetida` le dice al drenador que lo dé por hecho.
   const existentes = await almacen.cafes.listar();
   if (valores.id && existentes.some((c) => c.id === valores.id)) {
-    return respuesta(409, { repetida: true, errores: [`ya existe un café con la id ${valores.id}`] });
+    return respuesta(409, { repetida: true, errores: [t("ya_existe_cafe", { id: valores.id })] });
   }
   valores.id = valores.id ?? uuidv7();
   valores.slug = slugLibre(existentes, valores.slug);
@@ -105,17 +113,17 @@ export async function crearCafe(almacen, cuerpo) {
   try {
     await almacen.cafes.poner(fila);
   } catch (error) {
-    return respuesta(422, { errores: [`la base rechazó la bolsa: ${error.message}`] });
+    return respuesta(422, { errores: [t("base_rechaza_bolsa", { error: error.message })] });
   }
   const cafe = porRef(await almacen.cafes.listar(), fila.id);
   return respuesta(201, { cafe });
 }
 
-export async function editarCafe(almacen, ref, cuerpo) {
+export async function editarCafe(almacen, ref, cuerpo, { t = CASTELLANO } = {}) {
   const cafe = porRef(await almacen.cafes.listar(), ref);
-  if (!cafe) return respuesta(404, { errores: [`no existe ningún café '${ref}'`] });
+  if (!cafe) return respuesta(404, { errores: [t("cafe_no_existe", { ref })] });
 
-  const { valores, errores } = validarCafe(cuerpo, { nuevo: false });
+  const { valores, errores } = validarCafe(cuerpo, { nuevo: false, t });
   if (errores.length) return respuesta(422, { errores });
 
   const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
@@ -126,7 +134,7 @@ export async function editarCafe(almacen, ref, cuerpo) {
   try {
     await almacen.cafes.actualizar(cafe.id, cambios);
   } catch (error) {
-    return respuesta(422, { errores: [`la base rechazó el cambio: ${error.message}`] });
+    return respuesta(422, { errores: [t("base_rechaza_cambio", { error: error.message })] });
   }
   const actualizado = porRef(await almacen.cafes.listar(), cafe.id);
   return respuesta(200, { cafe: actualizado, cambiado: columnas });
@@ -140,11 +148,11 @@ export async function listaRecetas(almacen) {
   return respuesta(200, filas);
 }
 
-export async function guionDe(almacen, ref, aguaCruda) {
+export async function guionDe(almacen, ref, aguaCruda, { t = CASTELLANO } = {}) {
   const receta = porRef(await almacen.recetas.listar(), ref);
   const agua = Number(aguaCruda || 300);
   const pasos = receta?.pasos ?? [];
-  if (!pasos.length) return respuesta(404, { error: `la receta ${ref} no tiene pasos` });
+  if (!pasos.length) return respuesta(404, { error: t("receta_sin_pasos_guion", { ref }) });
   try {
     return respuesta(200, guion(pasos, agua));
   } catch (error) {
@@ -152,8 +160,8 @@ export async function guionDe(almacen, ref, aguaCruda) {
   }
 }
 
-export async function guardarReceta(almacen, { ref, nuevo }, cuerpo) {
-  const { receta, pasos, errores } = validarReceta(cuerpo, { nuevo });
+export async function guardarReceta(almacen, { ref, nuevo }, cuerpo, { t = CASTELLANO } = {}) {
+  const { receta, pasos, errores } = validarReceta(cuerpo, { nuevo, t });
   if (errores.length) return respuesta(422, { errores });
 
   const existentes = await almacen.recetas.listar();
@@ -162,7 +170,7 @@ export async function guardarReceta(almacen, { ref, nuevo }, cuerpo) {
     // Como en las bolsas: id y sello del cliente si vienen — el reenvío de la
     // cola —, y si la id ya está es el mismo envío repetido.
     if (receta.id && existentes.some((r) => r.id === receta.id)) {
-      return respuesta(409, { repetida: true, errores: [`ya existe una receta con la id ${receta.id}`] });
+      return respuesta(409, { repetida: true, errores: [t("ya_existe_receta", { id: receta.id })] });
     }
     const sello = receta.creado_en ?? ahoraSQL();
     fila = {
@@ -176,7 +184,7 @@ export async function guardarReceta(almacen, { ref, nuevo }, cuerpo) {
     };
   } else {
     const existe = porRef(existentes, ref);
-    if (!existe) return respuesta(404, { errores: [`no existe la receta '${ref}'`] });
+    if (!existe) return respuesta(404, { errores: [t("receta_no_existe", { ref })] });
     const { pasos: fuera, ...sinPasos } = existe;
     fila = {
       ...sinPasos,
@@ -191,27 +199,24 @@ export async function guardarReceta(almacen, { ref, nuevo }, cuerpo) {
   try {
     await almacen.recetas.escribir(fila, atados, { nueva: Boolean(nuevo) });
   } catch (error) {
-    return respuesta(422, { errores: [`la base rechazó la receta: ${error.message}`] });
+    return respuesta(422, { errores: [t("base_rechaza_receta", { error: error.message })] });
   }
   const guardada = porRef(await almacen.recetas.listar(), fila.id);
   return respuesta(nuevo ? 201 : 200, { receta: guardada });
 }
 
-export async function borrarReceta(almacen, ref) {
+export async function borrarReceta(almacen, ref, { t = CASTELLANO } = {}) {
   const existe = porRef(await almacen.recetas.listar(), ref);
-  if (!existe) return respuesta(404, { errores: [`no existe la receta '${ref}'`] });
+  if (!existe) return respuesta(404, { errores: [t("receta_no_existe", { ref })] });
 
   // Retiradas incluidas: siguen apuntando, y sin la fila no habría forma de
   // saber con qué se preparó aquella taza.
   const usos = (await almacen.extracciones.listar())
     .filter((e) => e.receta_id === existe.id).length;
   if (usos) {
-    const cuantas = usos === 1 ? "1 extracción" : `${usos} extracciones`;
+    const cuantas = usos === 1 ? t("una_extraccion") : t("n_extracciones", { n: usos });
     return respuesta(409, {
-      errores: [
-        `la receta '${existe.slug}' la usan ${cuantas}, retiradas incluidas: no se puede borrar, ` +
-          "edítala o déjala ahí sin usarla",
-      ],
+      errores: [t("receta_en_uso", { slug: existe.slug, cuantas })],
     });
   }
 
@@ -237,8 +242,8 @@ export async function listaExtracciones(almacen, { cafe, retiradas } = {}) {
   return respuesta(200, filas.map((e) => conDerivados(e, cafes, recetas)));
 }
 
-export async function crearExtraccion(almacen, cuerpo) {
-  const { valores, errores } = validarExtraccion(cuerpo);
+export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) {
+  const { valores, errores } = validarExtraccion(cuerpo, { t });
   if (errores.length) return respuesta(422, { errores });
 
   // cafe_id y receta_id llegan como uuid desde la app o como slug desde curl:
@@ -248,7 +253,7 @@ export async function crearExtraccion(almacen, cuerpo) {
   let cafe = null;
   if (valores.cafe_id) {
     cafe = porRef(cafes, valores.cafe_id);
-    if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
+    if (!cafe) return respuesta(422, { errores: [t("cafe_desconocido", { valor: valores.cafe_id })] });
     valores.cafe_id = cafe.id;
   }
 
@@ -270,10 +275,7 @@ export async function crearExtraccion(almacen, cuerpo) {
     // par, que eso lo decide el motor al no verla en el histórico.
     if (!deLaBolsa.some((e) => e.id === valores.desde_id)) {
       return respuesta(422, {
-        errores: [
-          `desde_id desconocida en esta bolsa: ${valores.desde_id}. Una extracción ` +
-            "solo puede ser variación de otra del mismo café",
-        ],
+        errores: [t("desde_id_otra_bolsa", { valor: valores.desde_id })],
       });
     }
   } else {
@@ -286,7 +288,7 @@ export async function crearExtraccion(almacen, cuerpo) {
   const receta = porRef(recetas, valores.receta_id);
   const pasos = receta?.pasos ?? [];
   if (!pasos.length) {
-    return respuesta(422, { errores: [`la receta ${valores.receta_id} no tiene pasos`] });
+    return respuesta(422, { errores: [t("receta_sin_pasos_guion", { ref: valores.receta_id })] });
   }
   valores.receta_id = receta.id;
 
@@ -299,7 +301,7 @@ export async function crearExtraccion(almacen, cuerpo) {
   if (valores.id) {
     const filas = await almacen.extracciones.listar();
     if (filas.some((e) => e.id === valores.id)) {
-      return respuesta(409, { repetida: true, errores: [`ya existe una extracción con la id ${valores.id}`] });
+      return respuesta(409, { repetida: true, errores: [t("ya_existe_extraccion", { id: valores.id })] });
     }
   }
   valores.id = valores.id ?? uuidv7();
@@ -315,7 +317,7 @@ export async function crearExtraccion(almacen, cuerpo) {
   try {
     await almacen.extracciones.poner(fila);
   } catch (error) {
-    return respuesta(422, { errores: [`la base rechazó la fila: ${error.message}`] });
+    return respuesta(422, { errores: [t("base_rechaza_fila", { error: error.message })] });
   }
 
   // Sin bolsa no hay serie: el motor solo ve la taza recién escrita. Dos
@@ -325,8 +327,8 @@ export async function crearExtraccion(almacen, cuerpo) {
     .sort(cronologico)
     .map((e) => conDerivados(e, cafes, recetas));
   const mia = historico.find((e) => e.id === fila.id) ?? conDerivados(fila, cafes, recetas);
-  const sugerencia = sugerir(mia, historico, receta);
-  const resumen = textoCorto(sugerencia);
+  const sugerencia = sugerir(mia, historico, receta, t);
+  const resumen = textoCorto(sugerencia, t);
 
   /*
    * Si no dijiste qué tocar en la siguiente, se guarda lo que propone el
@@ -344,18 +346,18 @@ export async function crearExtraccion(almacen, cuerpo) {
   });
 }
 
-export async function editarExtraccion(almacen, id, cuerpo) {
+export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } = {}) {
   const guardada = (await almacen.extracciones.listar()).find((e) => e.id === id);
-  if (!guardada) return respuesta(404, { errores: [`no existe la extracción ${id}`] });
+  if (!guardada) return respuesta(404, { errores: [t("extraccion_no_existe", { id })] });
 
-  const { valores, errores } = validarCambiosExtraccion(cuerpo);
+  const { valores, errores } = validarCambiosExtraccion(cuerpo, { t });
   if (errores.length) return respuesta(422, { errores });
 
   // Atar la extracción a otra bolsa acepta uuid o slug, como el alta; vacío
   // ya llegó como null de la validación y significa quitársela.
   if (valores.cafe_id) {
     const cafe = porRef(await almacen.cafes.listar(), valores.cafe_id);
-    if (!cafe) return respuesta(422, { errores: [`cafe_id desconocido: ${valores.cafe_id}`] });
+    if (!cafe) return respuesta(422, { errores: [t("cafe_desconocido", { valor: valores.cafe_id })] });
     valores.cafe_id = cafe.id;
   }
 
@@ -382,10 +384,7 @@ export async function editarExtraccion(almacen, id, cuerpo) {
     // se hizo después, y así dos filas no pueden apuntarse la una a la otra.
     if (!madre || madre.cafe_id !== bolsaFinal || cronologico(madre, guardada) >= 0) {
       return respuesta(422, {
-        errores: [
-          `desde_id no vale: ${valores.desde_id}. La madre tiene que ser otra ` +
-            "extracción de la misma bolsa y anterior a ésta",
-        ],
+        errores: [t("desde_id_no_vale", { valor: valores.desde_id })],
       });
     }
   }
@@ -395,6 +394,7 @@ export async function editarExtraccion(almacen, id, cuerpo) {
   const imposible = extraidoImposible(
     valores.extraido_g !== undefined ? valores.extraido_g : guardada.extraido_g,
     valores.agua_g !== undefined ? valores.agua_g : guardada.agua_g,
+    t,
   );
   if (imposible) return respuesta(422, { errores: [imposible] });
 
@@ -404,6 +404,7 @@ export async function editarExtraccion(almacen, id, cuerpo) {
   const goteoMalo = goteoImposible(
     valores.drawdown_s !== undefined ? valores.drawdown_s : guardada.drawdown_s,
     valores.tiempo_total !== undefined ? valores.tiempo_total : guardada.tiempo_total,
+    t,
   );
   if (goteoMalo) return respuesta(422, { errores: [goteoMalo] });
 
@@ -415,7 +416,7 @@ export async function editarExtraccion(almacen, id, cuerpo) {
   try {
     await almacen.extracciones.actualizar(id, cambios);
   } catch (error) {
-    return respuesta(422, { errores: [`la base rechazó el cambio: ${error.message}`] });
+    return respuesta(422, { errores: [t("base_rechaza_cambio", { error: error.message })] });
   }
 
   const [cafes, recetas, todas] = await Promise.all([
@@ -440,13 +441,13 @@ export async function editarExtraccion(almacen, id, cuerpo) {
   return respuesta(200, {
     extraccion,
     cambiado: columnas,
-    avisos: avisosDe(extraccion, historico, receta),
+    avisos: avisosDe(extraccion, historico, receta, t),
   });
 }
 
-export async function retirarExtraccion(almacen, id) {
+export async function retirarExtraccion(almacen, id, { t = CASTELLANO } = {}) {
   const fila = (await almacen.extracciones.listar()).find((e) => e.id === id);
-  if (!fila) return respuesta(404, { errores: [`no existe la extracción ${id}`] });
+  if (!fila) return respuesta(404, { errores: [t("extraccion_no_existe", { id })] });
   if (fila.borrada_en) return respuesta(200, { retirada: true, ya_estaba: true });
 
   await almacen.extracciones.actualizar(id, {
@@ -468,9 +469,9 @@ export async function retirarExtraccion(almacen, id) {
   return respuesta(200, { retirada: true, id, huerfanas });
 }
 
-export async function restaurarExtraccion(almacen, id) {
+export async function restaurarExtraccion(almacen, id, { t = CASTELLANO } = {}) {
   const fila = (await almacen.extracciones.listar()).find((e) => e.id === id);
-  if (!fila) return respuesta(404, { errores: [`no existe la extracción ${id}`] });
+  if (!fila) return respuesta(404, { errores: [t("extraccion_no_existe", { id })] });
 
   await almacen.extracciones.actualizar(id, { borrada_en: null, actualizado_en: ahoraSQL() });
   const [cafes, recetas, todas] = await Promise.all([

@@ -17,6 +17,7 @@ import {
   listaRecetas, porRef, restaurarExtraccion, retirarExtraccion,
 } from "@coffee/nucleo/api";
 import { esUuid } from "@coffee/nucleo/ids";
+import { idiomaDe, textos } from "@coffee/nucleo/textos";
 import { claveDeFoto, validarFoto } from "@coffee/nucleo/validacion";
 
 import { almacenD1 } from "./almacen-d1.js";
@@ -84,12 +85,12 @@ async function sesion(request, env, url) {
  * objeto nuevo, luego la columna, y la foto anterior se borra al final: en
  * ningún momento la ficha apunta a un objeto que no exista.
  */
-async function subirFoto(request, env, almacen, ref) {
+async function subirFoto(request, env, almacen, ref, t) {
   const cafe = porRef(await almacen.cafes.listar(), ref);
-  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
+  if (!cafe) return json({ errores: [t("cafe_no_existe", { ref })] }, 404);
 
   const cuerpo = await request.arrayBuffer();
-  const foto = validarFoto(request.headers.get("content-type"), cuerpo.byteLength);
+  const foto = validarFoto(request.headers.get("content-type"), cuerpo.byteLength, t);
   if (foto.error) return json({ errores: [foto.error] }, foto.estado);
 
   // La clave lleva el slug, que se puede leer; el uuid no aporta nada ahí.
@@ -100,7 +101,7 @@ async function subirFoto(request, env, almacen, ref) {
     await almacen.cafes.actualizar(cafe.id, { foto: clave, actualizado_en: ahoraSQL() });
   } catch (error) {
     await env.FOTOS.delete(clave); // que la base diga que no, sin dejar huérfano
-    return json({ errores: [`la base rechazó la foto: ${error.message}`] }, 422);
+    return json({ errores: [t("base_rechaza_foto", { error: error.message })] }, 422);
   }
   if (cafe.foto && cafe.foto !== clave) await env.FOTOS.delete(cafe.foto);
 
@@ -109,9 +110,9 @@ async function subirFoto(request, env, almacen, ref) {
 }
 
 /** Quita la foto de la bolsa: la columna a NULL y el objeto fuera. */
-async function quitarFoto(env, almacen, ref) {
+async function quitarFoto(env, almacen, ref, t) {
   const cafe = porRef(await almacen.cafes.listar(), ref);
-  if (!cafe) return json({ errores: [`no existe ningún café '${ref}'`] }, 404);
+  if (!cafe) return json({ errores: [t("cafe_no_existe", { ref })] }, 404);
   if (!cafe.foto) return json({ quitada: true, ya_estaba: true });
 
   await almacen.cafes.actualizar(cafe.id, { foto: null, actualizado_en: ahoraSQL() });
@@ -143,6 +144,14 @@ async function servirFoto(env, clave) {
 }
 
 async function enrutar(request, env, url, ruta) {
+  /*
+   * En qué idioma contesta el servidor. Sale del `Accept-Language`, que es lo
+   * que manda el navegador de quien llama y lo que la app pone a propósito al
+   * cambiar de idioma. Sin cabecera, castellano: curl y los scripts de siempre
+   * se leen igual que antes.
+   */
+  const t = textos(idiomaDe(request.headers.get("accept-language")));
+
   if (ruta === "/api/sesion") return await sesion(request, env, url);
 
   /*
@@ -158,18 +167,18 @@ async function enrutar(request, env, url, ruta) {
   if (ruta === "/api/recetas" && request.method === "POST") {
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
-    return respuesta(await guardarReceta(almacen, { nuevo: true }, cuerpo));
+    return respuesta(await guardarReceta(almacen, { nuevo: true }, cuerpo, { t }));
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "PUT") {
     const ref = decodeURIComponent(ruta.slice("/api/recetas/".length));
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
-    return respuesta(await guardarReceta(almacen, { ref, nuevo: false }, cuerpo));
+    return respuesta(await guardarReceta(almacen, { ref, nuevo: false }, cuerpo, { t }));
   }
 
   if (ruta.startsWith("/api/recetas/") && request.method === "DELETE") {
-    return respuesta(await borrarReceta(almacen, decodeURIComponent(ruta.slice("/api/recetas/".length))));
+    return respuesta(await borrarReceta(almacen, decodeURIComponent(ruta.slice("/api/recetas/".length)), { t }));
   }
 
   if (ruta.startsWith("/api/extracciones/")) {
@@ -181,35 +190,35 @@ async function enrutar(request, env, url, ruta) {
     }
 
     if (accion === "restaurar" && request.method === "POST") {
-      return respuesta(await restaurarExtraccion(almacen, id));
+      return respuesta(await restaurarExtraccion(almacen, id, { t }));
     }
     if (!accion && request.method === "PATCH") {
       const cuerpo = await cuerpoDe(request);
       if (cuerpo === null) return sinJson();
-      return respuesta(await editarExtraccion(almacen, id, cuerpo));
+      return respuesta(await editarExtraccion(almacen, id, cuerpo, { t }));
     }
     if (!accion && request.method === "DELETE") {
-      return respuesta(await retirarExtraccion(almacen, id));
+      return respuesta(await retirarExtraccion(almacen, id, { t }));
     }
   }
 
   if (ruta === "/api/cafes" && request.method === "POST") {
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
-    return respuesta(await crearCafe(almacen, cuerpo));
+    return respuesta(await crearCafe(almacen, cuerpo, { t }));
   }
 
   if (ruta.startsWith("/api/cafes/") && ruta.endsWith("/foto")) {
     const ref = decodeURIComponent(ruta.slice("/api/cafes/".length, -"/foto".length));
-    if (request.method === "PUT") return await subirFoto(request, env, almacen, ref);
-    if (request.method === "DELETE") return await quitarFoto(env, almacen, ref);
+    if (request.method === "PUT") return await subirFoto(request, env, almacen, ref, t);
+    if (request.method === "DELETE") return await quitarFoto(env, almacen, ref, t);
   }
 
   if (ruta.startsWith("/api/cafes/") && request.method === "PATCH") {
     const ref = decodeURIComponent(ruta.slice("/api/cafes/".length));
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
-    return respuesta(await editarCafe(almacen, ref, cuerpo));
+    return respuesta(await editarCafe(almacen, ref, cuerpo, { t }));
   }
 
   if (request.method === "GET") {
@@ -218,7 +227,7 @@ async function enrutar(request, env, url, ruta) {
     }
     if (ruta === "/api/guion") {
       return respuesta(
-        await guionDe(almacen, url.searchParams.get("receta"), url.searchParams.get("agua")),
+        await guionDe(almacen, url.searchParams.get("receta"), url.searchParams.get("agua"), { t }),
       );
     }
     if (ruta === "/api/cafes") return respuesta(await listaCafes(almacen));
@@ -234,7 +243,7 @@ async function enrutar(request, env, url, ruta) {
   if (request.method === "POST" && ruta === "/api/extracciones") {
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
-    return respuesta(await crearExtraccion(almacen, cuerpo));
+    return respuesta(await crearExtraccion(almacen, cuerpo, { t }));
   }
 
   return json({ error: "ruta no encontrada" }, 404);

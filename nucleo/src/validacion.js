@@ -7,6 +7,14 @@
  */
 
 import { esUuid } from "./ids.js";
+import { textos } from "./textos.js";
+
+/*
+ * Los mensajes salen del catálogo, no del código. Cada función que puede
+ * quejarse recibe su `t`, y por defecto habla en castellano: así una llamada
+ * que no sepa de idiomas —un test, un script— sigue leyéndose igual que antes.
+ */
+const CASTELLANO = textos();
 
 export const DEFECTOS = [
   "equilibrado", "amargor", "astringente", "plano", "agrio", "salado", "carton",
@@ -50,29 +58,29 @@ export function defectosDe(valor) {
  * escrituras del mismo juicio tienen que dar la misma cadena — si no, dos
  * filas iguales no se parecerían.
  */
-function validarDefectos(valor, errores) {
+function validarDefectos(valor, errores, t) {
   const lista = defectosDe(valor);
   if (!lista.length) return null;
 
   const malos = lista.filter((d) => !DEFECTOS.includes(d));
   if (malos.length) {
-    errores.push(
-      `defecto no permitido: ${malos.map((d) => JSON.stringify(d)).join(", ")}. ` +
-        `Válidos: ${DEFECTOS.join(", ")}`,
-    );
+    errores.push(t("defecto_no_permitido", {
+      malos: malos.map((d) => JSON.stringify(d)).join(", "),
+      validos: DEFECTOS.join(", "),
+    }));
   }
 
   const repetidos = lista.filter((d, i) => lista.indexOf(d) !== i);
   if (repetidos.length) {
-    errores.push(`defecto repetido: ${[...new Set(repetidos)].join(", ")}`);
+    errores.push(t("defecto_repetido", { repetidos: [...new Set(repetidos)].join(", ") }));
   }
 
   // Decir «equilibrado» es decir que no hay defecto, así que no acompaña.
   if (lista.includes(SIN_DEFECTO) && lista.length > 1) {
-    errores.push(
-      `'${SIN_DEFECTO}' significa que no hay defecto, así que no puede ir con otros: ` +
-        lista.join(", "),
-    );
+    errores.push(t("defecto_sin_compania", {
+      sin_defecto: SIN_DEFECTO,
+      lista: lista.join(", "),
+    }));
   }
 
   return lista.join(",");
@@ -121,11 +129,13 @@ const TEXTOS_CAFE = [
   "tostador", "origen", "region", "variedad", "proceso", "notas_tostador",
   "url", "conservacion",
 ];
+// `regla` es una clave del catálogo, no una frase: el mensaje se compone con
+// ella dentro y las dos mitades tienen que hablar el mismo idioma.
 const NUMEROS_CAFE = {
-  altitud_m: { min: 0, incluido: false, que: "mayor que 0" },
-  sca: { min: 0, max: 100, incluido: true, que: "entre 0 y 100" },
-  peso_g: { min: 0, incluido: false, que: "mayor que 0" },
-  precio_eur: { min: 0, incluido: true, que: "cero o más" },
+  altitud_m: { min: 0, incluido: false, regla: "regla_mayor_que_0" },
+  sca: { min: 0, max: 100, incluido: true, regla: "regla_entre_0_y_100" },
+  peso_g: { min: 0, incluido: false, regla: "regla_mayor_que_0" },
+  precio_eur: { min: 0, incluido: true, regla: "regla_cero_o_mas" },
 };
 
 // El slug viaja en la URL: sin espacios, sin mayúsculas y sin acentos. Mismo
@@ -184,20 +194,18 @@ export const IDENTIDAD = ["id", "creado_en"];
  * servidor escriba exactamente la misma y reintentar no duplique — la misma
  * id choca. Deja lo validado en `valores` y los fallos en `errores`.
  */
-function validarIdentidad(entrada, valores, errores) {
+function validarIdentidad(entrada, valores, errores, t) {
   if (!vacio(entrada.id)) {
     const id = String(entrada.id).trim().toLowerCase();
     if (!esUuid(id)) {
-      errores.push(`id inválida, se espera un uuid: ${JSON.stringify(entrada.id)}`);
+      errores.push(t("id_invalida", { valor: JSON.stringify(entrada.id) }));
     }
     valores.id = id;
   }
   if (!vacio(entrada.creado_en)) {
     const sello = String(entrada.creado_en).trim();
     if (!SELLO.test(sello)) {
-      errores.push(
-        `creado_en inválido, se espera AAAA-MM-DD HH:MM:SS: ${JSON.stringify(entrada.creado_en)}`,
-      );
+      errores.push(t("creado_en_invalido", { valor: JSON.stringify(entrada.creado_en) }));
     }
     valores.creado_en = sello;
   }
@@ -212,11 +220,11 @@ function validarIdentidad(entrada, valores, errores) {
  * no compara con nada. Quién es la madre por defecto lo decide el manejador,
  * que es quien tiene el histórico delante.
  */
-function validarMadre(valor, errores) {
+function validarMadre(valor, errores, t) {
   if (vacio(valor)) return null;
   const id = String(valor).trim().toLowerCase();
   if (!esUuid(id)) {
-    errores.push(`desde_id inválida, se espera un uuid: ${JSON.stringify(valor)}`);
+    errores.push(t("desde_id_invalida", { valor: JSON.stringify(valor) }));
   }
   return id;
 }
@@ -225,34 +233,34 @@ function validarMadre(valor, errores) {
  * Devuelve { valores, errores }. Si errores tiene algo, no se inserta nada:
  * la fila entra entera o no entra.
  */
-export function validarExtraccion(cuerpo, { ahora } = {}) {
+export function validarExtraccion(cuerpo, { ahora, t = CASTELLANO } = {}) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
 
   const desconocidos = Object.keys(entrada)
     .filter((c) => !CAMPOS.includes(c) && !IDENTIDAD.includes(c));
   if (desconocidos.length) {
-    errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+    errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
   }
 
   const faltan = OBLIGATORIOS.filter((c) => vacio(entrada[c]));
-  if (faltan.length) errores.push(`faltan campos obligatorios: ${faltan.join(", ")}`);
+  if (faltan.length) errores.push(t("faltan_obligatorios", { lista: faltan.join(", ") }));
 
   const valores = {};
 
   valores.fecha = vacio(entrada.fecha) ? hoyISO(ahora) : String(entrada.fecha).trim();
   if (!fechaValida(valores.fecha)) {
-    errores.push(`fecha inválida, se espera AAAA-MM-DD: ${JSON.stringify(entrada.fecha)}`);
+    errores.push(t("fecha_invalida", { valor: JSON.stringify(entrada.fecha) }));
   }
 
   valores.cafe_id = vacio(entrada.cafe_id) ? null : String(entrada.cafe_id).trim();
-  valores.desde_id = validarMadre(entrada.desde_id, errores);
+  valores.desde_id = validarMadre(entrada.desde_id, errores, t);
 
   for (const campo of ["dosis_g", "agua_g"]) {
     const valor = vacio(entrada[campo]) ? POR_DEFECTO[campo] : entrada[campo];
     const n = numero(valor);
     if (n === null || n <= 0) {
-      errores.push(`${campo} debe ser un número mayor que 0`);
+      errores.push(t("numero_mayor_que_cero", { campo }));
     }
     valores[campo] = n;
   }
@@ -263,11 +271,11 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
       continue;
     }
     const n = numero(entrada[campo]);
-    if (n === null) errores.push(`${campo} debe ser un número`);
+    if (n === null) errores.push(t("debe_ser_numero", { campo }));
     valores[campo] = n;
   }
   if (valores.temp_c !== null && (valores.temp_c < 0 || valores.temp_c > 100)) {
-    errores.push("temp_c debe estar entre 0 y 100");
+    errores.push(t("temp_fuera_de_rango"));
   }
 
   if (vacio(entrada.nota)) {
@@ -275,7 +283,7 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   } else {
     const n = numero(entrada.nota);
     if (n === null || !Number.isInteger(n) || n < 1 || n > 10) {
-      errores.push(`la nota debe ser un entero de 1 a 10: ${JSON.stringify(entrada.nota)}`);
+      errores.push(t("nota_fuera_de_rango", { valor: JSON.stringify(entrada.nota) }));
     }
     valores.nota = n;
   }
@@ -285,7 +293,7 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   } else {
     const n = numero(entrada.drawdown_s);
     if (n === null || !Number.isInteger(n) || n < 0) {
-      errores.push("drawdown_s debe ser un entero de segundos, cero o más");
+      errores.push(t("drawdown_entero"));
     }
     valores.drawdown_s = n;
   }
@@ -296,21 +304,23 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   } else {
     const n = numero(entrada.extraido_g);
     if (n === null || n <= 0) {
-      errores.push("extraido_g debe ser un número mayor que 0");
+      errores.push(t("extraido_mayor_que_cero"));
     } else {
-      const imposible = extraidoImposible(n, valores.agua_g);
+      const imposible = extraidoImposible(n, valores.agua_g, t);
       if (imposible) errores.push(imposible);
     }
     valores.extraido_g = n;
   }
 
-  valores.defecto = validarDefectos(entrada.defecto, errores);
+  valores.defecto = validarDefectos(entrada.defecto, errores, t);
 
   const dripper = vacio(entrada.dripper)
     ? POR_DEFECTO.dripper
     : String(entrada.dripper).trim().toLowerCase();
   if (!DRIPPERS.includes(dripper)) {
-    errores.push(`dripper no permitido: ${JSON.stringify(entrada.dripper)}. Válidos: ${DRIPPERS.join(", ")}`);
+    errores.push(t("dripper_no_permitido", {
+      valor: JSON.stringify(entrada.dripper), validos: DRIPPERS.join(", "),
+    }));
   }
   valores.dripper = dripper;
 
@@ -322,10 +332,10 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
   }
 
   // Aquí y no en el bloque del goteo: hace falta el tiempo total ya leído.
-  const goteoMalo = goteoImposible(valores.drawdown_s, valores.tiempo_total);
+  const goteoMalo = goteoImposible(valores.drawdown_s, valores.tiempo_total, t);
   if (goteoMalo) errores.push(goteoMalo);
 
-  validarIdentidad(entrada, valores, errores);
+  validarIdentidad(entrada, valores, errores, t);
 
   return { valores, errores };
 }
@@ -336,7 +346,7 @@ export function validarExtraccion(cuerpo, { ahora } = {}) {
  * solo entran los campos que vengan. Ni id ni slug se aceptan del cuerpo —
  * la primera es opaca y el segundo, derivado.
  */
-export function validarCafe(cuerpo, { nuevo }) {
+export function validarCafe(cuerpo, { nuevo, t = CASTELLANO }) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
   const valores = {};
@@ -346,30 +356,30 @@ export function validarCafe(cuerpo, { nuevo }) {
   const desconocidos = Object.keys(entrada)
     .filter((c) => !CAMPOS_CAFE.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
   if (desconocidos.length) {
-    errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+    errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
   }
 
   if (nuevo) {
     const slug = slugDe(entrada.nombre);
     if (!SLUG.test(slug)) {
-      errores.push(
-        `del nombre ${JSON.stringify(entrada.nombre)} no sale un slug utilizable: necesita alguna letra o número`,
-      );
+      errores.push(t("slug_imposible", { valor: JSON.stringify(entrada.nombre) }));
     }
     valores.slug = slug;
-    validarIdentidad(entrada, valores, errores);
+    validarIdentidad(entrada, valores, errores, t);
   }
 
   if (nuevo || entrada.nombre !== undefined) {
     const nombre = String(entrada.nombre ?? "").trim();
-    if (!nombre) errores.push("el nombre no puede estar vacío");
+    if (!nombre) errores.push(t("nombre_vacio"));
     valores.nombre = nombre;
   }
 
   if (nuevo || entrada.estado !== undefined) {
     const estado = vacio(entrada.estado) ? "abierto" : String(entrada.estado).trim().toLowerCase();
     if (!ESTADOS.includes(estado)) {
-      errores.push(`estado no permitido: ${JSON.stringify(entrada.estado)}. Válidos: ${ESTADOS.join(", ")}`);
+      errores.push(t("estado_no_permitido", {
+        valor: JSON.stringify(entrada.estado), validos: ESTADOS.join(", "),
+      }));
     }
     valores.estado = estado;
   }
@@ -382,7 +392,9 @@ export function validarCafe(cuerpo, { nuevo }) {
     }
     const fecha = String(entrada[campo]).trim();
     if (!fechaValida(fecha)) {
-      errores.push(`${campo} inválida, se espera AAAA-MM-DD: ${JSON.stringify(entrada[campo])}`);
+      errores.push(t("fecha_campo_invalida", {
+        campo, valor: JSON.stringify(entrada[campo]),
+      }));
     }
     valores[campo] = fecha;
   }
@@ -398,7 +410,7 @@ export function validarCafe(cuerpo, { nuevo }) {
       n === null ||
       (regla.incluido ? n < regla.min : n <= regla.min) ||
       (regla.max !== undefined && n > regla.max);
-    if (fuera) errores.push(`${campo} debe ser un número ${regla.que}`);
+    if (fuera) errores.push(t("numero_con_regla", { campo, regla: t(regla.regla) }));
     valores[campo] = n;
   }
 
@@ -408,7 +420,7 @@ export function validarCafe(cuerpo, { nuevo }) {
   }
 
   if (!nuevo && !Object.keys(valores).length) {
-    errores.push("no hay ningún campo que corregir");
+    errores.push(t("nada_que_corregir"));
   }
 
   return { valores, errores };
@@ -418,14 +430,14 @@ export function validarCafe(cuerpo, { nuevo }) {
  * Corrección de una extracción: solo entran los campos que vengan, con las
  * mismas reglas que el alta. El `id` no, que es la identidad de la fila.
  */
-export function validarCambiosExtraccion(cuerpo) {
+export function validarCambiosExtraccion(cuerpo, { t = CASTELLANO } = {}) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
   const valores = {};
 
   const desconocidos = Object.keys(entrada).filter((c) => !CAMPOS.includes(c));
   if (desconocidos.length) {
-    errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+    errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
   }
 
   const dado = (campo) => entrada[campo] !== undefined;
@@ -433,7 +445,7 @@ export function validarCambiosExtraccion(cuerpo) {
   if (dado("fecha")) {
     const fecha = String(entrada.fecha).trim();
     if (!fechaValida(fecha)) {
-      errores.push(`fecha inválida, se espera AAAA-MM-DD: ${JSON.stringify(entrada.fecha)}`);
+      errores.push(t("fecha_invalida", { valor: JSON.stringify(entrada.fecha) }));
     }
     valores.fecha = fecha;
   }
@@ -447,13 +459,13 @@ export function validarCambiosExtraccion(cuerpo) {
 
   // Vaciarla también es legal: es decir «ésta no continúa a ninguna».
   if (dado("desde_id")) {
-    valores.desde_id = validarMadre(entrada.desde_id, errores);
+    valores.desde_id = validarMadre(entrada.desde_id, errores, t);
   }
 
   for (const campo of ["dosis_g", "agua_g"]) {
     if (!dado(campo)) continue;
     const n = numero(entrada[campo]);
-    if (n === null || n <= 0) errores.push(`${campo} debe ser un número mayor que 0`);
+    if (n === null || n <= 0) errores.push(t("numero_mayor_que_cero", { campo }));
     valores[campo] = n;
   }
 
@@ -464,9 +476,9 @@ export function validarCambiosExtraccion(cuerpo) {
       continue;
     }
     const n = numero(entrada[campo]);
-    if (n === null) errores.push(`${campo} debe ser un número`);
+    if (n === null) errores.push(t("debe_ser_numero", { campo }));
     if (campo === "temp_c" && n !== null && (n < 0 || n > 100)) {
-      errores.push("temp_c debe estar entre 0 y 100");
+      errores.push(t("temp_fuera_de_rango"));
     }
     valores[campo] = n;
   }
@@ -477,7 +489,7 @@ export function validarCambiosExtraccion(cuerpo) {
     } else {
       const n = numero(entrada.nota);
       if (n === null || !Number.isInteger(n) || n < 1 || n > 10) {
-        errores.push(`la nota debe ser un entero de 1 a 10: ${JSON.stringify(entrada.nota)}`);
+        errores.push(t("nota_fuera_de_rango", { valor: JSON.stringify(entrada.nota) }));
       }
       valores.nota = n;
     }
@@ -489,7 +501,7 @@ export function validarCambiosExtraccion(cuerpo) {
     } else {
       const n = numero(entrada.drawdown_s);
       if (n === null || !Number.isInteger(n) || n < 0) {
-        errores.push("drawdown_s debe ser un entero de segundos, cero o más");
+        errores.push(t("drawdown_entero"));
       }
       valores.drawdown_s = n;
     }
@@ -500,19 +512,21 @@ export function validarCambiosExtraccion(cuerpo) {
       valores.extraido_g = null;
     } else {
       const n = numero(entrada.extraido_g);
-      if (n === null || n <= 0) errores.push("extraido_g debe ser un número mayor que 0");
+      if (n === null || n <= 0) errores.push(t("extraido_mayor_que_cero"));
       valores.extraido_g = n;
     }
   }
 
   if (dado("defecto")) {
-    valores.defecto = validarDefectos(entrada.defecto, errores);
+    valores.defecto = validarDefectos(entrada.defecto, errores, t);
   }
 
   if (dado("dripper")) {
     const dripper = String(entrada.dripper ?? "").trim().toLowerCase();
     if (!DRIPPERS.includes(dripper)) {
-      errores.push(`dripper no permitido: ${JSON.stringify(entrada.dripper)}. Válidos: ${DRIPPERS.join(", ")}`);
+      errores.push(t("dripper_no_permitido", {
+        valor: JSON.stringify(entrada.dripper), validos: DRIPPERS.join(", "),
+      }));
     }
     valores.dripper = dripper;
   }
@@ -523,7 +537,7 @@ export function validarCambiosExtraccion(cuerpo) {
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
   }
 
-  if (!Object.keys(valores).length) errores.push("no hay ningún campo que corregir");
+  if (!Object.keys(valores).length) errores.push(t("nada_que_corregir"));
 
   return { valores, errores };
 }
@@ -548,18 +562,26 @@ export function tipoDeFoto(cabecera) {
  * tamaño valen. Devuelve el tipo normalizado y la extensión para la clave,
  * o el error con su código HTTP.
  */
-export function validarFoto(cabecera, bytes) {
+export function validarFoto(cabecera, bytes, t = CASTELLANO) {
   const tipo = tipoDeFoto(cabecera);
   const extension = TIPOS_FOTO[tipo];
   if (!extension) {
-    const validos = Object.keys(TIPOS_FOTO).join(", ");
-    return { error: `tipo no admitido: ${JSON.stringify(tipo)}. Válidos: ${validos}`, estado: 415 };
+    return {
+      error: t("foto_tipo_no_admitido", {
+        tipo: JSON.stringify(tipo), validos: Object.keys(TIPOS_FOTO).join(", "),
+      }),
+      estado: 415,
+    };
   }
-  if (!bytes) return { error: "la foto llega vacía", estado: 422 };
+  if (!bytes) return { error: t("foto_vacia"), estado: 422 };
   if (bytes > MAX_FOTO_BYTES) {
-    const mb = (bytes / (1024 * 1024)).toFixed(1);
-    const tope = MAX_FOTO_BYTES / (1024 * 1024);
-    return { error: `la foto pesa ${mb} MB y el máximo son ${tope} MB`, estado: 413 };
+    return {
+      error: t("foto_demasiado_grande", {
+        mb: (bytes / (1024 * 1024)).toFixed(1),
+        tope: MAX_FOTO_BYTES / (1024 * 1024),
+      }),
+      estado: 413,
+    };
   }
   return { tipo, extension };
 }
@@ -580,11 +602,11 @@ export function claveDeFoto(cafeId, extension, ahoraMs = Date.now()) {
  * viene en el mismo cuerpo; al corregir puede venir en el PATCH o estar ya
  * guardada, y eso solo lo sabe quien tiene la fila delante.
  */
-export function extraidoImposible(extraido, agua) {
+export function extraidoImposible(extraido, agua, t = CASTELLANO) {
   if (extraido === null || extraido === undefined) return null;
   if (agua === null || agua === undefined) return null;
   if (extraido <= agua) return null;
-  return `extraido_g (${extraido}) no puede pasar del agua (${agua})`;
+  return t("extraido_imposible", { extraido, agua });
 }
 
 /**
@@ -623,15 +645,12 @@ export function relojDe(segundos) {
  * vienen en el cuerpo, y al corregir uno puede venir en el PATCH mientras el
  * otro está ya guardado, y eso solo lo sabe quien tiene la fila delante.
  */
-export function goteoImposible(drawdown, tiempoTotal) {
+export function goteoImposible(drawdown, tiempoTotal, t = CASTELLANO) {
   if (drawdown === null || drawdown === undefined) return null;
   const total = segundosDe(tiempoTotal);
   if (total === null) return null;
   if (drawdown < total) return null;
-  return (
-    `drawdown_s (${drawdown} s) no puede llegar al tiempo total (${tiempoTotal}): ` +
-    "el goteo se cuenta desde el final del último vertido, así que va por dentro"
-  );
+  return t("goteo_imposible", { goteo: drawdown, total: tiempoTotal });
 }
 
 /**
@@ -680,7 +699,7 @@ export const ESTILOS = ["espiral", "centro"];
  * Las reglas duras las repite la base con sus CHECK; esto está para dar
  * errores que se entiendan.
  */
-export function validarReceta(cuerpo, { nuevo }) {
+export function validarReceta(cuerpo, { nuevo, t = CASTELLANO }) {
   const errores = [];
   const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
   const permitidos = ["nombre", "ratio", "notas", "pasos"];
@@ -688,29 +707,29 @@ export function validarReceta(cuerpo, { nuevo }) {
 
   const desconocidos = Object.keys(entrada)
     .filter((c) => !permitidos.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
-  if (desconocidos.length) errores.push(`campos desconocidos: ${desconocidos.join(", ")}`);
+  if (desconocidos.length) {
+    errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
+  }
 
   // Como en las bolsas: el slug sale del nombre y la id la pone quien crea.
   if (nuevo) {
     const slug = slugDe(entrada.nombre);
     if (!SLUG.test(slug)) {
-      errores.push(
-        `del nombre ${JSON.stringify(entrada.nombre)} no sale un slug utilizable: necesita alguna letra o número`,
-      );
+      errores.push(t("slug_imposible", { valor: JSON.stringify(entrada.nombre) }));
     }
     receta.slug = slug;
-    validarIdentidad(entrada, receta, errores);
+    validarIdentidad(entrada, receta, errores, t);
   }
 
   const nombre = String(entrada.nombre ?? "").trim();
-  if (!nombre) errores.push("el nombre no puede estar vacío");
+  if (!nombre) errores.push(t("nombre_vacio"));
   receta.nombre = nombre;
 
   if (vacio(entrada.ratio)) {
     receta.ratio = null;
   } else {
     const n = numero(entrada.ratio);
-    if (n === null || n <= 0) errores.push("ratio debe ser un número mayor que 0");
+    if (n === null || n <= 0) errores.push(t("ratio_mayor_que_cero"));
     receta.ratio = n;
   }
 
@@ -719,7 +738,7 @@ export function validarReceta(cuerpo, { nuevo }) {
   const pasos = [];
   const entrantes = Array.isArray(entrada.pasos) ? entrada.pasos : [];
   if (!entrantes.length) {
-    errores.push("una receta necesita al menos un paso");
+    errores.push(t("receta_sin_pasos"));
   }
 
   entrantes.forEach((crudo, i) => {
@@ -727,36 +746,40 @@ export function validarReceta(cuerpo, { nuevo }) {
     const paso = { orden: n };
     const accion = String(crudo?.accion ?? "").trim().toLowerCase();
     if (!ACCIONES.includes(accion)) {
-      errores.push(`paso ${n}: acción no permitida ${JSON.stringify(crudo?.accion)}. Válidas: ${ACCIONES.join(", ")}`);
+      errores.push(t("paso_accion_no_permitida", {
+        n, valor: JSON.stringify(crudo?.accion), validas: ACCIONES.join(", "),
+      }));
     }
     paso.accion = accion;
 
     const agua = vacio(crudo?.agua_g) ? 0 : numero(crudo.agua_g);
     if (agua === null) {
-      errores.push(`paso ${n}: agua_g debe ser un número`);
+      errores.push(t("paso_agua_numero", { n }));
     } else if (accion === "verter" && agua <= 0) {
-      errores.push(`paso ${n}: un vertido necesita gramos`);
+      errores.push(t("paso_vertido_sin_gramos", { n }));
     } else if (accion !== "verter" && agua !== 0) {
-      errores.push(`paso ${n}: solo 'verter' lleva gramos`);
+      errores.push(t("paso_solo_verter_lleva_gramos", { n }));
     }
     paso.agua_g = agua ?? 0;
 
     const estilo = vacio(crudo?.estilo) ? null : String(crudo.estilo).trim().toLowerCase();
     if (estilo && !ESTILOS.includes(estilo)) {
-      errores.push(`paso ${n}: estilo no permitido ${JSON.stringify(crudo?.estilo)}. Válidos: ${ESTILOS.join(", ")}`);
+      errores.push(t("paso_estilo_no_permitido", {
+        n, valor: JSON.stringify(crudo?.estilo), validos: ESTILOS.join(", "),
+      }));
     } else if (estilo && accion !== "verter") {
-      errores.push(`paso ${n}: el estilo es de los vertidos, y '${accion}' no lo es`);
+      errores.push(t("paso_estilo_solo_vertidos", { n, accion }));
     }
     paso.estilo = estilo;
 
     if (vacio(crudo?.t_inicio_s)) {
       paso.t_inicio_s = null;
     } else {
-      const t = numero(crudo.t_inicio_s);
-      if (t === null || !Number.isInteger(t) || t < 0) {
-        errores.push(`paso ${n}: t_inicio_s debe ser un entero de segundos, cero o más`);
+      const inicio = numero(crudo.t_inicio_s);
+      if (inicio === null || !Number.isInteger(inicio) || inicio < 0) {
+        errores.push(t("paso_t_inicio_entero", { n }));
       }
-      paso.t_inicio_s = t;
+      paso.t_inicio_s = inicio;
     }
 
     paso.notas = vacio(crudo?.notas) ? null : String(crudo.notas).trim();
@@ -764,14 +787,14 @@ export function validarReceta(cuerpo, { nuevo }) {
   });
 
   if (entrantes.length && !pasos.some((p) => p.accion === "verter")) {
-    errores.push("la receta no tiene ningún vertido: el cronómetro no sabría qué guiar");
+    errores.push(t("receta_sin_vertidos"));
   }
 
   // Los tiempos deben ir hacia delante, o el cronómetro saltaría hacia atrás.
-  const tiempos = pasos.map((p) => p.t_inicio_s).filter((t) => t !== null);
+  const tiempos = pasos.map((p) => p.t_inicio_s).filter((x) => x !== null);
   for (let i = 1; i < tiempos.length; i += 1) {
     if (tiempos[i] <= tiempos[i - 1]) {
-      errores.push(`los tiempos deben ir en aumento: ${tiempos[i - 1]}s va antes que ${tiempos[i]}s`);
+      errores.push(t("tiempos_en_aumento", { antes: tiempos[i - 1], despues: tiempos[i] }));
       break;
     }
   }
