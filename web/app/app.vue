@@ -178,6 +178,10 @@ useHead({
       <p v-if="!comprobada || !lista" class="meta-sesion">{{ $t('app.cargando') }}</p>
       <NuxtPage v-else />
     </main>
+
+    <!-- Una vez para toda la app: lo que hace larga una pantalla son los
+         datos, no el fichero. Él decide cuándo asomarse. -->
+    <VolverArriba />
     <footer>
       <!-- Cinco toques abren el panel de sesión. La coletilla dice el modo:
            sin nada, tus datos viven en este navegador. -->
