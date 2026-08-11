@@ -300,6 +300,26 @@ const enviando = ref(false)
 const errores = ref<string[]>([])
 const resultado = ref<Creada | null>(null)
 
+const localePath = useLocalePath()
+
+/**
+ * Trae el formulario de vuelta tras guardar, ya prerrellenado: el histórico
+ * se releyó al guardar, así que la taza recién apuntada es el nuevo punto de
+ * partida y los campos que se repiten vienen puestos.
+ */
+function otraTaza() {
+  resultado.value = null
+}
+
+/**
+ * Con la taza guardada, atrás no vuelve al cronómetro: aquel reloj quedó en
+ * cero al guardar y esa pantalla ya no habla de nada. Se sigue hasta el
+ * inicio, que es donde está la extracción recién apuntada.
+ */
+onBeforeRouteLeave((a) => {
+  if (resultado.value && a.path === localePath('/crono/reloj')) return localePath('/')
+})
+
 /*
  * La primera bolsa abierta se propone una sola vez, cuando la lista llega:
  * después manda lo elegido, que «Sin bolsa» también es una elección y un
@@ -404,7 +424,10 @@ async function enviar() {
 <template>
   <Migas :ruta="[{ texto: $t('alta.titulo') }]" />
 
-  <form @submit.prevent="enviar">
+  <!-- Guardada la taza, el formulario se va entero: quedarse mirando los
+       campos recién vaciados era lo que parecía un borrado, por mucho acuse
+       de recibo que hubiera debajo. Su sitio lo ocupa la tarjeta de éxito. -->
+  <form v-if="!resultado" @submit.prevent="enviar">
     <div class="titulo">
       <h2>{{ $t('alta.nueva') }}</h2>
       <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
@@ -616,6 +639,11 @@ async function enviar() {
       </ol>
     </template>
     <p v-else-if="resultado.sugerencias.conforme">{{ $t('alta.conforme') }}</p>
+
+    <div class="botones">
+      <button type="button" class="secundario" @click="otraTaza">{{ $t('alta.otra') }}</button>
+      <button type="button" @click="router.push(localePath('/'))">{{ $t('alta.al_inicio') }}</button>
+    </div>
   </section>
 </template>
 
