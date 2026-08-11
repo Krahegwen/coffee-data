@@ -80,6 +80,12 @@ const es = {
   foto_vacia: "la foto llega vacía",
   foto_demasiado_grande: "la foto pesa {mb} MB y el máximo son {tope} MB",
 
+  // --- validación: preferencias
+  preferencias_objeto: "las preferencias se mandan como objeto de clave y valor",
+  preferencia_desconocida: "preferencia desconocida: {clave}. Válidas: {validas}",
+  preferencia_booleana: "{clave} es un interruptor: true o false",
+  preferencia_numero: "{clave} tiene que ser un número de {minimo} para arriba",
+
   // --- manejadores: lo que no existe o no cuela
   cafe_no_existe: "no existe ningún café '{ref}'",
   cafe_desconocido: "cafe_id desconocido: {valor}",

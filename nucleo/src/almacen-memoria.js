@@ -32,6 +32,23 @@ function tablaSimple(nombre) {
   };
 }
 
+/**
+ * Las preferencias son un singleton de clave y valor, no una colección de
+ * filas con id: no hay «alta» que pueda chocar y el primer día no existe
+ * ninguna, así que se escribe con upsert y no con `poner`/`actualizar`.
+ */
+function tablaClaveValor() {
+  const filas = new Map();
+  return {
+    async leer() {
+      return [...filas.values()].map(copia);
+    },
+    async escribir(nuevas) {
+      for (const fila of nuevas) filas.set(fila.clave, copia(fila));
+    },
+  };
+}
+
 export function almacenEnMemoria() {
   const recetas = new Map();
   const pasosPor = new Map();
@@ -39,6 +56,7 @@ export function almacenEnMemoria() {
   return {
     cafes: tablaSimple("cafes"),
     extracciones: tablaSimple("extracciones"),
+    preferencias: tablaClaveValor(),
     recetas: {
       async listar() {
         return [...recetas.values()].map((r) => ({

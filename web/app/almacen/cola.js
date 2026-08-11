@@ -57,6 +57,21 @@ function yaAplicada(entrada, fallo) {
   return false;
 }
 
+/**
+ * Entradas que, si el servidor las rechaza, se tiran en vez de atascar la
+ * cola. Hoy solo las preferencias.
+ *
+ * La cola se para en el primer fallo porque el orden importa: una extracción
+ * puede apuntar a una bolsa que va detrás en la misma cola, y saltársela
+ * escribiría una fila huérfana. Un ajuste no depende de nada ni nada depende
+ * de él, así que bloquear por él es cambiar un interruptor perdido por **toda
+ * la bitácora sin subir** — que es lo que pasaba: un Worker viejo o una
+ * migración sin aplicar devolvían 404 o 422 en cada PATCH, la entrada se
+ * quedaba la primera de la cola y desde ahí no subía ni bajaba nada más, sin
+ * más salida que restaurar un respaldo.
+ */
+const PRESCINDIBLE = (entrada) => entrada.camino === "/api/preferencias";
+
 /** El mensaje legible de un rechazo, para apuntarlo en la entrada. */
 function mensajeDe(fallo) {
   const datos = fallo?.data;
@@ -83,8 +98,13 @@ export async function drenar(almacen, enviar) {
     } catch (fallo) {
       if (!yaAplicada(entrada, fallo)) {
         const red = !fallo?.statusCode;
-        if (!red) await almacen.cola.marcar(entrada.id, mensajeDe(fallo));
-        return { subidas, quedan: entradas.length - subidas, red };
+        // Sin red no se descarta nada: la entrada sigue siendo buena y lo
+        // que falta es cobertura. Con un no del servidor, lo prescindible se
+        // cae y la cola sigue; lo demás para, que el orden importa.
+        if (red || !PRESCINDIBLE(entrada)) {
+          if (!red) await almacen.cola.marcar(entrada.id, mensajeDe(fallo));
+          return { subidas, quedan: entradas.length - subidas, red };
+        }
       }
     }
     await almacen.cola.quitar(entrada.id);

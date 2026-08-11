@@ -226,6 +226,31 @@ Ninguno de los dos tiene puerta de atrás, igual que el de `pre-commit`. Para un
 vuelta atrás de emergencia con GitHub caído está `pnpm deploy:api`, que se salta
 el guardia y hay que teclear a conciencia.
 
+## Ajustes
+
+`/ajustes` (`/en/settings`) guarda lo que se decide una vez: los avisos del
+cronómetro —sonido, cuenta atrás, latido— y la selección de preparar. Van a
+la tabla `preferencias`, de clave y valor, porque son de la interfaz y no del
+dominio: qué claves existen y de qué tipo es cada una lo dice
+`nucleo/src/preferencias.js`, no el esquema, y así un interruptor nuevo no
+pide una migración.
+
+Se leen con `usePreferencias()` y **se guardan con un PATCH parcial**: solo
+las claves que mandas. Un PUT entero haría que dos dispositivos que cambian
+cosas distintas se borrasen el uno al otro. Cada clave lleva su
+`actualizado_en`, y al sincronizar **se fusionan por sello en vez de
+reemplazarse** —`preferencias.fusionar`, fuera de `reemplazar`—: sin eso, un
+refresco que entrara entre guardar un ajuste y encolarlo se lo llevaba por
+delante para siempre.
+
+Dos reglas que salieron de romperlas:
+
+- Un ajuste que el servidor rechaza **se cae de la cola** en vez de atascarla
+  (`PRESCINDIBLE` en `almacen/cola.js`). Nada depende de él, y bloquear por un
+  interruptor dejaba la bitácora entera sin subir ni bajar.
+- El `$fetch` de preferencias en `traerTodo` lleva su propio `catch`: el
+  recurso menos importante no decide si baja lo importante.
+
 ## Dos idiomas
 
 La app está en castellano e inglés, y el idioma llega hasta el fondo:
@@ -263,7 +288,8 @@ herramientas de Python. `datos/` son los CSV exportados.
 
 - `nucleo/` es la lógica de la bitácora sin saber dónde corre. `api.js` son
   **los manejadores enteros de la API**: reciben un almacén (el puerto: once
-  métodos) y devuelven `{estado, datos}`. `almacen-memoria.js` es el puerto
+  métodos sobre cafés, recetas, extracciones y preferencias) y devuelven
+  `{estado, datos}`. `almacen-memoria.js` es el puerto
   sobre Maps —con él se prueba la API sin base, y es la forma de referencia
   del futuro adaptador de IndexedDB—. El resto: `recetas.js`,
   `sugerencias.js`, `validacion.js`, `derivar.js`, `ids.js`. Cero

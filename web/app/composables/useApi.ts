@@ -144,6 +144,20 @@ export interface Creada {
   sugerencias: Sugerencias
 }
 
+/**
+ * Los ajustes. Siempre completos: el núcleo rellena con los valores de
+ * fábrica lo que nadie haya tocado, así que aquí no hay opcionales.
+ */
+export interface Preferencias {
+  sonido: boolean
+  latido: boolean
+  cuenta_atras: boolean
+  crono_cafe_id: string
+  crono_receta_id: string
+  crono_dosis_g: number
+  crono_agua_g: number
+}
+
 /** Lo que la app manda. El servidor calcula id, reparto, ratio y dias_tueste. */
 export interface NuevaExtraccion {
   /** Sin él, la extracción queda suelta: taza apuntada, sin serie. */
@@ -229,6 +243,24 @@ export function useApi() {
     })
 
   const recetas = () => local<Receta[]>((a) => nucleo.listaRecetas(a))
+
+  /** Los ajustes, completos y tipados: nunca faltan claves. */
+  const preferencias = () =>
+    local<{ preferencias: Preferencias }>((a) => nucleo.leerPreferencias(a))
+      .then((r) => r.preferencias)
+
+  /**
+   * Cambia los ajustes que se le manden y **solo ésos**. Por eso viaja como
+   * PATCH: dos dispositivos que tocan interruptores distintos no se pisan, y
+   * reintentarlo desde la cola da siempre el mismo resultado.
+   */
+  const guardarPreferencias = async (cambios: Partial<Preferencias>): Promise<Preferencias> => {
+    const r = await local<{ preferencias: Preferencias }>(
+      (a) => nucleo.guardarPreferencias(a, cambios, idioma()),
+    )
+    await subir({ metodo: 'PATCH', camino: '/api/preferencias', cuerpo: cambios })
+    return r.preferencias
+  }
 
   const extracciones = (cafeId?: string) =>
     local<Extraccion[]>((a) => nucleo.listaExtracciones(a, { cafe: cafeId }))
@@ -418,6 +450,7 @@ export function useApi() {
     cafes, recetas, extracciones, guion, crear, crearCafe, editarCafe,
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
     crearReceta, guardarReceta, borrarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
+    preferencias, guardarPreferencias,
   }
 }
 

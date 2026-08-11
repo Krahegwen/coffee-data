@@ -36,8 +36,8 @@ export const DRIPPERS = ["v60-02-plastico", "v60-02-ceramica"];
  * En la base es una sola columna con la lista separada por comas, y no una
  * tabla hija: son como mucho siete claves de un vocabulario cerrado, nadie
  * hace JOIN contra ellas y nadie filtra por ellas en SQL. Guardarlas en la
- * misma fila deja el puerto de almacén donde está —once métodos, filas
- * planas— y los tres adaptadores tontos, que es lo que los hace fáciles de
+ * misma fila deja el puerto de almacén donde está —filas planas, sin tabla
+ * nueva— y los tres adaptadores tontos, que es lo que los hace fáciles de
  * escribir bien. El CHECK de la base sigue mordiendo: ver la migración 0010.
  *
  * Acepta lo que mande quien llame: un array, o el texto tal cual está

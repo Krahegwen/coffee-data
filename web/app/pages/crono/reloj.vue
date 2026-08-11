@@ -29,7 +29,14 @@ const {
   finGoteo, inicioMs, goteoIba,
 } = toRefs(estado.value)
 
-const { pitido, cuentaAtras, programar, detener } = useSonido()
+const { pitido, cuentaAtras, programar, detener, silenciar } = useSonido()
+const { ajustes, cargar: cargarAjustes } = usePreferencias()
+void cargarAjustes()
+
+// El interruptor del pie llega hasta el sintetizador. Como efecto y no una
+// vez: los ajustes se leen del cajón después de pintar, y cambiarlos en otra
+// pestaña tiene que callar ésta sin recargar.
+watchEffect(() => silenciar(!ajustes.value.sonido))
 
 /**
  * La cuenta atrás de arrancar o reanudar: 3-2-1 en pantalla mientras suenan
@@ -175,8 +182,9 @@ const numeroPaso = computed(() => {
  * interruptor del iPhone decide por ti.
  */
 const late = computed(() =>
-  preroll.value !== null
-  || (corriendo.value && siguiente.value !== null && (faltan.value ?? Infinity) <= 3),
+  ajustes.value.latido
+  && (preroll.value !== null
+    || (corriendo.value && siguiente.value !== null && (faltan.value ?? Infinity) <= 3)),
 )
 
 const etiquetaEsfera = computed(() => {
@@ -270,6 +278,12 @@ function cancelarCuentaAtras() {
  */
 function conCuentaAtras(desde: number) {
   cancelarCuentaAtras()
+  // Sin ella, el reloj arranca en el acto: quien la apaga es porque prefiere
+  // el control de siempre, no porque quiera esperar tres segundos en silencio.
+  if (!ajustes.value.cuenta_atras) {
+    void arrancarDesde(desde)
+    return
+  }
   cancelarPreroll = cuentaAtras({
     alTic: (n) => { preroll.value = n },
     alGo: () => {

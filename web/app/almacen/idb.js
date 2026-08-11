@@ -18,7 +18,8 @@
 
 const NOMBRE = "coffee";
 // La 2 añade `cola`: la salida hacia la red del modo con sesión.
-const VERSION = 2;
+// La 3, `preferencias`: los ajustes, con su clave por llave.
+const VERSION = 3;
 
 /** Un IDBRequest como promesa. */
 function pedir(peticion) {
@@ -46,8 +47,35 @@ function abrir(fabrica, nombre) {
     }
     if (!db.objectStoreNames.contains("fotos")) db.createObjectStore("fotos", { keyPath: "clave" });
     if (!db.objectStoreNames.contains("cola")) db.createObjectStore("cola", { keyPath: "id" });
+    if (!db.objectStoreNames.contains("preferencias")) {
+      db.createObjectStore("preferencias", { keyPath: "clave" });
+    }
   };
-  return pedir(peticion);
+
+  return new Promise((resolver, rechazar) => {
+    peticion.onsuccess = () => {
+      const db = peticion.result;
+      /*
+       * Si otra pestaña estrena versión, ésta suelta su conexión en vez de
+       * ser quien bloquea. Sus lecturas fallarán y se rearmarán al recargar,
+       * que es mejor que dejar a la otra esperando indefinidamente.
+       */
+      db.onversionchange = () => db.close();
+      resolver(db);
+    };
+    peticion.onerror = () => rechazar(peticion.error);
+    /*
+     * Y el caso contrario: una pestaña vieja tiene la base abierta en la
+     * versión anterior y bloquea esta subida. Sin escuchar `blocked` la
+     * promesa ni resolvía ni fallaba, y como `db()` la memoriza, **toda**
+     * lectura posterior se quedaba colgada: la app en «Un momento…» para
+     * siempre y sin un error que mirar. Pasa con la app instalada y una
+     * pestaña del navegador abiertas a la vez, que es de lo más normal.
+     */
+    peticion.onblocked = () => rechazar(
+      new Error("otra pestaña tiene abierta la versión anterior de la bitácora"),
+    );
+  });
 }
 
 /**
@@ -56,7 +84,13 @@ function abrir(fabrica, nombre) {
  */
 export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
   let promesaDb = null;
-  const db = () => (promesaDb ??= abrir(fabrica, nombre));
+  // Si la apertura falla —otra pestaña bloqueando la subida de versión— se
+  // olvida, o la promesa rechazada se quedaría memorizada y no habría forma
+  // de reintentar sin recargar aunque la otra pestaña ya se hubiera cerrado.
+  const db = () => (promesaDb ??= abrir(fabrica, nombre).catch((error) => {
+    promesaDb = null;
+    throw error;
+  }));
 
   const tablaSimple = (tabla) => ({
     async listar() {
@@ -100,6 +134,48 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
         const d = await db();
         const transaccion = d.transaction("recetas", "readwrite");
         transaccion.objectStore("recetas").delete(id);
+        await completa(transaccion);
+      },
+    },
+    /** Los ajustes: clave por llave, upsert, sin id que pueda chocar. */
+    preferencias: {
+      async leer() {
+        const d = await db();
+        return pedir(d.transaction("preferencias").objectStore("preferencias").getAll());
+      },
+      async escribir(nuevas) {
+        const d = await db();
+        const transaccion = d.transaction("preferencias", "readwrite");
+        const almacen = transaccion.objectStore("preferencias");
+        for (const fila of nuevas) almacen.put(fila);
+        await completa(transaccion);
+      },
+      /**
+       * Lo del servidor por encima de lo de aquí, **clave a clave y solo si
+       * es más nuevo**. Fuera del contrato, como `reemplazar`, y aparte de
+       * él a propósito.
+       *
+       * Con el `clear()+put()` de las demás tablas había una rendija por la
+       * que un interruptor recién pulsado se perdía del todo: entre escribir
+       * en el cajón y apuntarlo en la cola no hay cerrojo, y un refresco que
+       * entrase justo ahí —al volver a la pestaña, que es cuando más se
+       * dispara— veía la cola vacía, se creía al día y borraba el cambio. Un
+       * ajuste que revierte solo no se echa en falta como una extracción: se
+       * vuelve a pulsar pensando que fallaste tú.
+       *
+       * Comparar sellos lo cierra, y de paso arregla los dos dispositivos:
+       * apagar el sonido en el móvil no revive el de ayer del portátil.
+       */
+      async fusionar(remotas) {
+        const d = await db();
+        const transaccion = d.transaction("preferencias", "readwrite");
+        const almacen = transaccion.objectStore("preferencias");
+        for (const fila of remotas) {
+          const mia = await pedir(almacen.get(fila.clave));
+          if (!mia || String(fila.actualizado_en ?? "") >= String(mia.actualizado_en ?? "")) {
+            almacen.put(fila);
+          }
+        }
         await completa(transaccion);
       },
     },
@@ -163,6 +239,10 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
      * Reemplaza las tres tablas con lo que diga el servidor, en una sola
      * transacción: o el cajón entero pasa a la versión nueva, o se queda como
      * estaba. Solo lo llama el refresco, y solo con la cola vacía.
+     *
+     * Las preferencias **no entran aquí**: se fusionan por sello, que un
+     * ajuste no es una fila del historial y borrarlo para volver a bajarlo
+     * tiene consecuencias distintas. Ver `preferencias.fusionar`.
      */
     async reemplazar({ cafes, recetas, extracciones }) {
       const d = await db();

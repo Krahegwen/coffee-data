@@ -2,9 +2,10 @@
  * La API de la bitácora, sin saber dónde corre.
  *
  * Cada manejador recibe un **almacén** —el puerto: once métodos sobre cafés,
- * recetas y extracciones— y devuelve `{ estado, datos }`. El Worker lo enchufa
- * a D1 y envuelve el resultado en un Response; el modo local lo enchufará a
- * IndexedDB y lo consumirá tal cual. Una sola implementación, dos cajones.
+ * recetas, extracciones y preferencias, contados de verdad— y devuelve
+ * `{ estado, datos }`. El
+ * Worker lo enchufa a D1 y envuelve el resultado en un Response; el modo local
+ * lo enchufa a IndexedDB y lo consume tal cual. Una implementación, dos cajones.
  *
  * El puerto habla en filas y agregados, no en SQL:
  *
@@ -13,6 +14,7 @@
  *   recetas.escribir(receta, pasos, { nueva })   → atómico
  *   recetas.borrar(id)                            → receta y pasos, atómico
  *   extracciones.listar() / poner / actualizar
+ *   preferencias.leer() / preferencias.escribir(filas)   → upsert por clave
  *
  * Los filtros, el orden, los derivados y la resolución por slug viven aquí,
  * en JS: la bitácora entera cabe en memoria de sobra, y así los adaptadores
@@ -20,6 +22,7 @@
  */
 import { derivar } from "./derivar.js";
 import { uuidv7 } from "./ids.js";
+import { comoTexto, desdeFilas, validarPreferencias } from "./preferencias.js";
 import { guion, repartoDe } from "./recetas.js";
 import {
   avisosDe, madreDe, sugerir, textoCorto, variableCambiadaDe,
@@ -526,4 +529,63 @@ export async function restaurarExtraccion(almacen, id, { t = CASTELLANO } = {}) 
   ]);
   const devuelta = todas.find((e) => e.id === id);
   return respuesta(200, { extraccion: conDerivados(devuelta, cafes, recetas) });
+}
+
+// --- preferencias ----------------------------------------------------------
+
+/**
+ * Los ajustes, completos y tipados: lo guardado por encima de los valores de
+ * fábrica. Nunca faltan claves, así que quien los consuma no tiene que
+ * preguntarse si esta app es más vieja que aquella.
+ */
+export async function leerPreferencias(almacen) {
+  /*
+   * Con red: una tabla que aún no existe —desplegar antes de migrar— hacía
+   * reventar el SELECT y el Worker devolvía un 500 que se llevaba por delante
+   * la sincronización entera. Sin ajustes guardados, los de fábrica.
+   */
+  let filas = [];
+  try {
+    filas = await almacen.preferencias.leer();
+  } catch {
+    return respuesta(200, { preferencias: desdeFilas([]), filas: [] });
+  }
+  /*
+   * Las dos formas de lo mismo, y las dos hacen falta: `preferencias` es lo
+   * que se consume —tipado y completo— y `filas` es lo que hay guardado, con
+   * su sello por clave. Sin los sellos, quien sincroniza no puede fusionar y
+   * tiene que reemplazar a ciegas, que es justo lo que se lleva por delante
+   * el interruptor recién pulsado.
+   */
+  return respuesta(200, { preferencias: desdeFilas(filas), filas });
+}
+
+/**
+ * Guarda **solo las claves que llegan**, y por eso es un PATCH y no un PUT.
+ *
+ * Con un reemplazo entero, dos dispositivos que cambian interruptores
+ * distintos se borrarían el uno al otro: el último en sincronizar ganaría
+ * también en lo que no tocó. Cada clave lleva su sello, que es lo que permite
+ * fusionar al bajar en vez de reemplazar a ciegas.
+ */
+export async function guardarPreferencias(almacen, cuerpo, { t = CASTELLANO } = {}) {
+  const { valores, errores } = validarPreferencias(cuerpo, { t });
+  if (errores.length) return respuesta(422, { errores });
+
+  const sello = ahoraSQL();
+  const filas = Object.entries(valores).map(([clave, valor]) => ({
+    clave, valor: comoTexto(clave, valor), actualizado_en: sello,
+  }));
+  try {
+    await almacen.preferencias.escribir(filas);
+  } catch (error) {
+    return respuesta(422, { errores: [t("base_rechaza_cambio", { error: error.message })] });
+  }
+
+  const guardadas = await almacen.preferencias.leer();
+  return respuesta(200, {
+    preferencias: desdeFilas(guardadas),
+    filas: guardadas,
+    cambiado: Object.keys(valores),
+  });
 }

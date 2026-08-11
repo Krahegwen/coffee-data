@@ -13,6 +13,7 @@
  * respuesta desaparece del cajón.
  */
 import { uuidv7 } from '@coffee/nucleo/ids'
+import { desdeFilas } from '@coffee/nucleo/preferencias'
 
 import { drenar } from '~/almacen/cola'
 import { cajonLocal } from '~/almacen/local'
@@ -121,14 +122,65 @@ export function useSincro() {
 
   /** La bajada: todo, de una vez, y el cajón local pasa a ser esa copia. */
   async function traerTodo() {
-    const [cafes, recetas, vivas, retiradas] = await Promise.all([
+    const [cafes, recetas, vivas, retiradas, ajustes] = await Promise.all([
       $fetch<any[]>(`${base}/api/cafes`),
       $fetch<any[]>(`${base}/api/recetas`),
       $fetch<any[]>(`${base}/api/extracciones`),
       $fetch<any[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } }),
+      // Con su propio catch: el recurso menos importante de la app no puede
+      // decidir si baja lo importante. Un Worker viejo o una tabla sin migrar
+      // devolvían 404 o 500 aquí, el Promise.all rechazaba entero y dejaban
+      // de bajar cafés y extracciones con el pie diciendo «al día».
+      $fetch<{ filas?: any[] }>(`${base}/api/preferencias`).catch(() => null),
     ])
     await cajonLocal().reemplazar({ cafes, recetas, extracciones: [...vivas, ...retiradas] })
+    /*
+     * Las preferencias van aparte y **se fusionan por sello**, no se
+     * reemplazan con las demás.
+     *
+     * Entre guardar un ajuste en el cajón y apuntarlo en la cola no hay
+     * cerrojo, y este refresco se dispara justo al volver a la pestaña —que
+     * es cuando más se toca un interruptor—. Con el `clear()` de `reemplazar`,
+     * un refresco que entrara por ese hueco veía la cola vacía, se creía al
+     * día y borraba el cambio para siempre. Comparando sellos, lo viejo no
+     * pisa a lo nuevo venga de donde venga.
+     */
+    if (ajustes) await reconciliarAjustes(ajustes.filas ?? [])
     await sincronizarFotos(cafes)
+  }
+
+  /**
+   * Los ajustes en las dos direcciones, que es lo que hace que converjan.
+   *
+   * Bajar y fusionar por sello no basta: lo que se tocó **sin sesión** nunca
+   * pasó por la cola, y como las preferencias no entran en `reemplazar`, esas
+   * claves sobrevivían con sello nuevo, ganaban la fusión para siempre y el
+   * servidor no se enteraba jamás. Bastaba con abrir `/crono` una vez antes
+   * de iniciar sesión para dejar cuatro claves en ese limbo.
+   *
+   * Así que después de fusionar se mira al revés: lo que aquí es más nuevo
+   * que allí sube. Con eso, cualquier orden de sesiones y dispositivos acaba
+   * en el mismo sitio.
+   */
+  async function reconciliarAjustes(remotas: Array<{ clave: string; valor: string; actualizado_en: string }>) {
+    const cajon = cajonLocal()
+    const antes = await cajon.preferencias.leer()
+    if (remotas.length) await cajon.preferencias.fusionar(remotas)
+
+    const suyas = new Map(remotas.map((f) => [f.clave, f.actualizado_en]))
+    const mias = antes.filter(
+      (f: { clave: string; actualizado_en: string }) =>
+        String(f.actualizado_en ?? '') > String(suyas.get(f.clave) ?? ''),
+    )
+    if (!mias.length) return
+
+    // Por los manejadores del núcleo, no a mano: son ellos quienes saben
+    // convertir un «0» de la tabla en el false que espera la API.
+    const cuerpo = desdeFilas(mias)
+    const soloMias = Object.fromEntries(
+      mias.map((f: { clave: string }) => [f.clave, cuerpo[f.clave]]),
+    )
+    await encolar({ metodo: 'PATCH', camino: '/api/preferencias', cuerpo: soloMias })
   }
 
   let ultimoRefresco = 0
