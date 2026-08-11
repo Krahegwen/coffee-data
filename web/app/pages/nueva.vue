@@ -379,6 +379,68 @@ const defectos = computed({
   set: (lista: string[]) => { form.defecto = lista.join(',') },
 })
 
+/**
+ * El formulario en dos: arriba lo que ya viene decidido de preparar y del
+ * reloj, plegado; abajo lo único que hay que mirar con la taza delante.
+ *
+ * Todo esto ya estaba relleno al llegar —café, receta, dosis, temperatura,
+ * clics— y aun así había que pasarlo por encima cada vez para llegar a lo
+ * que de verdad se teclea. Plegarlo pone en pantalla el trabajo real: cuánto
+ * tardó, qué le pasa y qué nota le pones.
+ */
+const cabeceraAbierta = ref(false)
+
+/**
+ * Si un campo obligatorio de dentro se queda vacío, el bloque se abre solo.
+ *
+ * Sin esto el formulario se volvía mudo: el navegador no puede enfocar un
+ * campo escondido para enseñar su globo de error, así que pulsabas «Guardar»,
+ * no pasaba absolutamente nada, y no había manera de averiguar por qué. Se
+ * llega borrando la temperatura y volviendo a plegar, que es un gesto normal.
+ *
+ * `invalid` burbujea hasta el formulario, así que basta con escucharlo una
+ * vez ahí en vez de vigilar campo por campo.
+ */
+function alFallarUnCampo(evento: Event) {
+  const campo = evento.target as HTMLElement
+  if (!campo.closest('details.preparacion')) return
+  cabeceraAbierta.value = true
+  // Tras el repintado: enfocarlo mientras sigue oculto no lo enfoca, y el
+  // navegador solo enseña el globo del primero que pueda enfocar.
+  void nextTick(() => (campo as HTMLInputElement).focus())
+}
+
+/** Lo que diga el DOM manda, lo abra quien lo abra. */
+function alPlegar(evento: Event) {
+  cabeceraAbierta.value = (evento.target as HTMLDetailsElement).open
+}
+
+/**
+ * Lo plegado, en una línea. Plegar a ciegas escondería justo el campo que ese
+ * día vino mal prerrellenado, así que el resumen enseña los cinco valores que
+ * de verdad hacen la taza —y si alguno no cuadra, se abre y se corrige.
+ */
+const resumen = computed(() => {
+  const receta = (catalogo.value ?? []).find((r) => r.id === form.receta_id)
+  const bolsa = (bolsas.value ?? []).find((c) => c.id === form.cafe_id)
+  return [
+    bolsa?.nombre ?? t('comun.sin_bolsa'),
+    t('alta.resumen_temp', { n: form.temp_c }),
+    t('alta.resumen_clics', { n: form.clics }),
+    t('alta.resumen_cantidades', { dosis: form.dosis_g, agua: form.agua_g }),
+    receta?.nombre ?? '',
+    /*
+     * El dripper va aquí aunque abulte: es la única de las variables que **no
+     * se elige en ninguna otra pantalla** —ni preparar ni el reloj lo tienen—
+     * y llega copiado de la taza anterior sin decirlo. Y es justo el que más
+     * contamina: el de cerámica tiene masa térmica y baja la temperatura real
+     * del lecho. Escondido y sin resumir, colar en plástico una taza que la
+     * bitácora apunta como cerámica no dejaba ni un rastro en pantalla.
+     */
+    DRIPPERS.value[String(form.dripper)] ?? '',
+  ].filter(Boolean).join(' · ')
+})
+
 async function enviar() {
   errores.value = []
   resultado.value = null
@@ -416,6 +478,7 @@ async function enviar() {
     if (String(form.notas_cata).trim()) datos.notas_cata = String(form.notas_cata).trim()
 
     resultado.value = await crear(datos)
+    cabeceraAbierta.value = false
     // Lo que no se repite entre extracciones se limpia; el resto se queda,
     // que lo normal es cambiar una cosa y volver a medir. Las variables
     // cambiadas también: la de ahora ya pasó a ser el punto de partida.
@@ -450,6 +513,14 @@ async function enviar() {
     if (Object.keys(route.query).length) void router.replace({ query: {} })
   } catch (fallo) {
     errores.value = erroresDe(fallo)
+    /*
+     * Y si el servidor se queja, se abre la preparación: los dos rechazos más
+     * probables —«no existe la receta», «cafe_id desconocido», de una fila
+     * borrada desde otro dispositivo— nombran justo los dos desplegables que
+     * están ahí dentro, y el error se leía al pie sin ningún campo a la vista
+     * que tocara.
+     */
+    cabeceraAbierta.value = true
   } finally {
     enviando.value = false
   }
@@ -462,7 +533,7 @@ async function enviar() {
   <!-- Guardada la taza, el formulario se va entero: quedarse mirando los
        campos recién vaciados era lo que parecía un borrado, por mucho acuse
        de recibo que hubiera debajo. Su sitio lo ocupa la tarjeta de éxito. -->
-  <form v-if="!resultado" @submit.prevent="enviar">
+  <form v-if="!resultado" @submit.prevent="enviar" @invalid.capture="alFallarUnCampo">
     <div class="titulo">
       <h2>{{ $t('alta.nueva') }}</h2>
       <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
@@ -473,9 +544,31 @@ async function enviar() {
 
     <p v-if="desdeCrono" class="delcrono">{{ $t('alta.del_crono') }}</p>
 
-    <!-- La bolsa ya no es obligatoria: el café de un amigo o una muestra
-         suelta se guardan sin ficha. Eso sí, una taza suelta no compara con
-         nada, y el aviso ofrece el alta antes que inventarse una bolsa. -->
+    <!--
+      La preparación, plegada. Todo esto llegó decidido de preparar y del
+      reloj; lo que se teclea con la taza delante empieza más abajo.
+
+      El resumen no es decorado: plegar sin enseñar lo que se pliega
+      escondería justo el campo que ese día vino mal, así que los cinco
+      valores que hacen la taza están a la vista y basta con tocarlos para
+      corregirlos.
+    -->
+    <!-- Con `toggle` y no interceptando el clic: el navegador abre un
+         `details` por su cuenta —al buscar con Ctrl+F dentro, por ejemplo—, y
+         entonces el atributo y la variable dejaban de contar lo mismo; el
+         clic siguiente no hacía nada visible y había que dar dos. -->
+    <details class="preparacion" :open="cabeceraAbierta" @toggle="alPlegar">
+      <summary>
+        <span class="tit">
+          <svg class="flecha" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+          {{ $t('alta.preparacion') }}
+        </span>
+        <span class="resumen">{{ resumen }}</span>
+      </summary>
+
+      <div class="dentro">
     <label>
       {{ $t('alta.cafe') }}
       <select v-model="form.cafe_id">
@@ -483,14 +576,6 @@ async function enviar() {
         <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
     </label>
-    <i18n-t v-if="!form.cafe_id" keypath="alta.sin_bolsa_aviso" tag="p" class="meta" scope="global">
-      <template #enlace>
-        <NuxtLinkLocale :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
-          {{ $t('alta.sin_bolsa_enlace') }}
-        </NuxtLinkLocale>
-      </template>
-    </i18n-t>
-
     <!-- De qué extracción parte ésta. Solo con más de una en la bolsa: con una
          sola no hay nada que elegir, y con ninguna tampoco. -->
     <label v-if="deLaBolsa.length > 1">
@@ -503,9 +588,6 @@ async function enviar() {
         </option>
       </select>
     </label>
-    <p v-if="deLaBolsa.length > 1 && anterior && anterior.id !== deLaBolsa[0]!.id" class="meta">
-      {{ $t('alta.vuelves_atras') }}
-    </p>
 
     <div class="pareja">
       <label>{{ $t('alta.dosis') }}<input
@@ -537,6 +619,32 @@ async function enviar() {
         </option>
       </select>
     </label>
+      </div>
+    </details>
+
+    <!--
+      Los dos avisos que **no** pueden vivir dentro del plegable, por lo mismo
+      que en preparar: son lo único que dice contra qué se mide esta taza y
+      con qué no compara, y ahí dentro no se verían nunca.
+
+      Sin bolsa, además, es el estado de estreno de la app: esconder el enlace
+      al alta de la bolsa justo entonces era ofrecerle a nadie.
+    -->
+    <i18n-t v-if="!form.cafe_id" keypath="alta.sin_bolsa_aviso" tag="p" class="meta" scope="global">
+      <template #enlace>
+        <NuxtLinkLocale :to="{ path: '/cafes/nueva', query: { volver: '/nueva' } }">
+          {{ $t('alta.sin_bolsa_enlace') }}
+        </NuxtLinkLocale>
+      </template>
+    </i18n-t>
+
+    <p v-if="deLaBolsa.length > 1 && anterior && anterior.id !== deLaBolsa[0]!.id" class="ojo">
+      {{ $t('alta.vuelves_atras') }}
+    </p>
+
+    <!-- Y aquí empieza lo de esta taza: lo que solo se puede saber habiéndola
+         hecho. Es lo que queda en pantalla al abrir el formulario. -->
+    <h3 class="seccion">{{ $t('alta.la_taza') }}</h3>
 
     <!-- Atados: el goteo se cuenta dentro del total, así que tocar uno mueve
          el otro. Ver `useAtadura`. -->
@@ -609,8 +717,13 @@ async function enviar() {
     <!-- Solo sin tabla: con filas puestas, es ella la que avisa. -->
     <p v-if="!cambiadas.length && dosALaVez" class="fallo">{{ $t('tabla.dos_a_la_vez') }}</p>
 
-    <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
-    <h3>{{ $t('alta.defectos_titulo') }}</h3>
+    <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. El
+         icono abre la chuleta: distinguir amargor de astringencia es lo que
+         decide qué palanca mueve el motor, y no se acierta de memoria. -->
+    <div class="titulo-defectos">
+      <h3>{{ $t('alta.defectos_titulo') }}</h3>
+      <DefectosInfo />
+    </div>
     <DefectosElegidos v-model="defectos" />
 
     <label>
@@ -727,6 +840,74 @@ h3 {
 
 form { display: flex; flex-direction: column; gap: 0.85rem; }
 
+/* La preparación plegada: una tarjeta, para que se lea como un bloque
+   cerrado y no como un campo más de la lista. */
+.preparacion {
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: 0.6rem;
+}
+
+.preparacion summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* El triángulo por defecto se sale de sitio con dos líneas dentro. */
+.preparacion summary::-webkit-details-marker { display: none; }
+
+/* Con flecha: quitando el triángulo del navegador y dejando solo texto, la
+   tarjeta se leía como una etiqueta y no como algo que se toca —y en el móvil
+   no hay `hover` que lo delate—. */
+.preparacion .tit {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--suave);
+}
+
+.preparacion .flecha { transition: transform 0.15s ease; flex: 0 0 auto; }
+.preparacion[open] .flecha { transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .preparacion .flecha { transition: none; }
+}
+
+/* En una línea y con puntos suspensivos: es un resumen, no un párrafo. */
+.preparacion .resumen {
+  font-size: 0.9rem;
+  color: var(--tinta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preparacion[open] .resumen { display: none; }
+
+.preparacion .dentro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0 0.8rem 0.9rem;
+}
+
+/* Encabeza lo que sí se teclea aquí, así que pesa más que los `h3` de dentro
+   de un bloque de campos. */
+.seccion {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tinta);
+  margin: 0.5rem 0 0;
+}
+
+.titulo-defectos { display: flex; align-items: center; gap: 0.15rem; }
+.titulo-defectos h3 { margin: 0; }
+
 /* Sale del formulario, no se toca: es lo que ya está guardado. */
 input[readonly] { color: var(--suave); background: transparent; }
 
@@ -784,6 +965,9 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tarjeta input { width: 100%; margin: 0.5rem 0; }
 
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
+/* Fuera del diálogo también: el aviso de volver a una rama anterior vive en
+   el formulario, y ahí `.ojo` no estaba definida. */
+.ojo { color: var(--peligro); font-size: 0.85rem; margin: 0.35rem 0; }
 
 /* Lo que se va a guardar, no un consejo: por eso va en la tinta del texto y
    con el valor destacado, y no en el gris de las notas al pie. */

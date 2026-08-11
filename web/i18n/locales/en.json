@@ -65,6 +65,7 @@
     "cancelar": "Cancel",
     "vaciar": "Clear",
     "guardar": "Save",
+    "cerrar": "Close",
     "guardado": "Saved",
     "guardando": "Saving…",
     "sin_cambios": "No changes",
@@ -120,7 +121,21 @@
     "todavia_ninguna": "None yet.",
     "resumen_extraccion": "{temp} °C · {clics} clicks · 1:{ratio}"
   },
+  "defectos_info": {
+    "equilibrado": "Nothing to fix. Not that the cup is excellent —that is what the score is for— but that there is no flaw to correct.",
+    "amargor": "Bitter and drying at the end, like tonic water. Usually overextraction: the water has pulled out too much.",
+    "astringente": "Leaves your tongue rough, like an unripe persimmon or very strong tea. It is texture, not taste, which is why it gets mistaken for bitterness: if it dries your mouth it is astringency, if it tastes bitter it is bitterness. Almost always the grind being too fine.",
+    "plano": "Fine but says nothing: no acidity, no sweetness, no relief. It needs more extraction, not less.",
+    "agrio": "Acidity that stings and bothers, like raw lemon. Not to be confused with good acidity, which is what makes a cup interesting: if it is pleasant, this is not your flaw.",
+    "salado": "A saline edge, mostly at the front of the sip. Comes from very low extraction, or too little coffee for that much water.",
+    "carton": "Wet paper, stale, like a cupboard. Almost always the coffee being past it, not how you brewed it.",
+    "aguado": "Tea-like body: it drinks light and leaves quickly. There is little dissolved in the cup, even if the flavour is right."
+  },
   "defecto": {
+    "que_es": "What each flaw is",
+    "info_intro": "What is wrong with the cup, and what the engine moves when you tell it. You can mark several: the adjustment comes from the first one only.",
+    "info_pie": "These are the levers the app applies when logging, not a separate table: if they are ever recalibrated, this changes with them.",
+    "sin_palanca": "Moves nothing: there is nothing to correct.",
     "subir": "Move {que} up",
     "orden_pista": "All of them stay on the record, but the adjustment comes from the first one only ({principal}): fix what bothers you most and measure again. If the second is still there, it will be first next time."
   },
@@ -338,6 +353,11 @@
   "alta": {
     "titulo": "Log a brew",
     "nueva": "New brew",
+    "preparacion": "How you brewed it",
+    "la_taza": "How it turned out",
+    "resumen_temp": "{n} °C",
+    "resumen_clics": "{n} clicks",
+    "resumen_cantidades": "{dosis}/{agua} g",
     "del_crono": "Time and drawdown come from the timer.",
     "cafe": "Coffee",
     "sin_bolsa_aviso": "With no bag the cup is on the record, but it compares with nothing and adds to no history. If this coffee is going to come round again, {enlace}: on saving you come back here with it selected, and what you wrote is not lost.",
