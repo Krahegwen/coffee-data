@@ -18,6 +18,7 @@ const fallo = ref('')
 /** Los interruptores, en el orden en que se explican. */
 const INTERRUPTORES = [
   { clave: 'sonido', titulo: 'ajustes.sonido', pista: 'ajustes.sonido_pista' },
+  { clave: 'voz', titulo: 'ajustes.voz', pista: 'ajustes.voz_pista' },
   { clave: 'cuenta_atras', titulo: 'ajustes.cuenta_atras', pista: 'ajustes.cuenta_atras_pista' },
   { clave: 'latido', titulo: 'ajustes.latido', pista: 'ajustes.latido_pista' },
 ] as const

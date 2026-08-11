@@ -12,8 +12,19 @@ import { CON_AGUA } from "./recetas.js";
 export const AVISO_S = 3;
 
 /**
+ * Respiro entre el final de la frase y el primer pip. Sin él se pisan: el
+ * clip acaba y el pitido entra encima de la última sílaba.
+ */
+export const HUECO_VOZ = 0.35;
+
+/**
  * Los cues de un guion, ordenados por segundo: `{t, tipo}`.
  *
+ * Con `duraciones` —el manifiesto de los clips de voz— añade también los
+ * avisos hablados. Sin él, la agenda sale igual que siempre: la voz es una
+ * capa encima, no un requisito.
+ *
+ * - `voz`: la frase del paso, colocada para que acabe antes del primer pip.
  * - `pip`: cuenta atrás, en t−3, t−2 y t−1 de cada paso.
  * - `go`: arranca un paso.
  * - `go_doble`: arranca el último vertido. Después de éste se suelta el
@@ -27,7 +38,7 @@ export const AVISO_S = 3;
  * tampoco suena antes del segundo 0, que la cuenta atrás de arrancar es del
  * reproductor y no del plan.
  */
-export function cuesDe(pasos) {
+export function cuesDe(pasos, duraciones = null) {
   const todos = pasos ?? [];
 
   /*
@@ -72,10 +83,44 @@ export function cuesDe(pasos) {
       if (previo !== null && tp <= previo) continue;
       cues.push({ t: tp, tipo: "pip" });
     }
+
+    /*
+     * Y la voz, si hay clips: termina justo antes del primer pip, con un
+     * respiro de `HUECO_VOZ` en medio para que no se solapen.
+     *
+     * **El orden es lo que hace que esto funcione**: primero qué —para coger
+     * el hervidor— y luego cuándo, pegado al instante. Al revés estarías
+     * escuchando mientras viertes, y la cuenta atrás dejaría de significar
+     * «ahora» por tener algo detrás.
+     *
+     * Si no cabe entera después del paso anterior, se cae: mejor sin voz que
+     * hablando encima del aviso de la anterior. Los pips se quedan igual, que
+     * son los que llevan el tiempo.
+     */
+    const frase = duraciones?.[vozDe(paso)];
+    if (frase) {
+      const empieza = Number((t - AVISO_S - HUECO_VOZ - frase).toFixed(2));
+      if (empieza >= 0 && (previo === null || empieza > previo)) {
+        cues.push({ t: empieza, tipo: "voz", clave: vozDe(paso) });
+      }
+    }
+
     previo = t;
   });
 
   return cues.sort((a, b) => a.t - b.t);
+}
+
+/**
+ * Qué frase le toca a un paso.
+ *
+ * Sale de la acción y el estilo, las mismas claves que la pantalla convierte
+ * en «Verter en espiral»: lo que se oye y lo que se lee salen del mismo dato.
+ * `retirar` y los demás usan su acción a secas.
+ */
+export function vozDe(paso) {
+  if (paso?.accion === CON_AGUA && paso?.estilo) return `verter_${paso.estilo}`;
+  return String(paso?.accion ?? "");
 }
 
 /** Situable en el reloj: sin hora, un paso no puede sonar. */

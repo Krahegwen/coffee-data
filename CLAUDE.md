@@ -226,6 +226,30 @@ Ninguno de los dos tiene puerta de atrás, igual que el de `pre-commit`. Para un
 vuelta atrás de emergencia con GitHub caído está `pnpm deploy:api`, que se salta
 el guardia y hay que teclear a conciencia.
 
+## La voz del cronómetro
+
+Los clips viven en `web/public/audio/{es,en}/` con un `duraciones.json` al
+lado. **El manifiesto no es un extra**: `cuesDe()` lo necesita para colocar
+cada frase de modo que acabe justo antes del primer pip, y sin él la agenda
+sale sin voz y todo lo demás funciona igual.
+
+Se generaron con **Piper** (voz `es_ES-carlfm-x_low`, `en_GB-alan-medium`),
+con un script que vive fuera del repo — al repositorio solo entra el audio.
+Lo que se decidió escuchando, por si hay que rehacerlos:
+
+- Las frases **no llevan números**. Los gramos son datos del usuario y
+  concatenarlos suena a locutor de estación; la pantalla ya los enseña.
+- **Punto final, más lento y menos variación de fonema.** Sin puntuación el
+  modelo se come el final, y a velocidad de fábrica se atropella.
+- **Las frases de una palabra no funcionan.** «Agita.» a secas sonaba plano
+  por lento que fuera: un TTS necesita algo de frase para asentar la
+  entonación, así que son «Agita ahora.», «Remueve ahora.». Por lo mismo se
+  descartaron las voces de audiolibros, que devolvían nueve segundos para
+  «Vierte en espiral».
+
+`m4a` está en `globPatterns` de workbox: sin eso los clips no se precachean y
+la cocina sin cobertura se queda muda.
+
 ## Ajustes
 
 `/ajustes` (`/en/settings`) guarda lo que se decide una vez: los avisos del

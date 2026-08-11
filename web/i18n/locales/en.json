@@ -304,6 +304,8 @@
     "crono_intro": "How it warns you about each step while you brew.",
     "sonido": "Sound",
     "sonido_pista": "Three pips before each step and a tone when it starts.",
+    "voz": "Say the step out loud",
+    "voz_pista": "«Pour in a spiral» before the pips, so you need not look at the screen.",
     "cuenta_atras": "Countdown on start",
     "cuenta_atras_pista": "Three seconds to pick up the kettle, on resume too.",
     "latido": "Pulsing number",
