@@ -54,9 +54,11 @@ const fichas = computed(() => [...CLAVES_DEFECTO].map((clave) => ({
     </svg>
   </button>
 
-  <dialog ref="dialogo" class="hoja" @cancel="dialogo?.close()">
+  <!-- El título, atado: sin `aria-labelledby` el lector de pantalla anuncia
+       un diálogo sin nombre y hay que ir a buscarlo. -->
+  <dialog ref="dialogo" class="hoja" aria-labelledby="defectos-info-titulo" @cancel="dialogo?.close()">
     <header>
-      <h3>{{ $t('defecto.que_es') }}</h3>
+      <h3 id="defectos-info-titulo">{{ $t('defecto.que_es') }}</h3>
       <button type="button" class="cerrar" :aria-label="$t('comun.cerrar')" @click="dialogo?.close()">
         ✕
       </button>
@@ -120,16 +122,21 @@ const fichas = computed(() => [...CLAVES_DEFECTO].map((clave) => ({
 
 .hoja::backdrop { background: var(--fondo); }
 
+/*
+ * Pegado arriba del todo. `top` se mide contra el **padding box** del que
+ * scrollea, así que un valor negativo para «compensar» el padding del diálogo
+ * dejaba el encabezado esa misma franja por encima del borde visible: al
+ * bajar, el título salía cortado por arriba.
+ */
 .hoja header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
   position: sticky;
-  top: -1.25rem;
+  top: 0;
   background: var(--fondo);
   padding: 0.25rem 0 0.5rem;
-  margin: -0.25rem 0 0;
 }
 
 .hoja h3 { font-size: 1.05rem; margin: 0; }
