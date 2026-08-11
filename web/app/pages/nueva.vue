@@ -379,6 +379,34 @@ const defectos = computed({
   set: (lista: string[]) => { form.defecto = lista.join(',') },
 })
 
+/**
+ * El formulario en dos: arriba lo que ya viene decidido de preparar y del
+ * reloj, plegado; abajo lo único que hay que mirar con la taza delante.
+ *
+ * Todo esto ya estaba relleno al llegar —café, receta, dosis, temperatura,
+ * clics— y aun así había que pasarlo por encima cada vez para llegar a lo
+ * que de verdad se teclea. Plegarlo pone en pantalla el trabajo real: cuánto
+ * tardó, qué le pasa y qué nota le pones.
+ */
+const cabeceraAbierta = ref(false)
+
+/**
+ * Lo plegado, en una línea. Plegar a ciegas escondería justo el campo que ese
+ * día vino mal prerrellenado, así que el resumen enseña los cinco valores que
+ * de verdad hacen la taza —y si alguno no cuadra, se abre y se corrige.
+ */
+const resumen = computed(() => {
+  const receta = (catalogo.value ?? []).find((r) => r.id === form.receta_id)
+  const bolsa = (bolsas.value ?? []).find((c) => c.id === form.cafe_id)
+  return [
+    bolsa?.nombre ?? t('comun.sin_bolsa'),
+    t('alta.resumen_temp', { n: form.temp_c }),
+    t('alta.resumen_clics', { n: form.clics }),
+    t('alta.resumen_cantidades', { dosis: form.dosis_g, agua: form.agua_g }),
+    receta?.nombre ?? '',
+  ].filter(Boolean).join(' · ')
+})
+
 async function enviar() {
   errores.value = []
   resultado.value = null
@@ -473,9 +501,22 @@ async function enviar() {
 
     <p v-if="desdeCrono" class="delcrono">{{ $t('alta.del_crono') }}</p>
 
-    <!-- La bolsa ya no es obligatoria: el café de un amigo o una muestra
-         suelta se guardan sin ficha. Eso sí, una taza suelta no compara con
-         nada, y el aviso ofrece el alta antes que inventarse una bolsa. -->
+    <!--
+      La preparación, plegada. Todo esto llegó decidido de preparar y del
+      reloj; lo que se teclea con la taza delante empieza más abajo.
+
+      El resumen no es decorado: plegar sin enseñar lo que se pliega
+      escondería justo el campo que ese día vino mal, así que los cinco
+      valores que hacen la taza están a la vista y basta con tocarlos para
+      corregirlos.
+    -->
+    <details class="preparacion" :open="cabeceraAbierta">
+      <summary @click.prevent="cabeceraAbierta = !cabeceraAbierta">
+        <span class="tit">{{ $t('alta.preparacion') }}</span>
+        <span class="resumen">{{ resumen }}</span>
+      </summary>
+
+      <div class="dentro">
     <label>
       {{ $t('alta.cafe') }}
       <select v-model="form.cafe_id">
@@ -537,6 +578,12 @@ async function enviar() {
         </option>
       </select>
     </label>
+      </div>
+    </details>
+
+    <!-- Y aquí empieza lo de esta taza: lo que solo se puede saber habiéndola
+         hecho. Es lo que queda en pantalla al abrir el formulario. -->
+    <h3 class="seccion">{{ $t('alta.la_taza') }}</h3>
 
     <!-- Atados: el goteo se cuenta dentro del total, así que tocar uno mueve
          el otro. Ver `useAtadura`. -->
@@ -609,8 +656,13 @@ async function enviar() {
     <!-- Solo sin tabla: con filas puestas, es ella la que avisa. -->
     <p v-if="!cambiadas.length && dosALaVez" class="fallo">{{ $t('tabla.dos_a_la_vez') }}</p>
 
-    <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
-    <h3>{{ $t('alta.defectos_titulo') }}</h3>
+    <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. El
+         icono abre la chuleta: distinguir amargor de astringencia es lo que
+         decide qué palanca mueve el motor, y no se acierta de memoria. -->
+    <div class="titulo-defectos">
+      <h3>{{ $t('alta.defectos_titulo') }}</h3>
+      <DefectosInfo />
+    </div>
     <DefectosElegidos v-model="defectos" />
 
     <label>
@@ -726,6 +778,58 @@ h3 {
 }
 
 form { display: flex; flex-direction: column; gap: 0.85rem; }
+
+/* La preparación plegada: una tarjeta, para que se lea como un bloque
+   cerrado y no como un campo más de la lista. */
+.preparacion {
+  background: var(--tarjeta);
+  border: 1px solid var(--linea);
+  border-radius: 0.6rem;
+}
+
+.preparacion summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* El triángulo por defecto se sale de sitio con dos líneas dentro. */
+.preparacion summary::-webkit-details-marker { display: none; }
+
+.preparacion .tit { font-size: 0.82rem; color: var(--suave); }
+
+/* En una línea y con puntos suspensivos: es un resumen, no un párrafo. */
+.preparacion .resumen {
+  font-size: 0.9rem;
+  color: var(--tinta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preparacion[open] .resumen { display: none; }
+
+.preparacion .dentro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0 0.8rem 0.9rem;
+}
+
+/* Encabeza lo que sí se teclea aquí, así que pesa más que los `h3` de dentro
+   de un bloque de campos. */
+.seccion {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tinta);
+  margin: 0.5rem 0 0;
+}
+
+.titulo-defectos { display: flex; align-items: center; gap: 0.15rem; }
+.titulo-defectos h3 { margin: 0; }
 
 /* Sale del formulario, no se toca: es lo que ya está guardado. */
 input[readonly] { color: var(--suave); background: transparent; }

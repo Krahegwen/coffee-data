@@ -65,6 +65,7 @@
     "cancelar": "Cancelar",
     "vaciar": "Vaciar",
     "guardar": "Guardar",
+    "cerrar": "Cerrar",
     "guardado": "Guardado",
     "guardando": "Guardando…",
     "sin_cambios": "Sin cambios",
@@ -120,7 +121,21 @@
     "todavia_ninguna": "Todavía ninguna.",
     "resumen_extraccion": "{temp} °C · {clics} clics · 1:{ratio}"
   },
+  "defectos_info": {
+    "equilibrado": "No le sobra nada. No es que la taza sea excelente —para eso está la nota—, sino que no hay un defecto que corregir.",
+    "amargor": "Amarga y seca al final, como una tónica. Suele ser sobreextracción: el agua ha sacado de más.",
+    "astringente": "Deja la lengua áspera, como un caqui verde o un té muy cargado. Es tacto, no sabor, y por eso se confunde con el amargor: si te reseca la boca es astringencia, si sabe amarga es amargor. Casi siempre la molienda demasiado fina.",
+    "plano": "Está bien pero no dice nada: sin acidez, sin dulzor, sin relieve. Falta extracción, no le sobra.",
+    "agrio": "Acidez que pincha y molesta, tipo limón crudo. No confundir con la acidez buena, que es la que hace la taza interesante: si es agradable no es este defecto.",
+    "salado": "Un punto salino, sobre todo al principio del trago. Sale con muy poca extracción o con poco café para tanta agua.",
+    "carton": "A papel mojado, a rancio, a armario. Casi siempre es el café, que está pasado, y no cómo lo has preparado.",
+    "aguado": "Cuerpo de té: se bebe ligera y se va rápido. Hay poco disuelto en la taza, aunque el sabor sea correcto."
+  },
   "defecto": {
+    "que_es": "Qué es cada defecto",
+    "info_intro": "Lo que le pasa a la taza, y qué mueve el motor cuando se lo cuentas. Se pueden marcar varios: el ajuste sale solo del primero.",
+    "info_pie": "Las palancas son las que aplica la app al registrar, no una tabla aparte: si algún día se calibran, esto cambia con ellas.",
+    "sin_palanca": "No mueve nada: no hay nada que corregir.",
     "subir": "Subir {que}",
     "orden_pista": "Quedan apuntados todos, pero el ajuste sale solo del primero ({principal}): corrige lo que más molesta y vuelve a medir. Si el segundo sigue ahí, ya será el primero de la próxima."
   },
@@ -338,6 +353,11 @@
   "alta": {
     "titulo": "Registrar extracción",
     "nueva": "Nueva extracción",
+    "preparacion": "Cómo la preparaste",
+    "la_taza": "Cómo salió",
+    "resumen_temp": "{n} °C",
+    "resumen_clics": "{n} clics",
+    "resumen_cantidades": "{dosis}/{agua} g",
     "del_crono": "Tiempo y goteo vienen del cronómetro.",
     "cafe": "Café",
     "sin_bolsa_aviso": "Sin bolsa la taza queda apuntada, pero no compara con nada ni suma a ningún historial. Si este café va a repetir, {enlace}: al guardarla vuelves aquí con ella puesta, y lo escrito no se pierde.",
