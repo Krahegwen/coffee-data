@@ -345,7 +345,9 @@
     "etiqueta_cata": "Tasting notes",
     "cambia_una": "Change {una_sola} thing:",
     "cambia_una_enfasis": "one single",
-    "conforme": "Balanced and well scored: touch nothing, repeat to confirm."
+    "conforme": "Balanced and well scored: touch nothing, repeat to confirm.",
+    "otra": "Log another",
+    "al_inicio": "Back to home"
   },
   "extraccion": {
     "titulo": "Brew",

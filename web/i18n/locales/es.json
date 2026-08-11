@@ -345,7 +345,9 @@
     "etiqueta_cata": "Notas de cata",
     "cambia_una": "Cambia {una_sola} cosa:",
     "cambia_una_enfasis": "una sola",
-    "conforme": "Equilibrado y con buena nota: no toques nada, repite para confirmar."
+    "conforme": "Equilibrado y con buena nota: no toques nada, repite para confirmar.",
+    "otra": "Registrar otra",
+    "al_inicio": "Volver al inicio"
   },
   "extraccion": {
     "titulo": "Extracción",
