@@ -25,7 +25,7 @@ const router = useRouter()
 const { estado, soltarReloj } = useCrono()
 
 const {
-  cafeId, recetaId, dosis, agua, pasos, corriendo, transcurrido,
+  cafeId, recetaId, desdeId, dosis, agua, pasos, corriendo, transcurrido,
   finGoteo, inicioMs, goteoIba,
 } = toRefs(estado.value)
 
@@ -439,6 +439,9 @@ function registrar() {
       receta: recetaId.value,
       dosis: String(dosis.value),
       agua: String(agua.value),
+      // La rama elegida en preparar llega hasta el alta: se decidió antes de
+      // moler y sería absurdo volver a preguntarla con la taza ya hecha.
+      ...(desdeId.value ? { desde: desdeId.value } : {}),
       tiempo: relojDe(finGoteo.value ?? transcurrido.value),
       ...(drawdown.value !== null ? { drawdown: String(drawdown.value) } : {}),
     },
