@@ -391,6 +391,26 @@ const defectos = computed({
 const cabeceraAbierta = ref(false)
 
 /**
+ * Si un campo obligatorio de dentro se queda vacío, el bloque se abre solo.
+ *
+ * Sin esto el formulario se volvía mudo: el navegador no puede enfocar un
+ * campo escondido para enseñar su globo de error, así que pulsabas «Guardar»,
+ * no pasaba absolutamente nada, y no había manera de averiguar por qué. Se
+ * llega borrando la temperatura y volviendo a plegar, que es un gesto normal.
+ *
+ * `invalid` burbujea hasta el formulario, así que basta con escucharlo una
+ * vez ahí en vez de vigilar campo por campo.
+ */
+function alFallarUnCampo(evento: Event) {
+  const campo = evento.target as HTMLElement
+  if (!campo.closest('details.preparacion')) return
+  cabeceraAbierta.value = true
+  // Tras el repintado: enfocarlo mientras sigue oculto no lo enfoca, y el
+  // navegador solo enseña el globo del primero que pueda enfocar.
+  void nextTick(() => (campo as HTMLInputElement).focus())
+}
+
+/**
  * Lo plegado, en una línea. Plegar a ciegas escondería justo el campo que ese
  * día vino mal prerrellenado, así que el resumen enseña los cinco valores que
  * de verdad hacen la taza —y si alguno no cuadra, se abre y se corrige.
@@ -490,7 +510,7 @@ async function enviar() {
   <!-- Guardada la taza, el formulario se va entero: quedarse mirando los
        campos recién vaciados era lo que parecía un borrado, por mucho acuse
        de recibo que hubiera debajo. Su sitio lo ocupa la tarjeta de éxito. -->
-  <form v-if="!resultado" @submit.prevent="enviar">
+  <form v-if="!resultado" @submit.prevent="enviar" @invalid.capture="alFallarUnCampo">
     <div class="titulo">
       <h2>{{ $t('alta.nueva') }}</h2>
       <!-- Lo escrito aquí sobrevive a salir y volver; esto lo tira a
