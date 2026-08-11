@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import { almacenEnMemoria } from "../src/almacen-memoria.js";
 import { crearCafe, crearExtraccion, guardarReceta } from "../src/api.js";
 import { avisosDe, sugerir, textoCorto } from "../src/sugerencias.js";
-import { idiomaDe, IDIOMA_POR_DEFECTO, IDIOMAS, textos } from "../src/textos.js";
+import { CATALOGO, idiomaDe, IDIOMA_POR_DEFECTO, IDIOMAS, textos } from "../src/textos.js";
 import { validarExtraccion } from "../src/validacion.js";
 
 describe("el catálogo", () => {
@@ -143,5 +143,28 @@ describe("los manejadores en inglés", () => {
     assert.equal(datos.sugerencias.cambios[0].porque, "overextraction: grind coarser");
     // El resumen es la palanca pelada: mismas claves, así que no cambia de idioma.
     assert.equal(datos.extraccion.siguiente_ajuste, "clics +2");
+  });
+});
+
+describe("los dos catálogos van a la par", () => {
+  it("dicen exactamente las mismas claves", () => {
+    // Una clave que falta en inglés cae al castellano sin romper nada, así que
+    // no hay forma de enterarse mirando la app. Aquí sí.
+    const es = Object.keys(CATALOGO.es).sort();
+    const en = Object.keys(CATALOGO.en).sort();
+    assert.deepEqual(
+      en.filter((c) => !CATALOGO.es[c]), [], "sobran en inglés",
+    );
+    assert.deepEqual(
+      es.filter((c) => !CATALOGO.en[c]), [], "faltan por traducir",
+    );
+  });
+
+  it("y ninguna se queda en blanco", () => {
+    for (const [idioma, dic] of Object.entries(CATALOGO)) {
+      for (const [clave, frase] of Object.entries(dic)) {
+        assert.ok(String(frase).trim(), `${idioma}.${clave} está vacía`);
+      }
+    }
   });
 });

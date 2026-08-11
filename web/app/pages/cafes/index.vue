@@ -79,7 +79,7 @@ function restante(cafeId: string, pesoG: number | null) {
   align-items: center;
   min-height: 44px;
   background: var(--acento);
-  color: #fff;
+  color: var(--sobre-acento);
   font-weight: 600;
   font-size: 0.9rem;
   border-radius: 0.5rem;

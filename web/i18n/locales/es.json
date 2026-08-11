@@ -283,6 +283,17 @@
     "cuenta_atras_pista": "Tres segundos para coger el hervidor, también al reanudar.",
     "latido": "Latido del número",
     "latido_pista": "El número crece con cada aviso: se ve aunque el móvil esté en silencio.",
+    "tema_titulo": "Los colores",
+    "tema_intro": "En automático sigue a lo que tengas puesto en el teléfono.",
+    "tema_modo": "Cuándo usar el modo oscuro",
+    "tema_juego": "Juego de colores",
+    "modo_auto": "Automático",
+    "modo_claro": "Claro",
+    "modo_oscuro": "Oscuro",
+    "tema_papel": "Papel",
+    "tema_pizarra": "Pizarra",
+    "tema_tostado": "Tostado",
+    "tema_carbon": "Carbón",
     "donde_viven": "Los ajustes se guardan en este navegador. Con la sesión abierta viajan al servidor y bajan a los demás dispositivos."
   },
   "respaldo": {

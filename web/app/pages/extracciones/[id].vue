@@ -467,7 +467,7 @@ input[type="range"] { padding: 0; accent-color: var(--acento); }
 button {
   font: inherit;
   font-weight: 600;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -480,8 +480,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .retirar {
   background: transparent;
-  color: #c2410c;
-  border: 1px solid #c2410c;
+  color: var(--peligro);
+  border: 1px solid var(--peligro);
   font-weight: 400;
   min-height: 2.75rem;
 }
@@ -522,11 +522,11 @@ input[readonly] { color: var(--suave); background: transparent; }
 
 dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
-dialog .ojo { color: #c2410c; }
+dialog .ojo { color: var(--peligro); }
 
 .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .secundario { background: transparent; color: var(--suave); border: 1px solid var(--linea); font-weight: 400; }
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 
 .tarjeta {
   background: var(--tarjeta);
@@ -538,8 +538,8 @@ dialog .ojo { color: #c2410c; }
 
 .tarjeta input { width: 100%; margin: 0.5rem 0; }
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
-.fallo { color: #c2410c; font-size: 0.85rem; }
-.errores { border-color: #c2410c; }
+.fallo { color: var(--peligro); font-size: 0.85rem; }
+.errores { border-color: var(--peligro); }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
 .exito { border-color: var(--acento); }
 .aviso { font-size: 0.85rem; margin: 0.5rem 0; }

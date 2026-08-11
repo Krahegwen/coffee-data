@@ -296,13 +296,13 @@ input, select {
 }
 
 button {
-  font: inherit; font-weight: 600; color: #fff; background: var(--acento);
+  font: inherit; font-weight: 600; color: var(--sobre-acento); background: var(--acento);
   border: 0; border-radius: 0.6rem; padding: 0.85rem 1rem; min-height: 3rem; cursor: pointer;
 }
 
 button:disabled { opacity: 0.5; cursor: default; }
 
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 .cancelar { background: transparent; color: var(--tinta); border: 1px solid var(--linea); }
 
 dialog {
@@ -328,8 +328,8 @@ dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
 .tarjeta input { width: 100%; margin: 0.5rem 0; }
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
 .aviso { color: var(--suave); font-size: 0.8rem; margin: 0; }
-.fallo { color: #c2410c; font-size: 0.85rem; }
-.errores { border-color: #c2410c; }
+.fallo { color: var(--peligro); font-size: 0.85rem; }
+.errores { border-color: var(--peligro); }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
 .exito { border-color: var(--acento); }
 code { font-size: 0.9em; }

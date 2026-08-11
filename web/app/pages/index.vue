@@ -275,7 +275,7 @@ h2 {
   white-space: nowrap;
 }
 
-.dias.pasado { color: #c2410c; }
+.dias.pasado { color: var(--peligro); }
 
 .acciones { display: grid; gap: 0.5rem; }
 
@@ -283,7 +283,7 @@ h2 {
   display: block;
   text-align: center;
   font-weight: 600;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border-radius: 0.6rem;
   padding: 0.85rem;

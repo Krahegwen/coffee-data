@@ -290,7 +290,7 @@ h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 .sin-bolsas, .sin-recetas { font-size: 0.9rem; margin: 0 0 1rem; }
 .sin-bolsas { color: var(--suave); }
 /* El de recetas para en seco, y el color lo dice antes que el texto. */
-.sin-recetas { color: #c2410c; }
+.sin-recetas { color: var(--peligro); }
 .sin-bolsas a, .sin-recetas a { color: var(--acento); }
 
 /* Ni aviso ni error: es un camino de vuelta, y por eso lleva el acento. */
@@ -331,7 +331,7 @@ button {
   font: inherit;
   font-weight: 600;
   font-size: 1rem;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -376,11 +376,11 @@ dialog {
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
-dialog .ojo { color: #c2410c; }
+dialog .ojo { color: var(--peligro); }
 
 .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .botones button { margin-top: 0; }
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 
 a { color: var(--acento); }
 </style>

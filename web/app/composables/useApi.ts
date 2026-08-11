@@ -152,6 +152,10 @@ export interface Preferencias {
   sonido: boolean
   latido: boolean
   cuenta_atras: boolean
+  /** Si seguir al teléfono o mandar tú, y qué juego usar en cada modo. */
+  tema_modo: 'auto' | 'claro' | 'oscuro'
+  tema_claro: string
+  tema_oscuro: string
   crono_cafe_id: string
   crono_receta_id: string
   crono_dosis_g: number

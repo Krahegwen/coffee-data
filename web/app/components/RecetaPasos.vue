@@ -202,7 +202,7 @@ select, input {
 }
 
 .acum { color: var(--acento); }
-.ojo { color: #c2410c; }
+.ojo { color: var(--peligro); }
 
 .mandos button {
   font: inherit;
@@ -218,7 +218,7 @@ select, input {
 }
 
 .mandos button:disabled { opacity: 0.35; cursor: default; }
-.mandos .quitar { color: #c2410c; border-color: #c2410c; }
+.mandos .quitar { color: var(--peligro); border-color: var(--peligro); }
 
 .anadir {
   font: inherit;

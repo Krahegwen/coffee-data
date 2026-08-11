@@ -22,11 +22,21 @@ export function usePreferencias() {
   const valores = useState<Preferencias | null>('preferencias', () => null)
   const cargando = useState('preferencias-cargando', () => false)
 
-  /** Lo de fábrica mientras no haya llegado lo guardado. */
+  /**
+   * Lo de fábrica mientras no haya llegado lo guardado. **Tiene que traer
+   * todas las claves del catálogo del núcleo**: una que falte aquí llega a
+   * quien la consuma como `undefined`, y en el caso del tema eso escribía
+   * `data-tema="undefined"` en la raíz — que no casa con ningún juego y de
+   * paso desactiva el `:root:not([data-tema])` del oscuro automático, o sea
+   * un fogonazo blanco al arrancar el móvil a oscuras.
+   */
   const POR_DEFECTO: Preferencias = {
     sonido: true,
     latido: true,
     cuenta_atras: true,
+    tema_modo: 'auto',
+    tema_claro: 'papel',
+    tema_oscuro: 'tostado',
     crono_cafe_id: '',
     crono_receta_id: '',
     crono_dosis_g: 20,

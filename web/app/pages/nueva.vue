@@ -757,7 +757,7 @@ input[type="range"] { padding: 0; accent-color: var(--acento); height: 44px; }
 button {
   font: inherit;
   font-weight: 600;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -790,7 +790,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   margin: -0.5rem 0 0;
   overflow-wrap: anywhere;
 }
-.fallo { color: #c2410c; font-size: 0.85rem; margin: 0.35rem 0; }
+.fallo { color: var(--peligro); font-size: 0.85rem; margin: 0.35rem 0; }
 
 .delcrono {
   background: var(--tarjeta);
@@ -801,7 +801,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   color: var(--acento);
   margin: 0 0 0.25rem;
 }
-.errores { border-color: #c2410c; }
+.errores { border-color: var(--peligro); }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; }
 .exito { border-color: var(--acento); }
 .aviso { font-size: 0.85rem; margin: 0.5rem 0; }
@@ -839,12 +839,12 @@ dialog {
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 dialog h3 { font-size: 1.05rem; font-weight: 600; color: var(--tinta); margin: 0 0 0.6rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
-dialog .ojo { color: #c2410c; }
+dialog .ojo { color: var(--peligro); }
 
 .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .botones button { margin-top: 0; }
 .secundario { background: transparent; color: var(--suave); border: 1px solid var(--linea); font-weight: 400; }
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 ol { margin: 0.35rem 0 0; padding-left: 1.2rem; font-size: 0.88rem; }
 code { font-size: 0.85em; }
 a { color: var(--acento); }
