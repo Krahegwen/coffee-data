@@ -43,6 +43,26 @@ export function almacenD1(db) {
   return {
     cafes: tablaSimple("cafes"),
     extracciones: tablaSimple("extracciones"),
+    /**
+     * Los ajustes. Upsert y no INSERT: no hay primer día que valga, la fila
+     * existe o no y en los dos casos el resultado tiene que ser el mismo —la
+     * cola reintenta, y un reintento no puede chocar consigo mismo.
+     */
+    preferencias: {
+      async leer() {
+        return (await db.prepare("SELECT * FROM preferencias").all()).results;
+      },
+      async escribir(nuevas) {
+        if (!nuevas.length) return;
+        await db.batch(nuevas.map((fila) => db
+          .prepare(
+            "INSERT INTO preferencias (clave, valor, actualizado_en) VALUES (?, ?, ?) " +
+            "ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, " +
+            "actualizado_en = excluded.actualizado_en",
+          )
+          .bind(fila.clave, fila.valor, fila.actualizado_en)));
+      },
+    },
     recetas: {
       async listar() {
         const [recetas, pasos] = await Promise.all([

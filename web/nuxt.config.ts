@@ -50,6 +50,7 @@ export default defineNuxtConfig({
       index: { es: '/', en: '/' },
       nueva: { es: '/nueva', en: '/new' },
       respaldo: { es: '/respaldo', en: '/backup' },
+      ajustes: { es: '/ajustes', en: '/settings' },
       'cafes/index': { es: '/cafes', en: '/coffees' },
       'cafes/nueva': { es: '/cafes/nueva', en: '/coffees/new' },
       'cafes/[id]': { es: '/cafes/[id]', en: '/coffees/[id]' },

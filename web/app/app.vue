@@ -56,6 +56,7 @@ const conAtajo = computed(
   () => ruta.path === localePath('/') || ruta.path === localePath('/crono'),
 )
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
+const { releer: releerAjustes } = usePreferencias()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
@@ -78,7 +79,12 @@ function tocarVersion() {
 
 /** Refresca y, si de verdad bajó algo, repinta lo que haya cargado. */
 async function actualizar(opciones: { minimo?: number } = {}) {
-  if (await refrescar(opciones)) await refreshNuxtData()
+  if (!await refrescar(opciones)) return
+  await refreshNuxtData()
+  // Los ajustes viven en su propio estado y `refreshNuxtData` no los mira: sin
+  // esto, lo que baja del servidor entra en el cajón pero no en la pantalla y
+  // el sonido apagado en el móvil seguiría sonando aquí hasta recargar.
+  await releerAjustes()
 }
 
 onMounted(async () => {
@@ -181,9 +187,13 @@ useHead({
             : pendientes ? $t('app.por_subir', { n: pendientes }) : $t('app.al_dia') }}
         </button>
       </p>
-      <!-- El respaldo vive en el pie: se usa poco, pero tiene que poder
-           encontrarse sin que nadie te lo cuente. -->
-      <p><NuxtLinkLocale to="/respaldo" class="enlace-pie">{{ $t('app.respaldo') }}</NuxtLinkLocale></p>
+      <!-- El respaldo y los ajustes viven en el pie: se usan poco, pero tienen
+           que poder encontrarse sin que nadie te lo cuente. -->
+      <p>
+        <NuxtLinkLocale to="/ajustes" class="enlace-pie">{{ $t('app.ajustes') }}</NuxtLinkLocale>
+        <span class="separador">·</span>
+        <NuxtLinkLocale to="/respaldo" class="enlace-pie">{{ $t('app.respaldo') }}</NuxtLinkLocale>
+      </p>
 
       <!-- El idioma, junto al resto de lo que se toca una vez. Cambia la app
            entera y también las URLs: el castellano se queda en /recetas y el
@@ -429,6 +439,7 @@ footer p { margin: 0.15rem 0; }
 }
 
 .enlace-pie:hover { color: var(--acento); }
+.separador { color: var(--linea); margin: 0 0.5rem; }
 
 .kofi { color: var(--suave); text-decoration: underline; }
 .kofi:hover { color: var(--acento); }

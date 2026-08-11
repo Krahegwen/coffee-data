@@ -13,8 +13,9 @@
  */
 import {
   ahoraSQL, borrarReceta, crearCafe, crearExtraccion, editarCafe,
-  editarExtraccion, guardarReceta, guionDe, listaCafes, listaExtracciones,
-  listaRecetas, porRef, restaurarExtraccion, retirarExtraccion,
+  editarExtraccion, guardarPreferencias, guardarReceta, guionDe, leerPreferencias,
+  listaCafes, listaExtracciones, listaRecetas, porRef, restaurarExtraccion,
+  retirarExtraccion,
 } from "@coffee/nucleo/api";
 import { esUuid } from "@coffee/nucleo/ids";
 import { idiomaDe, textos } from "@coffee/nucleo/textos";
@@ -232,6 +233,7 @@ async function enrutar(request, env, url, ruta) {
     }
     if (ruta === "/api/cafes") return respuesta(await listaCafes(almacen));
     if (ruta === "/api/recetas") return respuesta(await listaRecetas(almacen));
+    if (ruta === "/api/preferencias") return respuesta(await leerPreferencias(almacen));
     if (ruta === "/api/extracciones") {
       return respuesta(await listaExtracciones(almacen, {
         cafe: url.searchParams.get("cafe"),
@@ -244,6 +246,14 @@ async function enrutar(request, env, url, ruta) {
     const cuerpo = await cuerpoDe(request);
     if (cuerpo === null) return sinJson();
     return respuesta(await crearExtraccion(almacen, cuerpo, { t }));
+  }
+
+  // PATCH y no PUT: se guardan solo las claves que llegan, para que dos
+  // dispositivos que tocan interruptores distintos no se borren el uno al otro.
+  if (ruta === "/api/preferencias" && request.method === "PATCH") {
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await guardarPreferencias(almacen, cuerpo, { t }));
   }
 
   return json({ error: "ruta no encontrada" }, 404);

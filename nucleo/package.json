@@ -1,6 +1,6 @@
 {
   "name": "@coffee/nucleo",
-  "version": "0.1.69",
+  "version": "0.1.70",
   "private": true,
   "type": "module",
   "description": "La lógica de la bitácora, sin saber dónde corre: recetas, sugerencias, validación y derivados",
@@ -9,6 +9,7 @@
     "./almacen-memoria": "./src/almacen-memoria.js",
     "./crono": "./src/crono.js",
     "./ids": "./src/ids.js",
+    "./preferencias": "./src/preferencias.js",
     "./recetas": "./src/recetas.js",
     "./textos": "./src/textos.js",
     "./sugerencias": "./src/sugerencias.js",

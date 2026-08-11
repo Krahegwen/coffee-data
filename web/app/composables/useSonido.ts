@@ -69,8 +69,18 @@ function tono(cuando: number, [hz, desde, dur, pico]: Tono): OscillatorNode {
   return osc
 }
 
+/**
+ * Con el sonido apagado en los ajustes no se sintetiza nada, pero todo lo
+ * demás sigue igual: la cuenta atrás cuenta, el latido late y el planificador
+ * planifica. Apagar el altavoz no es apagar el cronómetro, y ponerlo aquí
+ * —en el único sitio que crea osciladores— evita tener que acordarse en cada
+ * sitio que pide un pitido.
+ */
+let silenciado = false
+
 /** Todos los tonos de un cue, anclados a un instante del reloj de audio. */
 function sonar(tipo: string, cuando: number): OscillatorNode[] {
+  if (silenciado) return []
   return (TONOS[tipo] ?? []).map((receta) => tono(cuando, receta))
 }
 
@@ -179,5 +189,10 @@ export function useSonido() {
     bucle = setInterval(tic, 250)
   }
 
-  return { desbloquear, pitido, cuentaAtras, programar, detener, invalidar }
+  /** Lo dicen los ajustes; el reloj lo repite cada vez que cambian. */
+  function silenciar(callado: boolean) {
+    silenciado = callado
+  }
+
+  return { desbloquear, pitido, cuentaAtras, programar, detener, invalidar, silenciar }
 }

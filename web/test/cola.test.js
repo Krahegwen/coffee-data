@@ -84,6 +84,57 @@ describe("el drenador de la cola", () => {
     assert.equal(await almacen.cola.contar(), 0);
   });
 
+  it("un ajuste que el servidor rechaza se cae y la cola sigue", async () => {
+    /*
+     * El caso que motiva esto: desplegar el Worker antes de migrar la base, o
+     * que wrangler suba los assets y no el script. Cada visita a `/crono`
+     * encola un PATCH de preferencias; si ese rechazo parase la cola, la
+     * bitácora entera dejaría de subir y de bajar —el drenado se para en la
+     * primera entrada mala y el refresco no baja nada con la cola no vacía—
+     * sin más salida que restaurar un respaldo.
+     */
+    const almacen = cajon();
+    await almacen.cola.poner(entrada({ metodo: "PATCH", camino: "/api/preferencias" }));
+    await almacen.cola.poner(entrada({ cuerpo: { n: 2 } }));
+
+    const enviadas = [];
+    const r = await drenar(almacen, async (e) => {
+      if (e.camino === "/api/preferencias") {
+        throw Object.assign(new Error("HTTP 404"), { statusCode: 404, data: {} });
+      }
+      enviadas.push(e.cuerpo.n);
+    });
+
+    assert.deepEqual(enviadas, [2], "la extracción de detrás tiene que subir igual");
+    assert.equal(r.quedan, 0);
+    assert.equal(await almacen.cola.contar(), 0, "y la cola queda limpia, no atascada");
+  });
+
+  it("pero sin red el ajuste espera, que la entrada sigue siendo buena", async () => {
+    const almacen = cajon();
+    await almacen.cola.poner(entrada({ metodo: "PATCH", camino: "/api/preferencias" }));
+
+    const r = await drenar(almacen, async () => { throw new Error("sin cobertura"); });
+
+    assert.equal(r.red, true);
+    assert.equal(await almacen.cola.contar(), 1);
+  });
+
+  it("una extracción rechazada sí para la cola: el orden importa", async () => {
+    // El contraste del test de arriba: lo prescindible se cae, lo demás no.
+    const almacen = cajon();
+    await almacen.cola.poner(entrada({ cuerpo: { n: 1 } }));
+    await almacen.cola.poner(entrada({ cuerpo: { n: 2 } }));
+
+    const r = await drenar(almacen, async () => {
+      throw Object.assign(new Error("HTTP 422"), { statusCode: 422, data: { errores: ["no"] } });
+    });
+
+    assert.equal(r.quedan, 2);
+    assert.equal(await almacen.cola.contar(), 2);
+    assert.match((await almacen.cola.listar())[0].error, /no/);
+  });
+
   it("sin red se para donde estaba, sin marcar nada: ya caerá", async () => {
     const almacen = cajon();
     for (const n of [1, 2, 3]) await almacen.cola.poner(entrada({ cuerpo: { n } }));

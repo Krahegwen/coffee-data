@@ -14,10 +14,11 @@ import { beforeEach, describe, it } from "node:test";
 
 import {
   borrarReceta, crearCafe, crearExtraccion, editarCafe, editarExtraccion,
-  guardarReceta, guionDe, listaCafes, listaExtracciones, listaRecetas,
-  restaurarExtraccion, retirarExtraccion,
+  guardarPreferencias, guardarReceta, guionDe, leerPreferencias, listaCafes,
+  listaExtracciones, listaRecetas, restaurarExtraccion, retirarExtraccion,
 } from "../src/api.js";
 import { esUuid } from "../src/ids.js";
+import { CLAVES, porDefecto } from "../src/preferencias.js";
 
 const RECETA = {
   nombre: "4:6 Kasuya base",
@@ -466,6 +467,78 @@ export function contratoDelAlmacen(titulo, fabrica) {
         assert.equal((await editarExtraccion(almacen, nadie, { nota: 5 })).estado, 404);
         assert.equal((await retirarExtraccion(almacen, nadie)).estado, 404);
         assert.equal((await restaurarExtraccion(almacen, nadie)).estado, 404);
+      });
+    });
+
+    describe("preferencias por el puerto", () => {
+      it("sin haber tocado nada, todo está en su valor de fábrica", async () => {
+        const { estado, datos } = await leerPreferencias(almacen);
+        assert.equal(estado, 200);
+        assert.deepEqual(datos.preferencias, porDefecto());
+      });
+
+      it("guardar devuelve el juego entero, no solo lo tocado", async () => {
+        const { estado, datos } = await guardarPreferencias(almacen, { sonido: false });
+        assert.equal(estado, 200);
+        assert.deepEqual(datos.cambiado, ["sonido"]);
+        assert.equal(datos.preferencias.sonido, false);
+        // Y el resto sigue en su sitio: nunca faltan claves.
+        assert.equal(datos.preferencias.latido, true);
+        assert.deepEqual(Object.keys(datos.preferencias).sort(), CLAVES.slice().sort());
+      });
+
+      it("guarda de verdad: se lee lo mismo en la llamada siguiente", async () => {
+        await guardarPreferencias(almacen, { sonido: false, crono_dosis_g: 18 });
+        const { datos } = await leerPreferencias(almacen);
+        assert.equal(datos.preferencias.sonido, false);
+        assert.equal(datos.preferencias.crono_dosis_g, 18);
+      });
+
+      it("solo toca lo que le mandan: dos escrituras se suman, no se pisan", async () => {
+        // Es la razón de que esto sea un PATCH: el móvil apaga el sonido y el
+        // portátil el latido, y ninguno de los dos revive lo del otro.
+        await guardarPreferencias(almacen, { sonido: false });
+        await guardarPreferencias(almacen, { latido: false });
+        const { datos } = await leerPreferencias(almacen);
+        assert.equal(datos.preferencias.sonido, false);
+        assert.equal(datos.preferencias.latido, false);
+      });
+
+      it("escribir dos veces la misma clave no choca: es upsert", async () => {
+        await guardarPreferencias(almacen, { crono_agua_g: 450 });
+        const { estado } = await guardarPreferencias(almacen, { crono_agua_g: 500 });
+        assert.equal(estado, 200);
+        assert.equal((await leerPreferencias(almacen)).datos.preferencias.crono_agua_g, 500);
+      });
+
+      it("cada clave se sella al guardarla: es lo que permite fusionar", async () => {
+        await guardarPreferencias(almacen, { sonido: false });
+        const filas = await almacen.preferencias.leer();
+        const suya = filas.find((f) => f.clave === "sonido");
+        assert.ok(suya.actualizado_en, "sin sello no se puede saber cuál es más nueva");
+        assert.equal(suya.valor, "0");
+      });
+
+      it("una clave que no existe es 422, y no escribe nada", async () => {
+        const { estado, datos } = await guardarPreferencias(almacen, { volumen: 3 });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /volumen/);
+        assert.deepEqual(await almacen.preferencias.leer(), []);
+      });
+
+      it("un interruptor con un número dentro es 422", async () => {
+        assert.equal((await guardarPreferencias(almacen, { sonido: 1 })).estado, 422);
+      });
+
+      it("y una dosis de cero también, que no se prepara café con nada", async () => {
+        assert.equal((await guardarPreferencias(almacen, { crono_dosis_g: 0 })).estado, 422);
+      });
+
+      it("el texto vacío sí vale: «sin bolsa» es una elección", async () => {
+        await guardarPreferencias(almacen, { crono_cafe_id: "gary" });
+        const { estado } = await guardarPreferencias(almacen, { crono_cafe_id: "" });
+        assert.equal(estado, 200);
+        assert.equal((await leerPreferencias(almacen)).datos.preferencias.crono_cafe_id, "");
       });
     });
   });

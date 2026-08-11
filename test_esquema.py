@@ -78,7 +78,7 @@ def test_la_semilla_entra(db):
 
 
 def test_las_tablas_son_strict(db):
-    for tabla in ("cafes", "recetas", "pasos", "extracciones"):
+    for tabla in ("cafes", "recetas", "pasos", "extracciones", "preferencias"):
         sql = db.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (tabla,)
         ).fetchone()[0]
@@ -368,13 +368,20 @@ def test_el_relleno_reproduce_lo_que_hacia_el_motor(tmp_path):
     """
     La migración que estrena `desde_id` tiene que dejar el histórico contando
     exactamente la misma historia: cada extracción cuelga de la anterior de su
-    bolsa. Se aplica el esquema **sin** la última migración, se escribe un
-    histórico a mano y solo entonces se aplica: es la única forma de probar un
-    relleno que en la vida real corre una vez y no se repite.
+    bolsa. Se aplica el esquema **hasta la anterior**, se escribe un histórico a
+    mano y solo entonces se aplica ella: es la única forma de probar un relleno
+    que en la vida real corre una vez y no se repite.
+
+    Se busca por nombre y no como «la última»: cada migración nueva desplazaba
+    a ésta y el test pasaba a probar otra cosa —o a fallar, que fue lo que
+    pasó—. La que se prueba aquí es el árbol de exploración, y así se queda.
     """
+    arbol = next(m for m in MIGRACIONES if m.name.startswith("0011_"))
     db = sqlite3.connect(":memory:")
     db.execute("PRAGMA foreign_keys = ON")
-    for migracion in MIGRACIONES[:-1]:
+    for migracion in MIGRACIONES:
+        if migracion.name >= arbol.name:
+            break
         db.executescript(migracion.read_text(encoding="utf-8"))
 
     # Tres de Gary y una de Abbie, con la segunda de Gary retirada.
@@ -394,7 +401,7 @@ def test_el_relleno_reproduce_lo_que_hacia_el_motor(tmp_path):
             (claves[nombre], cafe, sello, "2026-08-05 10:00:00" if retirada else None),
         )
 
-    db.executescript(MIGRACIONES[-1].read_text(encoding="utf-8"))
+    db.executescript(arbol.read_text(encoding="utf-8"))
 
     madres = dict(db.execute("SELECT id, desde_id FROM extracciones").fetchall())
     # La primera de cada bolsa no cuelga de nadie, y la suelta tampoco: sin
@@ -569,3 +576,45 @@ def test_las_restricciones_siguen_valiendo_al_corregir(db):
         db.execute(f"UPDATE extracciones SET nota = 12 WHERE id = {SEMILLA}")
     with pytest.raises(sqlite3.IntegrityError):
         db.execute(f"UPDATE extracciones SET defecto = 'quemado' WHERE id = {SEMILLA}")
+
+
+# --- las preferencias --------------------------------------------------------
+
+def test_una_preferencia_se_guarda_por_su_clave(db):
+    db.execute(
+        "INSERT INTO preferencias (clave, valor) VALUES ('sonido', '0')"
+    )
+    valor, sello = db.execute(
+        "SELECT valor, actualizado_en FROM preferencias WHERE clave = 'sonido'"
+    ).fetchone()
+    assert valor == "0"
+    # El sello lo pone la base si nadie lo manda: es lo que permite fusionar
+    # clave a clave en vez de reemplazar la tabla entera al sincronizar.
+    assert sello is not None
+
+
+def test_la_misma_clave_dos_veces_choca_en_vez_de_duplicar(db):
+    db.execute("INSERT INTO preferencias (clave, valor) VALUES ('sonido', '0')")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("INSERT INTO preferencias (clave, valor) VALUES ('sonido', '1')")
+
+
+def test_el_upsert_pisa_el_valor_y_el_sello(db):
+    db.execute(
+        "INSERT INTO preferencias (clave, valor, actualizado_en) "
+        "VALUES ('sonido', '0', '2026-01-01 00:00:00')"
+    )
+    db.execute(
+        "INSERT INTO preferencias (clave, valor, actualizado_en) VALUES (?, ?, ?) "
+        "ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, "
+        "actualizado_en = excluded.actualizado_en",
+        ("sonido", "1", "2026-02-02 00:00:00"),
+    )
+    assert db.execute(
+        "SELECT valor, actualizado_en FROM preferencias WHERE clave = 'sonido'"
+    ).fetchone() == ("1", "2026-02-02 00:00:00")
+
+
+def test_una_preferencia_sin_valor_no_entra(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("INSERT INTO preferencias (clave, valor) VALUES ('sonido', NULL)")

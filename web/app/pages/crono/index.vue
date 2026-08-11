@@ -38,6 +38,79 @@ const sinRecetas = computed(() => !(catalogo.value ?? []).length)
 
 const { cafeId, recetaId, dosis, agua, pasos } = toRefs(estado.value)
 
+/*
+ * Lo elegido la última vez, del cajón.
+ *
+ * El `await` no es adorno y el orden es lo único que importa aquí: los dos
+ * `watchEffect` de abajo corrigen la selección cuando no cuadra con lo que
+ * hay, y si se registraran antes de que llegue lo guardado la corregirían
+ * contra un estado en blanco — te encontrarías la primera bolsa de la lista y
+ * 300 g cada vez que abres la pantalla, con tu selección llegando un tick
+ * después para no cambiar ya nada.
+ *
+ * Se siembra una vez por pestaña: a partir de ahí manda lo que haya en
+ * memoria, que es lo que estás tocando ahora mismo.
+ */
+const { ajustes, cargar: cargarAjustes, guardar: guardarAjustes } = usePreferencias()
+await cargarAjustes()
+
+const sembrado = useState('crono-sembrado', () => false)
+if (!sembrado.value) {
+  sembrado.value = true
+  if (ajustes.value.crono_cafe_id) cafeId.value = ajustes.value.crono_cafe_id
+  if (ajustes.value.crono_receta_id) recetaId.value = ajustes.value.crono_receta_id
+  dosis.value = ajustes.value.crono_dosis_g
+  agua.value = ajustes.value.crono_agua_g
+}
+
+/*
+ * Y de vuelta al cajón cuando cambia, con un respiro: el agua y la dosis son
+ * campos numéricos y guardar en cada tecla escribiría cuatro veces para
+ * llegar a «450».
+ *
+ * Se manda **solo lo que cambió**, no las cuatro claves cada vez. Mandarlas
+ * juntas las tomaba de esta memoria, que no se entera de lo que baja al
+ * sincronizar: cambiabas la dosis en el móvil, tocabas el agua en el
+ * portátil, y el PATCH del portátil reenviaba su dosis vieja con sello nuevo
+ * y se llevaba por delante la del móvil. El PATCH parcial existe justo para
+ * que eso no pase, y así se cumple también dentro del grupo.
+ */
+const CLAVES_CRONO = {
+  crono_cafe_id: cafeId, crono_receta_id: recetaId,
+  crono_dosis_g: dosis, crono_agua_g: agua,
+} as const
+
+let pluma: ReturnType<typeof setTimeout> | null = null
+let sucias: Record<string, unknown> = {}
+
+function apuntar(cambios: Record<string, unknown>) {
+  sucias = { ...sucias, ...cambios }
+  if (pluma) clearTimeout(pluma)
+  pluma = setTimeout(escribir, 600)
+}
+
+function escribir() {
+  if (pluma) { clearTimeout(pluma); pluma = null }
+  if (!Object.keys(sucias).length) return
+  const van = sucias
+  sucias = {}
+  void guardarAjustes(van).catch(() => { /* un ajuste no interrumpe el café */ })
+}
+
+// Ojo al nombre: llamar `ref` a esta variable tapaba el `ref` de Vue que
+// auto-importa Nuxt, y la página entera dejaba de arrancar.
+for (const [clave, campo] of Object.entries(CLAVES_CRONO)) {
+  watch(campo, (valor) => apuntar({ [clave]: valor }))
+}
+
+/*
+ * Al salir se escribe lo pendiente en vez de cancelarlo. Salir es lo normal
+ * —«Al cronómetro» desmonta esta página—, así que cancelar tiraba justo el
+ * cambio que acababas de hacer: subías la dosis a 22, pulsabas, y al volver
+ * seguían siendo 20.
+ */
+onUnmounted(escribir)
+
 // La selección guardada puede apuntar a una bolsa ya cerrada o borrada: si no
 // está entre las abiertas, la primera. Y si no hay ninguna, nada — aquí se
 // puede cronometrar sin bolsa.

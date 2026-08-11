@@ -4,6 +4,7 @@
     "cargando": "One moment…",
     "recetas": "Recipes",
     "respaldo": "Backup",
+    "ajustes": "Settings",
     "kofi": "Buy me a coffee",
     "licencia": "© 2026 Krahegwen · MIT ·",
     "en_el_servidor": " · on the server",
@@ -271,6 +272,18 @@
     "borrando": "Deleting…",
     "borrar_corto": "Delete",
     "guardada": "Saved"
+  },
+  "ajustes": {
+    "titulo": "Settings",
+    "crono_titulo": "The timer",
+    "crono_intro": "How it warns you about each step while you brew.",
+    "sonido": "Sound",
+    "sonido_pista": "Three pips before each step and a tone when it starts.",
+    "cuenta_atras": "Countdown on start",
+    "cuenta_atras_pista": "Three seconds to pick up the kettle, on resume too.",
+    "latido": "Pulsing number",
+    "latido_pista": "The number grows with every warning: visible even on silent.",
+    "donde_viven": "Settings are kept in this browser. With a session open they travel to the server and come down to your other devices."
   },
   "respaldo": {
     "titulo": "Backup",

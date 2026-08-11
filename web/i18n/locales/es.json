@@ -4,6 +4,7 @@
     "cargando": "Un momento…",
     "recetas": "Recetas",
     "respaldo": "Respaldo",
+    "ajustes": "Ajustes",
     "kofi": "Invítame a un café",
     "licencia": "© 2026 Krahegwen · MIT ·",
     "en_el_servidor": " · en el servidor",
@@ -271,6 +272,18 @@
     "borrando": "Borrando…",
     "borrar_corto": "Borrar",
     "guardada": "Guardada"
+  },
+  "ajustes": {
+    "titulo": "Ajustes",
+    "crono_titulo": "El cronómetro",
+    "crono_intro": "Cómo avisa de cada paso mientras preparas.",
+    "sonido": "Sonido",
+    "sonido_pista": "Tres pitidos antes de cada paso y un tono al empezarlo.",
+    "cuenta_atras": "Cuenta atrás al arrancar",
+    "cuenta_atras_pista": "Tres segundos para coger el hervidor, también al reanudar.",
+    "latido": "Latido del número",
+    "latido_pista": "El número crece con cada aviso: se ve aunque el móvil esté en silencio.",
+    "donde_viven": "Los ajustes se guardan en este navegador. Con la sesión abierta viajan al servidor y bajan a los demás dispositivos."
   },
   "respaldo": {
     "titulo": "Respaldo",
