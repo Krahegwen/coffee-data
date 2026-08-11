@@ -4,6 +4,7 @@
 const localePath = useLocalePath()
 
 import type { Extraccion } from '~/composables/useApi'
+import { textoDeVariables } from '@coffee/nucleo/sugerencias'
 import { defectosDe } from '@coffee/nucleo/validacion'
 const { t } = useI18n()
 const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
@@ -150,10 +151,20 @@ useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> |
 /** Has metido mano en la tabla, acabe donde acabe. Lo dice el componente. */
 const manoseada = ref(false)
 
-/** La etiqueta que describe la tabla de ahora mismo. Null si no hay tabla. */
+/**
+ * La etiqueta que describe la tabla de ahora mismo. Null si no hay tabla.
+ *
+ * En el formato canónico del núcleo —columna y slug—, que es el que escribe
+ * el servidor: componiéndolo aquí con etiquetas traducidas, ninguna fila
+ * rellenada por el servidor coincidía nunca con su propia tabla y la ficha se
+ * abría con «Guardar cambios» puesto sin que nadie hubiera tocado nada.
+ */
 const compuesta = computed(() =>
   cambiadas.value.length
-    ? textoDeCambios(cambiadas.value, anterior.value, form, opciones.value)
+    ? textoDeVariables(cambiadas.value, anterior.value, {
+      ...form,
+      receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
+    })
     : null,
 )
 

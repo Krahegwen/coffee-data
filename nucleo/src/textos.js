@@ -119,6 +119,9 @@ const es = {
     "el café lleva {dias} días de tueste: por encima de {umbral} la taza se apaga sola " +
     "y la receta no tiene la culpa",
   aviso_carton_pasado: "a cartón casi siempre es café pasado, no extracción",
+  aviso_dos_variables:
+    "has movido {lista} en la misma extracción: el dato no dice cuál de las dos hizo " +
+    "la taza, así que no formará par con la anterior. Queda apuntada igual",
   aviso_bolsa_vieja:
     "la bolsa lleva {dias} días abierta (más de {umbral}): a partir de ahí el café se " +
     "apaga por oxidación y no por lo que hagas al prepararlo, salvo que la guardes al vacío",
@@ -157,6 +160,12 @@ const es = {
   direccion_bajar: "bajar",
   direccion_cambiar: "cambiar",
   repetir_igual: "Repetir igual para confirmar",
+
+  // --- qué cambió, cuando no lo escribe quien registra
+  cambio_ninguno: "Sin cambios",
+  cambio_primera: "Primera extracción",
+  cambio_suelta: "Taza suelta",
+  cambio_madre_retirada: "La anterior está retirada: sin comparación",
 };
 
 const en = {
@@ -247,6 +256,9 @@ const en = {
     "the coffee is {dias} days past roast: beyond {umbral} the cup fades on its own and " +
     "the recipe is not to blame",
   aviso_carton_pasado: "cardboard is almost always stale coffee, not extraction",
+  aviso_dos_variables:
+    "you moved {lista} in the same brew: the data cannot say which of them made the " +
+    "cup, so it will not pair with the previous one. It is on the record all the same",
   aviso_bolsa_vieja:
     "the bag has been open for {dias} days (more than {umbral}): from there on the " +
     "coffee fades through oxidation and not through anything you do while brewing, " +
@@ -285,6 +297,12 @@ const en = {
   direccion_bajar: "down",
   direccion_cambiar: "change",
   repetir_igual: "Repeat as is to confirm",
+
+  // --- qué cambió, cuando no lo escribe quien registra
+  cambio_ninguno: "No changes",
+  cambio_primera: "First brew",
+  cambio_suelta: "Bagless cup",
+  cambio_madre_retirada: "The previous one is withdrawn: nothing to compare",
 };
 
 const CATALOGO = { es, en };

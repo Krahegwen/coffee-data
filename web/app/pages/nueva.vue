@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 useHead({ title: () => t('alta.titulo') })
 
+import { diferencias, textoDeVariables, variableCambiadaDe } from '@coffee/nucleo/sugerencias'
+import { textos } from '@coffee/nucleo/textos'
 import { defectosDe } from '@coffee/nucleo/validacion'
-const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
+const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe } = useTextos()
 
 const { cafes, recetas, extracciones, crear } = useApi()
 const route = useRoute()
@@ -225,24 +227,46 @@ useTablaAlDia(form, () => anterior.value as unknown as Record<string, unknown> |
 watch(() => form.cafe_id, () => { cambiadas.value = []; form.desde_id = '' })
 
 /** «Temperatura 91 → 88». Sale de los valores, nunca al revés. */
-const textoVariables = computed(() =>
-  textoDeCambios(cambiadas.value, anterior.value, form, opciones.value),
+/**
+ * Lo que el servidor va a apuntar si nadie escribe nada: el diff contra la
+ * madre, calculado aquí con **la misma función del núcleo** que lo compone
+ * allí. No se escribe en el campo —un valor que aparece solo se acaba
+ * registrando sin mirarlo—, se enseña debajo.
+ *
+ * Se le pasan solo las variables que este formulario declara: el molinillo no
+ * está aquí y lo pone el servidor por defecto, así que compararlo diría que
+ * cambió algo que nadie tocó.
+ */
+/** El formulario con el slug de la receta puesto, que es como se nombra. */
+const conSlug = computed(() => ({
+  ...form,
+  receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
+}))
+
+const seRegistrara = computed(() =>
+  // El catálogo del núcleo en el idioma de la app: es el mismo que usará el
+  // servidor —que lo saca del Accept-Language—, así que lo que se anuncia
+  // aquí es palabra por palabra lo que se va a guardar.
+  variableCambiadaDe(
+    conSlug.value, anterior.value, textos(locale.value), [...CLAVES_VARIABLE],
+  ),
 )
 
-/*
- * El texto no se escribe en el formulario mientras editas: se compone al
- * enviar. Reescribirlo en caliente hacía que la etiqueta cambiara sola cada
- * vez que se añadía o se quitaba una fila.
- *
- * «Primera extracción» sí se pone y se quita solo, porque ese sí se teclea:
- * solo es verdad mientras no haya nada anterior con lo que comparar, así que
- * si cambias de bolsa se va con ella.
+/**
+ * Cuando el usuario escribe su propio texto, el detectado no desaparece: se
+ * sigue enseñando al lado. No se puede saber si «subí el hervidor» dice lo
+ * mismo que `temp_c 91 → 94` —eso es castellano, no un campo—, así que se
+ * ponen los dos y comparas tú de un vistazo.
  */
-watchEffect(() => {
-  if (cambiadas.value.length) return
-  if (!anterior.value && !form.variable_cambiada) form.variable_cambiada = 'Primera extracción'
-  if (anterior.value && form.variable_cambiada === 'Primera extracción') form.variable_cambiada = ''
-})
+const textoPropio = computed(
+  () => cambiadas.value.length > 0 || String(form.variable_cambiada).trim() !== '',
+)
+
+/** Dos palancas a la vez: la regla de una sola cosa, dicha antes de guardar. */
+const dosALaVez = computed(
+  () => anterior.value !== null
+    && diferencias(anterior.value, conSlug.value, [...CLAVES_VARIABLE]).length > 1,
+)
 
 /** Lo que se queda el lecho, por gramo de café. El juicio lo da el servidor. */
 const retencion = computed(() => {
@@ -361,9 +385,6 @@ async function enviar() {
       temp_c: Number(form.temp_c),
       clics: Number(form.clics),
       tiempo_total: String(form.tiempo_total),
-      variable_cambiada: cambiadas.value.length
-        ? textoVariables.value
-        : String(form.variable_cambiada),
       defecto: String(form.defecto),
       nota: Number(form.nota),
       dosis_g: Number(form.dosis_g),
@@ -371,6 +392,17 @@ async function enviar() {
       receta_id: String(form.receta_id),
       dripper: String(form.dripper),
     }
+    /*
+     * Qué cambió solo viaja si lo cuentas: con la tabla puesta, lo que ella
+     * compone; sin ella, lo tecleado. Si no hay ni una cosa ni la otra no se
+     * manda nada y lo apunta el servidor con el diff contra la madre, que es
+     * lo mismo que se lleva anunciando debajo del campo.
+     */
+    const propio = cambiadas.value.length
+      ? textoDeVariables(cambiadas.value, anterior.value, conSlug.value)
+      : String(form.variable_cambiada).trim()
+    if (propio) datos.variable_cambiada = propio
+
     // Vacío es una elección: la taza va suelta y el cuerpo no lleva cafe_id.
     if (form.cafe_id) datos.cafe_id = String(form.cafe_id)
     // La madre solo viaja si se eligió otra: sin ella, el servidor cuelga la
@@ -559,9 +591,20 @@ async function enviar() {
          botella— y la primera de una bolsa no cambia nada. -->
     <label v-if="!cambiadas.length">
       {{ $t('alta.variable_cambiada') }}
-      <input
-        v-model="form.variable_cambiada" :placeholder="$t('alta.primera_extraccion')" required>
+      <input v-model="form.variable_cambiada" :placeholder="$t('alta.variable_opcional')">
     </label>
+
+    <!-- Lo que se va a apuntar, vivo mientras editas: sin esto, el relleno
+         del servidor sería un dato que aparece en la ficha sin haberlo visto
+         nunca. Con texto propio se enseñan los dos, que nadie puede saber si
+         «subí el hervidor» dice lo mismo que «temp_c 91 → 94». -->
+    <p v-if="!cambiadas.length" class="registrara" :class="{ fallo: dosALaVez }">
+      {{ textoPropio
+        ? $t('alta.detectado', { texto: seRegistrara })
+        : $t('alta.se_registrara', { texto: seRegistrara }) }}
+    </p>
+    <!-- Solo sin tabla: con filas puestas, es ella la que avisa. -->
+    <p v-if="!cambiadas.length && dosALaVez" class="fallo">{{ $t('tabla.dos_a_la_vez') }}</p>
 
     <!-- Varios, en orden de relevancia: el ajuste sale solo del primero. -->
     <h3>{{ $t('alta.defectos_titulo') }}</h3>
@@ -738,6 +781,15 @@ button:disabled { opacity: 0.5; cursor: default; }
 .tarjeta input { width: 100%; margin: 0.5rem 0; }
 
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
+
+/* Lo que se va a guardar, no un consejo: por eso va en la tinta del texto y
+   con el valor destacado, y no en el gris de las notas al pie. */
+.registrara {
+  font-size: 0.85rem;
+  color: var(--tinta);
+  margin: -0.5rem 0 0;
+  overflow-wrap: anywhere;
+}
 .fallo { color: #c2410c; font-size: 0.85rem; margin: 0.35rem 0; }
 
 .delcrono {

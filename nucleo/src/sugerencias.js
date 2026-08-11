@@ -43,6 +43,92 @@ export const VARIABLES = [
   "dripper",
 ];
 
+/**
+ * Las que se mueven a mano, que son de las que habla una extracción cuando
+ * dice qué cambió.
+ *
+ * `reparto` se queda fuera: sale de escalar la receta al agua real, así que
+ * cambia **solo** porque cambió una de esas dos. Contándolo aparte, subir el
+ * agua de 300 a 450 se leía como dos variables a la vez —y por eso ningún
+ * cambio de agua llegaba a formar par—, cuando en realidad se movió una.
+ * Mandar un `reparto` propio es desviarse de la receta ese día, no otra
+ * palanca.
+ */
+export const VARIABLES_DECLARADAS = VARIABLES.filter((v) => v !== "reparto");
+
+/**
+ * Qué cambió entre dos extracciones: `[{variable, antes, despues}]`, en el
+ * orden de `VARIABLES`.
+ *
+ * Es el único sitio donde vive el criterio de «esto es distinto», y de él
+ * cuelgan tanto el emparejado del motor como el texto de `variable_cambiada`.
+ * La comparación es por texto a propósito: un 91 y un "91" son la misma
+ * temperatura, y de la base vuelven como les apetezca.
+ */
+export function diferencias(antes, despues, variables = VARIABLES_DECLARADAS) {
+  if (!antes || !despues) return [];
+  return variables
+    .filter((v) => String(antes[v] ?? "") !== String(despues[v] ?? ""))
+    .map((variable) => ({
+      variable,
+      antes: antes[variable] ?? null,
+      despues: despues[variable] ?? null,
+    }));
+}
+
+/**
+ * Lo que se lee de una variable. La receta se nombra por su slug: el uuid es
+ * la clave, no algo que nadie quiera leer en su bitácora.
+ */
+function valorLegible(fila, variable) {
+  if (variable === "receta_id") return fila?.receta_slug ?? fila?.receta_id ?? null;
+  return fila?.[variable] ?? null;
+}
+
+/**
+ * El texto de `variable_cambiada` cuando no lo escribe el usuario: «temp_c
+ * 91 → 94», o los tres casos en que no hay nada contra lo que medir.
+ *
+ * Sale del mismo diff que usa el motor, así que lo apuntado y lo comparado no
+ * se pueden desincronizar. Lo que se guarda es el nombre de la columna, sin
+ * traducir, igual que hace `textoCorto` con la sugerencia: la bitácora es de
+ * quien la lleva y las columnas se llaman igual en los dos idiomas.
+ */
+export function variableCambiadaDe(
+  extraccion, madre, t = CASTELLANO, variables = VARIABLES_DECLARADAS,
+) {
+  if (!madre) {
+    // Con `desde_id` puesto pero sin madre a la vista, la madre está
+    // retirada: el motor la trata como primera, pero decir «primera de la
+    // bolsa» sería falso y las mezclaría con las que sí lo son.
+    if (extraccion?.desde_id) return t("cambio_madre_retirada");
+    return t(extraccion?.cafe_id ? "cambio_primera" : "cambio_suelta");
+  }
+  // `variables` acota la comparación a lo que quien pregunta declara.
+  const difs = diferencias(madre, extraccion, variables);
+  if (!difs.length) return t("cambio_ninguno");
+  return textoDeVariables(difs.map((d) => d.variable), madre, extraccion);
+}
+
+/**
+ * «temp_c 91 → 94 · clics 28 → 30», para una lista de variables dada.
+ *
+ * **El formato canónico de `variable_cambiada`**, y por eso vive aquí y no en
+ * la app: lo escriben dos —el servidor cuando no se lo cuentas y el
+ * formulario cuando eliges tú las filas— y dos versiones acabarían guardando
+ * vocabularios distintos en la misma columna, que es lo que pasaba al
+ * componerlo cada uno por su lado.
+ *
+ * Se nombra la columna, sin traducir, igual que hace `textoCorto` con la
+ * sugerencia: la fila se lee igual desde los dos idiomas, y las etiquetas
+ * bonitas son cosa de la pantalla que la enseña.
+ */
+export function textoDeVariables(variables, antes, despues) {
+  return variables
+    .map((v) => `${v} ${valorLegible(antes, v) ?? "—"} → ${valorLegible(despues, v) ?? "—"}`)
+    .join(" · ");
+}
+
 // Drippers con masa térmica: sin precalentar roban calor al lecho.
 export const DRIPPERS_CON_INERCIA = ["v60-02-ceramica"];
 
@@ -172,6 +258,19 @@ export function avisosDe(extraccion, historico = [], receta = null, t = CASTELLA
     }));
   }
 
+  /*
+   * Dos palancas movidas a la vez. El protocolo entero se sostiene sobre
+   * cambiar una sola cosa, y hasta ahora eso solo lo decía la documentación:
+   * la fila entraba igual y el par se descartaba en silencio, así que te
+   * enterabas semanas después de que ese dato no comparaba con nada.
+   */
+  const movidas = diferencias(previa, extraccion);
+  if (movidas.length > 1) {
+    avisos.push(t("aviso_dos_variables", {
+      lista: movidas.map((d) => d.variable).join(", "),
+    }));
+  }
+
   const dias = num(extraccion.dias_tueste);
   if (dias !== null && dias > DIAS_TUESTE_VIEJO) {
     avisos.push(t("aviso_cafe_pasado", {
@@ -291,16 +390,16 @@ export function pares(historico) {
     const antes = madreDe(despues, historico);
     if (!antes) continue;
 
-    const distintas = VARIABLES.filter(
-      (v) => String(antes[v] ?? "") !== String(despues[v] ?? ""),
-    );
+    // El mismo diff que compone `variable_cambiada`: un solo criterio de
+    // «esto cambió» para lo que se apunta y para lo que se compara.
+    const distintas = diferencias(antes, despues);
     if (distintas.length !== 1) continue;
 
     const notaAntes = num(antes.nota);
     const notaDespues = num(despues.nota);
     if (notaAntes === null || notaDespues === null) continue;
 
-    const variable = distintas[0];
+    const { variable } = distintas[0];
     const valorAntes = num(antes[variable]);
     const valorDespues = num(despues[variable]);
     let direccion = "cambiar";

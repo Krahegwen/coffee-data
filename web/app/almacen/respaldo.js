@@ -269,6 +269,7 @@ export async function prepararRestauracion({ cafes, recetas, pasos, extracciones
     // respaldo: restaurar es restaurar, no reinterpretar.
     await staging.extracciones.actualizar(fila.id, {
       siguiente_ajuste: fila.siguiente_ajuste || null,
+      variable_cambiada: fila.variable_cambiada || null,
       borrada_en: fila.borrada_en || null,
     });
   }

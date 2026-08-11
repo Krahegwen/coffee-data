@@ -127,6 +127,20 @@ async function bitacoraDePrueba(almacen) {
     temp_c: 92, clics: 26, tiempo_total: "3:10",
     variable_cambiada: "Primera extracción", defecto: "agrio", nota: 6,
   });
+  /*
+   * Una con la celda vacía. El alta rellena `variable_cambiada` cuando no
+   * llega, así que restaurar tenía que deshacerlo como ya deshace el
+   * `siguiente_ajuste`: sin eso, una celda vacía volvía del viaje escrita —y
+   * en castellano, que es con lo que restaura— y el ZIP dejaba de ser lo que
+   * había.
+   */
+  const vacia = await crearExtraccion(almacen, {
+    cafe_id: "etiopia_guji", receta_id: receta.datos.receta.id,
+    temp_c: 90, clics: 27, tiempo_total: "3:05", defecto: "amargor", nota: 6,
+  });
+  await almacen.extracciones.actualizar(vacia.datos.extraccion.id, {
+    variable_cambiada: null,
+  });
   return { primera };
 }
 
@@ -137,7 +151,7 @@ describe("el respaldo entero, de ida y vuelta", () => {
 
     const { bytes, manifiesto } = await crearRespaldo(origen, { version: "0.0.0-test" });
     assert.equal(manifiesto.filas.cafes, 2);
-    assert.equal(manifiesto.filas.extracciones, 3);
+    assert.equal(manifiesto.filas.extracciones, 4);
 
     const contenido = await leerRespaldo(bytes);
     const preparado = await prepararRestauracion(contenido);
