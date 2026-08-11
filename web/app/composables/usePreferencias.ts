@@ -32,6 +32,7 @@ export function usePreferencias() {
    */
   const POR_DEFECTO: Preferencias = {
     sonido: true,
+    voz: true,
     latido: true,
     cuenta_atras: true,
     tema_modo: 'auto',

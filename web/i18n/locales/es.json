@@ -304,6 +304,8 @@
     "crono_intro": "Cómo avisa de cada paso mientras preparas.",
     "sonido": "Sonido",
     "sonido_pista": "Tres pitidos antes de cada paso y un tono al empezarlo.",
+    "voz": "Decir el paso en voz alta",
+    "voz_pista": "«Vierte en espiral» antes de los pitidos, para no mirar la pantalla.",
     "cuenta_atras": "Cuenta atrás al arrancar",
     "cuenta_atras_pista": "Tres segundos para coger el hervidor, también al reanudar.",
     "latido": "Latido del número",

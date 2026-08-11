@@ -15,7 +15,7 @@ import { relojDe } from '@coffee/nucleo/validacion'
  */
 // El catálogo de etiquetas y las rutas, los dos conscientes del idioma:
 // desde el inglés, un `/crono` pelado llevaría al castellano.
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { etiquetaPaso } = useTextos()
 const localePath = useLocalePath()
 
@@ -29,9 +29,24 @@ const {
   finGoteo, inicioMs, goteoIba,
 } = toRefs(estado.value)
 
-const { pitido, cuentaAtras, programar, detener, silenciar } = useSonido()
+const { pitido, cuentaAtras, programar, detener, silenciar, cargarVoz } = useSonido()
 const { ajustes, cargar: cargarAjustes } = usePreferencias()
 void cargarAjustes()
+
+/**
+ * Las duraciones de los clips, que es lo que el núcleo necesita para colocar
+ * cada frase. Null mientras no estén —o si la voz está apagada—, y entonces
+ * la agenda sale sin hablar y todo lo demás funciona igual.
+ */
+const vozLista = ref<Record<string, number> | null>(null)
+
+watchEffect(async () => {
+  if (!ajustes.value.voz) {
+    vozLista.value = null
+    return
+  }
+  vozLista.value = await cargarVoz(locale.value)
+})
 
 // El interruptor del pie llega hasta el sintetizador. Como efecto y no una
 // vez: los ajustes se leen del cajón después de pintar, y cambiarlos en otra
@@ -68,7 +83,7 @@ let despierta: WakeLockSentinel | null = null
 const finVertidos = computed(() => finDeLosVertidos(pasos.value))
 
 /** La agenda sonora del guion, del núcleo: qué suena en qué segundo. */
-const cues = computed(() => cuesDe(pasos.value))
+const cues = computed(() => cuesDe(pasos.value, vozLista.value))
 
 /** Los pasos con hora, los únicos que el reloj puede situar. */
 const conTiempo = computed(() => pasos.value.filter((p) => p.t_inicio_s !== null))

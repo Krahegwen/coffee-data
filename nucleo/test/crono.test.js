@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { cuesDe } from "../src/crono.js";
+import { cuesDe, vozDe } from "../src/crono.js";
 import { finDeLosVertidos } from "../src/recetas.js";
 
 /** La 4:6 base de la semilla, solo lo que la agenda mira. */
@@ -130,5 +130,85 @@ describe("colisiones y bordes", () => {
   it("sin pasos no hay agenda", () => {
     assert.deepEqual(cuesDe([]), []);
     assert.deepEqual(cuesDe(null), []);
+  });
+});
+
+describe("la voz, cuando hay clips", () => {
+  // Las duraciones reales de los clips en castellano, redondeadas.
+  const DURACIONES = {
+    verter: 1.06,
+    verter_espiral: 1.3,
+    verter_centro: 1.38,
+    agitar: 1.06,
+    esperar: 1.01,
+    retirar: 1.25,
+  };
+
+  it("sin manifiesto la agenda sale igual que siempre", () => {
+    assert.deepEqual(cuesDe(KASUYA), cuesDe(KASUYA, null));
+    assert.ok(!cuesDe(KASUYA).some((c) => c.tipo === "voz"));
+  });
+
+  it("la frase acaba justo antes del primer pip", () => {
+    const cues = cuesDe(KASUYA, DURACIONES);
+    // El vertido del 45 —sin estilo en esta receta, así que dice «verter»—
+    // lleva sus pips en 42, 43 y 44.
+    const voz = cues.find((c) => c.tipo === "voz" && c.t > 40 && c.t < 45);
+    assert.equal(voz.clave, "verter");
+    // 45 − 3 de pips − 0.35 de respiro − 1.06 de frase = 40.59
+    assert.equal(voz.t, 40.59);
+    assert.ok(voz.t + DURACIONES.verter < 42, "tiene que caber antes del pip");
+  });
+
+  it("con estilo dice la frase del estilo", () => {
+    const cues = cuesDe(
+      [{ accion: "verter", estilo: "espiral", t_inicio_s: 30 }], DURACIONES,
+    );
+    const voz = cues.find((c) => c.tipo === "voz");
+    assert.equal(voz.clave, "verter_espiral");
+    // 30 − 3 − 0.35 − 1.3
+    assert.equal(voz.t, 25.35);
+  });
+
+  it("dice la frase de cada paso, con su estilo", () => {
+    assert.equal(vozDe({ accion: "verter", estilo: "espiral" }), "verter_espiral");
+    assert.equal(vozDe({ accion: "verter", estilo: "centro" }), "verter_centro");
+    assert.equal(vozDe({ accion: "verter", estilo: null }), "verter");
+    assert.equal(vozDe({ accion: "retirar" }), "retirar");
+  });
+
+  it("un paso sin clip no habla, pero sigue pitando", () => {
+    // `remover` no está en el manifiesto de este test.
+    const cues = cuesDe([
+      { accion: "verter", t_inicio_s: 0 },
+      { accion: "remover", t_inicio_s: 40 },
+    ], DURACIONES);
+    assert.ok(!cues.some((c) => c.tipo === "voz"));
+    assert.equal(cues.filter((c) => c.tipo === "pip").length, 3);
+  });
+
+  it("si no cabe entera tras el paso anterior, se calla", () => {
+    // Dos pasos a 4 s: la frase tendría que empezar antes del paso previo.
+    const cues = cuesDe([
+      { accion: "verter", t_inicio_s: 0 },
+      { accion: "verter", estilo: "centro", t_inicio_s: 4 },
+    ], DURACIONES);
+    // 4 − 3 − 0.35 − 1.38 sale negativo respecto al paso de las 0: nada.
+    assert.ok(!cues.some((c) => c.tipo === "voz" && c.clave === "verter_centro"));
+    // Y los pips que sí caben siguen ahí: son los que llevan el tiempo.
+    assert.ok(cues.some((c) => c.tipo === "pip"));
+  });
+
+  it("el primer paso tampoco habla: antes del segundo 0 no hay plan", () => {
+    const cues = cuesDe(KASUYA, DURACIONES);
+    assert.ok(!cues.some((c) => c.tipo === "voz" && c.t < 0));
+    // El del segundo 0 no cabe, así que su frase no está.
+    const primeras = cues.filter((c) => c.t < 10 && c.tipo === "voz");
+    assert.deepEqual(primeras, []);
+  });
+
+  it("sale ordenada aunque la voz se cuele entre medias", () => {
+    const tiempos = cuesDe(KASUYA, DURACIONES).map((c) => c.t);
+    assert.deepEqual(tiempos, [...tiempos].sort((a, b) => a - b));
   });
 });

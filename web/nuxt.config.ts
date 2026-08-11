@@ -145,7 +145,9 @@ export default defineNuxtConfig({
       ],
     },
     workbox: {
-      globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+      // `m4a` incluido: sin él los clips de voz no se precachean y la cocina
+      // sin cobertura se queda muda justo cuando más falta hace.
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,m4a,json}'],
       // La API va por red primero: unos datos viejos en la bitácora confunden
       // más que un error. Pero si no hay cobertura, la caché responde.
       navigateFallbackDenylist: [/^\/api\//],

@@ -32,6 +32,7 @@ const CASTELLANO = textos();
  */
 export const CATALOGO = {
   sonido: { tipo: "booleano", defecto: true },
+  voz: { tipo: "booleano", defecto: true },
   latido: { tipo: "booleano", defecto: true },
   cuenta_atras: { tipo: "booleano", defecto: true },
   /*

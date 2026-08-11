@@ -17,7 +17,17 @@
  * ficha no calla los avisos, igual que no para el tiempo.
  */
 
-export type Cue = { t: number; tipo: string }
+export type Cue = { t: number; tipo: string; clave?: string }
+
+/**
+ * Los clips de voz ya decodificados, por clave. Se cargan una vez por idioma
+ * y se quedan: son 100 KB y evitan que la primera frase de cada café llegue
+ * tarde por estar bajándose.
+ */
+let vozCargada: { idioma: string; clips: Record<string, AudioBuffer> } | null = null
+let cargando: Promise<void> | null = null
+/** Cuánto dura cada frase: es lo que el núcleo necesita para colocarlas. */
+let manifiesto: Record<string, number> | null = null
 
 /** Frecuencia (Hz), inicio relativo (s), duración (s) y ganancia por tono. */
 type Tono = [number, number, number, number]
@@ -45,7 +55,7 @@ let bucle: ReturnType<typeof setInterval> | null = null
 /** Hasta qué segundo del plan hay sonidos ya anclados. */
 let anclado = -Infinity
 /** Lo anclado y aún sin sonar, por si un salto lo deja mentiroso. */
-let pendientes: { t: number; nodos: OscillatorNode[] }[] = []
+let pendientes: { t: number; nodos: AudioScheduledSourceNode[] }[] = []
 
 /**
  * Un seno con envolvente: 8 ms de ataque y 12 de caída. Sin ellos, un
@@ -79,12 +89,31 @@ function tono(cuando: number, [hz, desde, dur, pico]: Tono): OscillatorNode {
 let silenciado = false
 
 /** Todos los tonos de un cue, anclados a un instante del reloj de audio. */
-function sonar(tipo: string, cuando: number): OscillatorNode[] {
+function sonar(tipo: string, cuando: number, clave?: string): AudioScheduledSourceNode[] {
   if (silenciado) return []
+
+  /*
+   * La voz va por el mismo reloj que los tonos, no por un `<audio>` con un
+   * temporizador: así la frase cae en el instante exacto que dice la agenda,
+   * con la misma precisión que los pips, y se calla con ellos al pausar.
+   */
+  if (tipo === 'voz') {
+    const clip = clave ? vozCargada?.clips[clave] : null
+    if (!clip || !ctx) return []
+    const fuente = ctx.createBufferSource()
+    fuente.buffer = clip
+    const gan = ctx.createGain()
+    gan.gain.value = 0.9
+    fuente.connect(gan)
+    gan.connect(ctx.destination)
+    fuente.start(cuando)
+    return [fuente]
+  }
+
   return (TONOS[tipo] ?? []).map((receta) => tono(cuando, receta))
 }
 
-function apagar(nodos: OscillatorNode[]) {
+function apagar(nodos: AudioScheduledSourceNode[]) {
   // Parar un oscilador ya parado lanza: aquí el silencio no puede fallar.
   nodos.forEach((n) => { try { n.stop() } catch { /* ya calló */ } })
 }
@@ -130,7 +159,7 @@ export function useSonido() {
   function cuentaAtras(avisos: { alTic: (n: number) => void; alGo: () => void }) {
     desbloquear()
     const base = ctx ? ctx.currentTime + 0.05 : 0
-    const nodos: OscillatorNode[] = []
+    const nodos: AudioScheduledSourceNode[] = []
     const timeouts: ReturnType<typeof setTimeout>[] = []
     for (let i = 0; i < 3; i += 1) {
       if (ctx) nodos.push(...sonar('pip', base + i))
@@ -180,7 +209,10 @@ export function useSonido() {
       const hasta = t + HORIZONTE_S
       for (const cue of plan.cues) {
         if (cue.t <= desde || cue.t > hasta) continue
-        pendientes.push({ t: cue.t, nodos: sonar(cue.tipo, ctx.currentTime + (cue.t - t)) })
+        pendientes.push({
+          t: cue.t,
+          nodos: sonar(cue.tipo, ctx.currentTime + (cue.t - t), cue.clave),
+        })
       }
       anclado = hasta
       pendientes = pendientes.filter((p) => p.t > t - 1)
@@ -194,5 +226,46 @@ export function useSonido() {
     silenciado = callado
   }
 
-  return { desbloquear, pitido, cuentaAtras, programar, detener, invalidar, silenciar }
+  /**
+   * Baja y decodifica los clips del idioma que toque, una sola vez.
+   *
+   * Devuelve el manifiesto de duraciones, que es lo que el núcleo necesita
+   * para colocar cada frase: sin él la agenda sale sin voz y todo lo demás
+   * funciona igual, así que un fallo de red aquí no deja el cronómetro mudo
+   * — solo sin hablar.
+   */
+  async function cargarVoz(idioma: string): Promise<Record<string, number> | null> {
+    if (typeof window === 'undefined') return null
+    if (vozCargada?.idioma === idioma) return manifiesto
+    if (cargando) { await cargando; return vozCargada?.idioma === idioma ? manifiesto : null }
+
+    cargando = (async () => {
+      desbloquear()
+      if (!ctx) return
+      const base = `/audio/${idioma}`
+      const duraciones = await $fetch<Record<string, number>>(`${base}/duraciones.json`)
+      const clips: Record<string, AudioBuffer> = {}
+      await Promise.all(Object.keys(duraciones).map(async (clave) => {
+        const datos = await $fetch<Blob>(`${base}/${clave}.m4a`, { responseType: 'blob' })
+        clips[clave] = await ctx!.decodeAudioData(await datos.arrayBuffer())
+      }))
+      manifiesto = duraciones
+      vozCargada = { idioma, clips }
+    })()
+
+    try {
+      await cargando
+    } catch {
+      // Sin clips el cronómetro pita igual: la voz es una capa, no un requisito.
+      manifiesto = null
+    } finally {
+      cargando = null
+    }
+    return manifiesto
+  }
+
+  return {
+    desbloquear, pitido, cuentaAtras, programar, detener, invalidar, silenciar,
+    cargarVoz,
+  }
 }

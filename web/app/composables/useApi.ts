@@ -150,6 +150,7 @@ export interface Creada {
  */
 export interface Preferencias {
   sonido: boolean
+  voz: boolean
   latido: boolean
   cuenta_atras: boolean
   /** Si seguir al teléfono o mandar tú, y qué juego usar en cada modo. */
