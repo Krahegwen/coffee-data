@@ -177,11 +177,13 @@ useHead({
     <main>
       <p v-if="!comprobada || !lista" class="meta-sesion">{{ $t('app.cargando') }}</p>
       <NuxtPage v-else />
-    </main>
 
-    <!-- Una vez para toda la app: lo que hace larga una pantalla son los
-         datos, no el fichero. Él decide cuándo asomarse. -->
-    <VolverArriba />
+      <!-- Dentro de `main` y el último: se pega al fondo de la ventana
+           mientras haya contenido y se suelta justo donde empieza el pie.
+           Fuera de aquí no tendría contra qué detenerse y haría falta
+           calcularlo a mano, que es lo que daba tirones. -->
+      <VolverArriba />
+    </main>
     <footer>
       <!-- Cinco toques abren el panel de sesión. La coletilla dice el modo:
            sin nada, tus datos viven en este navegador. -->
