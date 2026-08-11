@@ -34,6 +34,15 @@ import type { PasoGuion } from '~/composables/useApi'
 export const CRONO_EN_BLANCO = () => ({
   cafeId: '',
   recetaId: '',
+  /**
+   * De qué extracción es variación ésta, cuando no es de la última.
+   *
+   * Viaja con la selección y no con la medición: volver a la rama del 91 se
+   * decide antes de moler, y tiene que seguir puesto cuando el alta pregunte
+   * —que es veinte minutos después y con la taza delante—. Vacío significa
+   * «la última de la bolsa», que es lo que el servidor hace solo.
+   */
+  desdeId: '',
   dosis: 20,
   agua: 300,
   pasos: [] as PasoGuion[],
@@ -76,6 +85,15 @@ export function useCrono() {
       finGoteo: null,
       inicioMs: null,
       goteoIba: false,
+      /*
+       * Y la rama se suelta con la medición, aunque viaje con la selección.
+       * Volver a la extracción de anteayer es una decisión **de esa taza**:
+       * quedándose puesta, la siguiente y todas las demás seguían colgando
+       * de la misma madre sin que nadie lo hubiera pedido —y el desplegable
+       * está plegado, así que no había forma de verlo—. Es la misma regla
+       * que el alta aplica a su propia copia al guardar.
+       */
+      desdeId: '',
     })
   }
 

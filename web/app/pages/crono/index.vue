@@ -14,12 +14,12 @@ import { relojDe } from '@coffee/nucleo/validacion'
 const { t } = useI18n()
 // El catálogo de etiquetas y las rutas, los dos conscientes del idioma:
 // desde el inglés, un `/crono` pelado llevaría al castellano.
-const { etiquetaPaso } = useTextos()
+const { etiquetaPaso, fechaCorta } = useTextos()
 const localePath = useLocalePath()
 
 useHead({ title: () => t('preparar.titulo') })
 
-const { cafes, recetas, guion } = useApi()
+const { cafes, recetas, guion, extracciones } = useApi()
 const router = useRouter()
 const { estado, hayMedicion, olvidarTodo } = useCrono()
 
@@ -36,7 +36,7 @@ const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 
  */
 const sinRecetas = computed(() => !(catalogo.value ?? []).length)
 
-const { cafeId, recetaId, dosis, agua, pasos } = toRefs(estado.value)
+const { cafeId, recetaId, desdeId, dosis, agua, pasos } = toRefs(estado.value)
 
 /*
  * Lo elegido la última vez, del cajón.
@@ -116,7 +116,12 @@ onUnmounted(escribir)
 // puede cronometrar sin bolsa.
 watchEffect(() => {
   if (!abiertas.value.length) return
-  if (!abiertas.value.some((c) => c.id === cafeId.value)) cafeId.value = abiertas.value[0]!.id
+  // La primera de la lista **ordenada**, que es la que el desplegable enseña
+  // arriba: eligiendo por el orden crudo, la bolsa que salía puesta no era la
+  // que se veía primero.
+  if (!abiertas.value.some((c) => c.id === cafeId.value)) {
+    cafeId.value = bolsasOrdenadas.value[0]!.id
+  }
 })
 
 // La receta de siempre como arranque. Por slug, que es lo único estable: los
@@ -134,6 +139,205 @@ async function cargar() {
 }
 
 watch([recetaId, agua], cargar, { immediate: true })
+
+// --- lo que ya sabemos de antes -------------------------------------------
+
+/**
+ * El histórico, para tres cosas: ordenar por lo último usado, proponer los
+ * valores de cada bolsa y enseñar lo que el motor sugirió la última vez.
+ *
+ * Una sola lectura del cajón —es local, va en un suspiro— en vez de tres
+ * consultas distintas.
+ */
+const { data: historial } = await useAsyncData('ext-crono', () => extracciones())
+
+/** Cuándo se usó cada cosa por última vez, para ordenar por ello. */
+function ultimoUso(campo: 'cafe_id' | 'receta_id') {
+  const cuando = new Map<string, string>()
+  for (const e of historial.value ?? []) {
+    const clave = String(e[campo] ?? '')
+    const sello = String(e.creado_en ?? '')
+    if (clave && sello > (cuando.get(clave) ?? '')) cuando.set(clave, sello)
+  }
+  return cuando
+}
+
+/**
+ * Las bolsas abiertas, la usada más recientemente primero.
+ *
+ * Ordenar por nombre era ordenar por una casualidad del alfabeto. Lo que uno
+ * busca al abrir esta pantalla es casi siempre el café de ayer.
+ */
+const bolsasOrdenadas = computed(() => {
+  const cuando = ultimoUso('cafe_id')
+  return [...abiertas.value].sort((a, b) => {
+    const ua = cuando.get(a.id) ?? ''
+    const ub = cuando.get(b.id) ?? ''
+    if (ua !== ub) return ua < ub ? 1 : -1
+    // Las que nunca se han usado, detrás y por nombre: son las recién dadas
+    // de alta y no hay nada que las ordene mejor.
+    return a.nombre < b.nombre ? -1 : 1
+  })
+})
+
+const recetasOrdenadas = computed(() => {
+  const cuando = ultimoUso('receta_id')
+  return [...(catalogo.value ?? [])].sort((a, b) => {
+    const ua = cuando.get(a.id) ?? ''
+    const ub = cuando.get(b.id) ?? ''
+    if (ua !== ub) return ua < ub ? 1 : -1
+    return a.slug < b.slug ? -1 : 1
+  })
+})
+
+/** Las de esta bolsa, de la más nueva a la más vieja. */
+const deLaBolsa = computed(() =>
+  cafeId.value ? (historial.value ?? []).filter((e) => e.cafe_id === cafeId.value) : [],
+)
+
+const ultimaDeLaBolsa = computed(() => deLaBolsa.value[0] ?? null)
+
+/**
+ * Al elegir otra bolsa **a mano**, se proponen los valores de su última taza:
+ * cada café pide su dosis, y arrastrar la del anterior obliga a corregir dos
+ * campos cada vez que se cambia de bolsa.
+ *
+ * Colgado del evento del desplegable y no de un `watch` sobre `cafeId`, que
+ * es la diferencia entre «lo has elegido tú» y «se ha movido solo». `cafeId`
+ * también lo cambian la siembra de preferencias y la corrección automática
+ * cuando la bolsa deja de estar abierta; con un watch, marcar una bolsa como
+ * terminada desde otro dispositivo te reescribía la dosis y el agua que
+ * acababas de teclear, sin tocar nada y sin decir nada.
+ */
+function alElegirBolsa() {
+  const ultima = (historial.value ?? []).find((e) => e.cafe_id === cafeId.value)
+  if (!ultima) return
+  if (ultima.dosis_g) dosis.value = Number(ultima.dosis_g)
+  if (ultima.agua_g) agua.value = Number(ultima.agua_g)
+  if (ultima.receta_id) recetaId.value = String(ultima.receta_id)
+}
+
+// --- el ratio --------------------------------------------------------------
+
+/** El de la receta elegida, si lo tiene: puede no tenerlo. */
+const ratioReceta = computed(() =>
+  (catalogo.value ?? []).find((r) => r.id === recetaId.value)?.ratio ?? null,
+)
+
+/**
+ * El que sale de lo que hay puesto ahora mismo.
+ *
+ * Los dos campos tienen que traer un número mayor que cero: al vaciar el agua
+ * para reescribirla, `v-model.number` deja la cadena vacía y el cociente daba
+ * 0 —no `null`—, así que entre una tecla y otra saltaba «vas a 1:0» en rojo.
+ */
+const ratioPuesto = computed(() => {
+  const d = Number(dosis.value)
+  const a = Number(agua.value)
+  if (!(d > 0) || !(a > 0)) return null
+  return a / d
+})
+
+/**
+ * Lo que tendría que valer el campo que **no** estás tocando para volver al
+ * ratio de la receta.
+ *
+ * Ninguno de los dos campos mueve al otro por su cuenta: se propone y decides
+ * tú. Que un número cambie solo porque tocaste otro es lo que hace que uno
+ * deje de fiarse de la pantalla.
+ */
+/*
+ * Arranca en `dosis` para que lo primero que se proponga sea el agua. Sin
+ * haber tocado nada, «el campo que no estás tocando» no existe, y había que
+ * elegir uno: el agua se echa y la dosis se pesa antes de moler, así que
+ * proponer mover la dosis nada más entrar es proponer volver a la báscula.
+ */
+const ultimoTocado = ref<'dosis' | 'agua'>('dosis')
+
+const propuesta = computed(() => {
+  const r = ratioReceta.value
+  if (!r || !ratioPuesto.value) return null
+  if (ultimoTocado.value === 'dosis') {
+    const aguaIdeal = Math.round(dosis.value * r)
+    return aguaIdeal === agua.value ? null : { campo: 'agua' as const, valor: aguaIdeal }
+  }
+  const dosisIdeal = Math.round((agua.value / r) * 10) / 10
+  return dosisIdeal === dosis.value ? null : { campo: 'dosis' as const, valor: dosisIdeal }
+})
+
+function aplicarPropuesta() {
+  const p = propuesta.value
+  if (!p) return
+  if (p.campo === 'agua') agua.value = p.valor
+  else dosis.value = p.valor
+}
+
+/**
+ * Cuánto puede desviarse el ratio antes de decir nada. Por debajo es
+ * redondeo y ruido de báscula, y un aviso que salta siempre se deja de leer.
+ */
+const DESVIO_RATIO = 0.3
+
+const ratioDesviado = computed(() =>
+  ratioReceta.value !== null && ratioPuesto.value !== null
+  && Math.abs(ratioPuesto.value - ratioReceta.value) >= DESVIO_RATIO,
+)
+
+const unDecimal = (n: number) => Math.round(n * 10) / 10
+
+// --- de dónde parte esta taza ---------------------------------------------
+
+/**
+ * Contra qué extracción se va a medir ésta. Por defecto la última de la
+ * bolsa, que es lo que hace el servidor solo; se elige otra al volver a una
+ * rama anterior tras un callejón sin salida.
+ *
+ * Se decide aquí y no en el alta porque es una decisión de **antes** de
+ * preparar: «hoy vuelvo a la de 91 grados» se piensa con el molinillo en la
+ * mano, no veinte minutos después con la taza delante.
+ */
+const madre = computed({
+  get: () => desdeId.value || (ultimaDeLaBolsa.value?.id ?? ''),
+  /*
+   * Elegir la última **es** el valor por defecto, así que se guarda vacío.
+   * Con el uuid puesto, la taza quedaba clavada a esa fila: si mientras
+   * tanto registrabas otra —desde el móvil, o a mano—, la nueva colgaba de
+   * la penúltima. Y guardado así, `desdeId` con valor significa siempre «he
+   * vuelto atrás», que es lo que miran las dos salidas de esta pantalla.
+   */
+  set: (id: string) => {
+    desdeId.value = id === ultimaDeLaBolsa.value?.id ? '' : id
+  },
+})
+
+/** Se vuelve a una anterior: el aviso de que eso cambia contra qué se mide. */
+const vuelveAtras = computed(() => Boolean(desdeId.value))
+
+// Cambiar de bolsa suelta la madre: nunca sale de la bolsa.
+watch(cafeId, () => { desdeId.value = '' })
+
+/*
+ * Y si la madre elegida desaparece —se retira desde otro dispositivo—, se
+ * suelta también. Si no, seguía viajando al alta un uuid que ya no está en
+ * la lista: el desplegable en blanco, el banner sin sugerencia y nada en
+ * pantalla que dijera contra qué se iba a medir la taza.
+ */
+watchEffect(() => {
+  if (!desdeId.value || !historial.value) return
+  if (!deLaBolsa.value.some((e) => e.id === desdeId.value)) desdeId.value = ''
+})
+
+/** La extracción de la que se parte, ya resuelta. */
+const partida = computed(() =>
+  deLaBolsa.value.find((e) => e.id === madre.value) ?? null,
+)
+
+/**
+ * Lo que el motor propuso al registrar esa taza. Es la mitad del valor de
+ * llevar la bitácora y estaba escrito en una ficha que nadie vuelve a abrir:
+ * aquí llega justo cuando sirve para algo, que es antes de moler.
+ */
+const sugerencia = computed(() => partida.value?.siguiente_ajuste ?? '')
 
 /**
  * Lleva al reloj, pero parado: se arranca al verter, no al llegar. Entre una
@@ -159,7 +363,8 @@ function pedirRestablecer() {
 function restablecer() {
   dialogo.value?.close()
   olvidarTodo()
-  cafeId.value = abiertas.value[0]?.id ?? ''
+  // La primera de la ordenada, como la corrección automática: la de ayer.
+  cafeId.value = bolsasOrdenadas.value[0]?.id ?? ''
   const base = (catalogo.value ?? []).find((r) => r.slug === 'kasuya-46-base')
   recetaId.value = base?.id ?? catalogo.value?.[0]?.id ?? ''
   void cargar()
@@ -177,6 +382,9 @@ function aMano() {
       receta: recetaId.value,
       dosis: String(dosis.value),
       agua: String(agua.value),
+      // `desdeId` con valor significa «he vuelto atrás», y vacío «la última»,
+      // que es lo que el servidor hace solo. Mismo criterio que el reloj.
+      ...(desdeId.value ? { desde: desdeId.value } : {}),
     },
   })
 }
@@ -209,12 +417,42 @@ function aMano() {
       <NuxtLinkLocale to="/cafes/nueva">{{ $t('preparar.dala_de_alta') }}</NuxtLinkLocale>
       {{ $t('preparar.si_lo_merece') }}
     </p>
+    <!-- Ordenadas por la última usada: lo que uno busca al abrir esto es casi
+         siempre el café de ayer. -->
     <label v-else>
       {{ $t('preparar.cafe') }}
-      <select v-model="cafeId">
-        <option v-for="c in abiertas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
+      <select v-model="cafeId" @change="alElegirBolsa">
+        <option v-for="c in bolsasOrdenadas" :key="c.id" :value="c.id">{{ c.nombre }}</option>
       </select>
     </label>
+
+    <!-- Lo que el motor propuso en la taza de la que se parte. Aquí sirve
+         para algo: aún estás a tiempo de moler distinto. -->
+    <p v-if="sugerencia" class="sugerido">
+      <span class="etiqueta">{{ $t('preparar.sugerido') }}</span>
+      <strong>{{ sugerencia }}</strong>
+    </p>
+
+    <!-- De qué taza se parte. Solo con más de una en la bolsa: con una sola no
+         hay nada que elegir. -->
+    <details v-if="deLaBolsa.length > 1" class="rama" :open="vuelveAtras">
+      <summary>{{ $t('preparar.partir_de') }}</summary>
+      <label>
+        {{ $t('preparar.variacion_de') }}
+        <select v-model="madre">
+          <option v-for="e in deLaBolsa" :key="e.id" :value="e.id">
+            {{ $t('preparar.opcion_madre', {
+              fecha: fechaCorta(e.fecha), temp: e.temp_c, clics: e.clics,
+            }) }}{{ e.nota ? $t('preparar.opcion_nota', { n: e.nota }) : '' }}
+          </option>
+        </select>
+      </label>
+    </details>
+
+    <!-- Fuera del plegable a propósito: es el único sitio que dice contra qué
+         se va a medir esta taza, y dentro no se veía nunca —el desplegable
+         nace cerrado—. Con el aviso a la vista, el plegable se abre solo. -->
+    <p v-if="vuelveAtras" class="ojo">{{ $t('preparar.vuelves_atras') }}</p>
 
     <!-- Este sí corta: sin receta no hay guion que seguir. -->
     <p v-if="sinRecetas" class="sin-recetas">
@@ -225,13 +463,39 @@ function aMano() {
     <label v-else>
       {{ $t('preparar.receta') }}
       <select v-model="recetaId">
-        <option v-for="r in catalogo ?? []" :key="r.id" :value="r.id">{{ r.nombre }}</option>
+        <option v-for="r in recetasOrdenadas" :key="r.id" :value="r.id">{{ r.nombre }}</option>
       </select>
     </label>
+
     <div class="pareja">
-      <label>{{ $t('preparar.dosis') }}<input v-model.number="dosis" type="number" step="0.1" min="1"></label>
-      <label>{{ $t('preparar.agua') }}<input v-model.number="agua" type="number" step="1" min="1"></label>
+      <label>{{ $t('preparar.dosis') }}<input
+        v-model.number="dosis" type="number" step="0.1" min="1"
+        @input="ultimoTocado = 'dosis'"></label>
+      <label>{{ $t('preparar.agua') }}<input
+        v-model.number="agua" type="number" step="1" min="1"
+        @input="ultimoTocado = 'agua'"></label>
     </div>
+
+    <!-- El cálculo hecho, no aplicado: ninguno de los dos campos mueve al
+         otro por su cuenta. Es un botón y se ve que lo es, porque proponer
+         algo que no se puede aceptar de un toque es una calculadora de
+         mostrador. -->
+    <p v-if="propuesta" class="cuadre">
+      <button type="button" class="chip" @click="aplicarPropuesta">
+        {{ propuesta.campo === 'agua'
+          ? $t('preparar.cuadrar_agua', { n: propuesta.valor, ratio: unDecimal(ratioReceta!) })
+          : $t('preparar.cuadrar_dosis', { n: propuesta.valor, ratio: unDecimal(ratioReceta!) }) }}
+      </button>
+    </p>
+
+    <!-- Y el aviso, aparte y sin regañar: desviarse del ratio es una decisión
+         legítima —más cuerpo, menos cuerpo—, y el 4:6 no se rompe por ello:
+         el reparto escala al agua real. Lo que cambia es la taza. -->
+    <p v-if="ratioDesviado" class="ojo">
+      {{ $t('preparar.ratio_desviado', {
+        receta: unDecimal(ratioReceta!), puesto: unDecimal(ratioPuesto!),
+      }) }}
+    </p>
 
     <ol class="plan">
       <li v-for="p in pasos" :key="p.orden">
@@ -286,6 +550,64 @@ h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 }
 
 .vaciar:hover { color: var(--acento); }
+
+/* Lo que dijo el motor la última vez. Con el color del acento y no en gris:
+   es lo único de esta pantalla que viene de haber medido. */
+.sugerido {
+  background: var(--tarjeta);
+  border: 1px solid var(--acento);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--tinta);
+}
+
+.sugerido .etiqueta {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--suave);
+}
+
+/* Plegado: volver a una rama anterior es la excepción, no el día a día. */
+.rama { margin-top: 0.5rem; }
+
+.rama summary {
+  font-size: 0.85rem;
+  color: var(--suave);
+  cursor: pointer;
+  padding: 0.35rem 0;
+}
+
+.rama summary:hover { color: var(--acento); }
+.rama label { margin-top: 0.35rem; }
+
+.cuadre { margin: 0.15rem 0 0; }
+
+/* Un botón con cara de botón: si la propuesta no se puede aceptar de un
+   toque, es una calculadora y no una ayuda. */
+.chip {
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--acento);
+  background: transparent;
+  border: 1px dashed var(--acento);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.chip:hover { background: color-mix(in srgb, var(--acento) 10%, transparent); }
+
+/* Fuera del diálogo también hacen falta: el aviso del ratio y la nota de la
+   rama viven en la sección, y ahí `.ojo` no estaba definida. */
+.ojo { color: var(--peligro); font-size: 0.85rem; margin: 0.4rem 0 0; }
+.meta { color: var(--suave); font-size: 0.85rem; margin: 0.4rem 0 0; }
 
 .sin-bolsas, .sin-recetas { font-size: 0.9rem; margin: 0 0 1rem; }
 .sin-bolsas { color: var(--suave); }

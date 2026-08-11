@@ -67,6 +67,9 @@ if (q.drawdown !== undefined) form.drawdown_s = Number(q.drawdown)
 // fue desde este formulario, y llega ya elegida. El resto del borrador sigue
 // como estaba.
 if (q.bolsa !== undefined) form.cafe_id = String(q.bolsa)
+// La rama elegida en preparar: se decidió antes de moler, con el molinillo en
+// la mano, y no hay por qué volver a preguntarla con la taza ya delante.
+if (q.desde !== undefined) form.desde_id = String(q.desde)
 
 // Sin receta en la URL, la de siempre. Por slug, que los uuids no son de fiar
 // entre bases.
