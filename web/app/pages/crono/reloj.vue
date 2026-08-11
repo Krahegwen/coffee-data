@@ -606,7 +606,7 @@ button {
   font: inherit;
   font-weight: 600;
   font-size: 1rem;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -722,7 +722,7 @@ button {
 .delta { color: var(--suave); font-size: 0.85em; }
 
 .ojo {
-  color: #c2410c;
+  color: var(--peligro);
   font-size: 0.9rem;
   margin: 0.5rem 0;
 }
@@ -784,11 +784,11 @@ dialog {
 dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 dialog h3 { margin: 0 0 0.6rem; font-size: 1.05rem; }
 dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
-dialog .ojo { color: #c2410c; }
+dialog .ojo { color: var(--peligro); }
 
 .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .botones button { margin-top: 0; }
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 
 a { color: var(--acento); }
 </style>

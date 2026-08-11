@@ -224,7 +224,7 @@ h2 { font-size: 1.05rem; margin: 0 0 0.4rem; }
 button {
   font: inherit;
   font-weight: 600;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -243,7 +243,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   border: 1px solid var(--linea);
 }
 
-.fallo { color: #c2410c; font-size: 0.85rem; margin: 0.5rem 0 0; }
+.fallo { color: var(--peligro); font-size: 0.85rem; margin: 0.5rem 0 0; }
 .exito-linea { color: var(--acento); font-size: 0.85rem; font-weight: 600; margin: 0.5rem 0 0; }
 
 dialog {
@@ -263,6 +263,6 @@ dialog p { font-size: 0.88rem; margin: 0 0 0.75rem; color: var(--suave); }
 
 .botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 .botones button { margin-top: 0; }
-.peligro { background: #c2410c; }
+.peligro { background: var(--peligro); color: var(--sobre-peligro); }
 .cancelar { background: transparent; color: var(--tinta); border: 1px solid var(--linea); }
 </style>

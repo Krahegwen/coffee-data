@@ -34,6 +34,15 @@ export const CATALOGO = {
   sonido: { tipo: "booleano", defecto: true },
   latido: { tipo: "booleano", defecto: true },
   cuenta_atras: { tipo: "booleano", defecto: true },
+  /*
+   * El tema son tres claves y no una, porque son tres decisiones distintas:
+   * si seguir al teléfono o mandar tú, y qué juego usar en cada modo. Quien
+   * pone el móvil en oscuro por la noche quiere que la app le siga, pero eso
+   * no dice nada de qué tema le gusta de día.
+   */
+  tema_modo: { tipo: "opcion", defecto: "auto", opciones: ["auto", "claro", "oscuro"] },
+  tema_claro: { tipo: "opcion", defecto: "papel", opciones: ["papel", "pizarra"] },
+  tema_oscuro: { tipo: "opcion", defecto: "tostado", opciones: ["tostado", "carbon"] },
   crono_cafe_id: { tipo: "texto", defecto: "" },
   crono_receta_id: { tipo: "texto", defecto: "" },
   crono_dosis_g: { tipo: "numero", defecto: 20, minimo: 1 },
@@ -49,13 +58,16 @@ export function porDefecto() {
 
 /** De texto al tipo que toque. Lo que no se entiende cae al valor de fábrica. */
 function tipar(clave, crudo) {
-  const { tipo, defecto } = CATALOGO[clave];
+  const { tipo, defecto, opciones } = CATALOGO[clave];
   if (crudo === null || crudo === undefined) return defecto;
   if (tipo === "booleano") return String(crudo) === "1" || String(crudo) === "true";
   if (tipo === "numero") {
     const n = Number(crudo);
     return Number.isFinite(n) ? n : defecto;
   }
+  // Un tema que ya no existe —guardado por una versión anterior— no puede
+  // dejar la app sin colores: cae al de casa.
+  if (tipo === "opcion") return opciones.includes(String(crudo)) ? String(crudo) : defecto;
   return String(crudo);
 }
 
@@ -116,6 +128,15 @@ export function validarPreferencias(cuerpo, { t = CASTELLANO } = {}) {
         continue;
       }
       valores[clave] = n;
+    } else if (tipo === "opcion") {
+      const elegida = String(crudo ?? "").trim();
+      if (!CATALOGO[clave].opciones.includes(elegida)) {
+        errores.push(t("preferencia_opcion", {
+          clave, validas: CATALOGO[clave].opciones.join(", "),
+        }));
+        continue;
+      }
+      valores[clave] = elegida;
     } else {
       // El texto vacío es una elección: «sin bolsa» es sin bolsa.
       valores[clave] = crudo === null || crudo === undefined ? "" : String(crudo).trim();

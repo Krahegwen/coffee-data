@@ -283,6 +283,17 @@
     "cuenta_atras_pista": "Three seconds to pick up the kettle, on resume too.",
     "latido": "Pulsing number",
     "latido_pista": "The number grows with every warning: visible even on silent.",
+    "tema_titulo": "Colours",
+    "tema_intro": "On automatic it follows whatever your phone is set to.",
+    "tema_modo": "When to use dark mode",
+    "tema_juego": "Colour set",
+    "modo_auto": "Automatic",
+    "modo_claro": "Light",
+    "modo_oscuro": "Dark",
+    "tema_papel": "Paper",
+    "tema_pizarra": "Slate",
+    "tema_tostado": "Roast",
+    "tema_carbon": "Charcoal",
     "donde_viven": "Settings are kept in this browser. With a session open they travel to the server and come down to your other devices."
   },
   "respaldo": {

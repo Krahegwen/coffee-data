@@ -193,9 +193,9 @@ input[readonly] { color: var(--suave); background: transparent; }
 .quitar {
   font: inherit;
   background: transparent;
-  border: 1px solid #c2410c;
+  border: 1px solid var(--peligro);
   border-radius: 0.35rem;
-  color: #c2410c;
+  color: var(--peligro);
   cursor: pointer;
   min-height: 44px;
   min-width: 44px;
@@ -215,5 +215,5 @@ input[readonly] { color: var(--suave); background: transparent; }
 }
 
 .pista { color: var(--suave); font-size: 0.8rem; margin: 0 0 0.5rem; }
-.ojo { color: #c2410c; font-size: 0.8rem; margin: 0.5rem 0 0; }
+.ojo { color: var(--peligro); font-size: 0.8rem; margin: 0.5rem 0 0; }
 </style>

@@ -92,7 +92,10 @@ export default defineNuxtConfig({
       title: 'Bitácora de café',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
-        { name: 'theme-color', content: '#3b2314' },
+        // El fondo del tema de casa, no el marrón de la marca: `useTema` lo
+        // reescribe con el del tema elegido en cuanto monta la app, y con un
+        // color distinto de partida la barra parpadeaba en cada carga.
+        { name: 'theme-color', content: '#faf7f2' },
       ],
       // El enlace al manifiesto va a mano: con `ssr: false` el módulo genera
       // el fichero pero no lo enlaza en el HTML, y sin ese enlace el
@@ -113,7 +116,13 @@ export default defineNuxtConfig({
       short_name: 'Café',
       description: 'Registro de extracciones en V60 con el método 4:6',
       lang: 'es',
-      theme_color: '#3b2314',
+      /*
+       * Los dos son de construcción y no se pueden mover en caliente: la
+       * pantalla de arranque de la app instalada sale con estos colores pase
+       * lo que pase. Van con el tema de casa para que el salto —si elegiste
+       * uno oscuro— sea de un color neutro a otro y no del marrón de la marca.
+       */
+      theme_color: '#faf7f2',
       background_color: '#faf7f2',
       display: 'standalone',
       orientation: 'portrait',

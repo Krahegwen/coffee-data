@@ -109,7 +109,7 @@ function subir(i: number) {
 }
 
 .ficha.puesta {
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border-color: var(--acento);
   font-weight: 600;

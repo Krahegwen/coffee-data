@@ -219,7 +219,7 @@ async function enviar() {
 button {
   font: inherit;
   font-weight: 600;
-  color: #fff;
+  color: var(--sobre-acento);
   background: var(--acento);
   border: 0;
   border-radius: 0.6rem;
@@ -242,8 +242,8 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .tarjeta input { width: 100%; margin: 0.5rem 0; font-size: 16px; padding: 0.6rem; border-radius: 0.5rem; border: 1px solid var(--linea); background: var(--fondo); color: var(--tinta); }
 .meta { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
-.fallo { color: #c2410c; font-size: 0.85rem; }
-.errores { border-color: #c2410c; }
+.fallo { color: var(--peligro); font-size: 0.85rem; }
+.errores { border-color: var(--peligro); }
 .errores ul { margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.88rem; }
 a { color: var(--acento); }
 </style>

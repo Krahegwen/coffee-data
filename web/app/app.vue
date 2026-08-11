@@ -56,7 +56,8 @@ const conAtajo = computed(
   () => ruta.path === localePath('/') || ruta.path === localePath('/crono'),
 )
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
-const { releer: releerAjustes } = usePreferencias()
+const { releer: releerAjustes, cargar: cargarAjustes } = usePreferencias()
+const { seguir: seguirTema } = useTema()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
@@ -88,6 +89,12 @@ async function actualizar(opciones: { minimo?: number } = {}) {
 }
 
 onMounted(async () => {
+  // El tema, lo primero: se aplica en cuanto los ajustes llegan del cajón, y
+  // hasta entonces rige el de casa —el mismo que elegiría el sistema—, así
+  // que el cambio solo se nota si elegiste otro a propósito.
+  seguirTema()
+  void cargarAjustes()
+
   await comprobar()
   if (activa.value) await refrescar()
   await recontar()
@@ -249,7 +256,30 @@ useHead({
 </template>
 
 <style>
-:root {
+/*
+ * La paleta, en un solo sitio.
+ *
+ * `--peligro`, `--sobre-acento` y `--sobre-peligro` no son variables «por si
+ * acaso»: eran colores escritos a mano en treinta y seis y catorce sitios, y
+ * con el tema oscuro puesto no llegaban al contraste mínimo. Texto blanco
+ * sobre el acento claro daba **2.84** —por debajo hasta del mínimo para texto
+ * grande— en todos los botones de la app, y el naranja de los avisos se
+ * quedaba en 3.59. Un valor repetido a mano no se arregla en un sitio, que
+ * era justo lo que hacía falta.
+ *
+ * Cada tema es un juego completo de esas variables y se aplica con un
+ * atributo en la raíz que pone `useTema()`. El CSS solo sabe pintar juegos;
+ * quién manda —lo elegido o lo que diga el teléfono— se decide en JS y en un
+ * solo sitio.
+ *
+ * `:root` a secas es el tema de casa: rige en el instante antes de que los
+ * ajustes lleguen del cajón, y también si no hay JS. La media query hace lo
+ * mismo con el oscuro y se aparta con `:not([data-tema])` en cuanto hay tema
+ * elegido, así no hay peleas de especificidad.
+ */
+:root,
+:root[data-tema="papel"] {
+  color-scheme: light;
   --fondo: #faf7f2;
   --tinta: #2b1d13;
   --suave: #7a6a5c;
@@ -257,10 +287,60 @@ useHead({
   --tostado: #3b2314;
   --acento: #8b5a2b;
   --tarjeta: #fff;
+  --peligro: #c2410c;
+  /* Lo que se lee encima de un relleno de color. En los temas claros el
+     relleno es oscuro y encima va blanco; en los oscuros, al revés. */
+  --sobre-acento: #fff;
+  --sobre-peligro: #fff;
+}
+
+/* Neutro frío, para quien no quiere la cocina marrón. */
+:root[data-tema="pizarra"] {
+  color-scheme: light;
+  --fondo: #f7f8fa;
+  --tinta: #171a1f;
+  --suave: #576070;
+  --linea: #dee2e8;
+  --tostado: #1f2937;
+  --acento: #2d5d8e;
+  --tarjeta: #fff;
+  --peligro: #b3300c;
+  --sobre-acento: #fff;
+  --sobre-peligro: #fff;
+}
+
+:root[data-tema="tostado"] {
+  color-scheme: dark;
+  --fondo: #17120e;
+  --tinta: #f2ece4;
+  --suave: #a3948a;
+  --linea: #2f251d;
+  --tostado: #d9b892;
+  --acento: #c98d4f;
+  --tarjeta: #1f1913;
+  --peligro: #f4845f;
+  --sobre-acento: #1a1109;
+  --sobre-peligro: #2a1108;
+}
+
+/* Para la cocina a oscuras: menos brillo, el mismo contraste. */
+:root[data-tema="carbon"] {
+  color-scheme: dark;
+  --fondo: #101215;
+  --tinta: #e9ecf0;
+  --suave: #9ba3ad;
+  --linea: #262a30;
+  --tostado: #cbd5e1;
+  --acento: #8ab4e8;
+  --tarjeta: #171a1e;
+  --peligro: #f4845f;
+  --sobre-acento: #0b1017;
+  --sobre-peligro: #2a1108;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema]) {
+    color-scheme: dark;
     --fondo: #17120e;
     --tinta: #f2ece4;
     --suave: #a3948a;
@@ -268,6 +348,9 @@ useHead({
     --tostado: #d9b892;
     --acento: #c98d4f;
     --tarjeta: #1f1913;
+    --peligro: #f4845f;
+    --sobre-acento: #1a1109;
+    --sobre-peligro: #2a1108;
   }
 }
 
@@ -426,7 +509,7 @@ footer p { margin: 0.15rem 0; }
 }
 
 .sincro.pendiente { color: var(--acento); font-weight: 600; }
-.sincro.atascada { color: #c2410c; font-weight: 600; }
+.sincro.atascada { color: var(--peligro); font-weight: 600; }
 .sincro:disabled { cursor: default; opacity: 0.7; }
 
 .enlace-pie {
@@ -455,7 +538,7 @@ footer p { margin: 0.15rem 0; }
   text-align: left;
 }
 
-.portero .cerrar { background: transparent; color: #c2410c; border: 1px solid #c2410c; }
+.portero .cerrar { background: transparent; color: var(--peligro); border: 1px solid var(--peligro); }
 
 .portero h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
 .portero p { color: var(--suave); font-size: 0.85rem; margin: 0.35rem 0; }
@@ -468,12 +551,12 @@ footer p { margin: 0.15rem 0; }
 
 .portero button {
   font: inherit; font-weight: 600; width: 100%; min-height: 3rem;
-  color: #fff; background: var(--acento); border: 0; border-radius: 0.6rem;
+  color: var(--sobre-acento); background: var(--acento); border: 0; border-radius: 0.6rem;
   padding: 0.85rem 1rem; cursor: pointer;
 }
 
 .portero button:disabled { opacity: 0.5; cursor: default; }
-.portero .fallo-sesion { color: #c2410c; }
+.portero .fallo-sesion { color: var(--peligro); }
 
 .meta-sesion { color: var(--suave); font-size: 0.85rem; }
 </style>

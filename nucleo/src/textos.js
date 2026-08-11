@@ -85,6 +85,7 @@ const es = {
   preferencia_desconocida: "preferencia desconocida: {clave}. Válidas: {validas}",
   preferencia_booleana: "{clave} es un interruptor: true o false",
   preferencia_numero: "{clave} tiene que ser un número de {minimo} para arriba",
+  preferencia_opcion: "{clave} solo admite: {validas}",
 
   // --- manejadores: lo que no existe o no cuela
   cafe_no_existe: "no existe ningún café '{ref}'",
@@ -265,6 +266,12 @@ const en = {
   aviso_dos_variables:
     "you moved {lista} in the same brew: the data cannot say which of them made the " +
     "cup, so it will not pair with the previous one. It is on the record all the same",
+
+  preferencias_objeto: "settings are sent as an object of key and value",
+  preferencia_desconocida: "unknown setting: {clave}. Valid ones: {validas}",
+  preferencia_booleana: "{clave} is a switch: true or false",
+  preferencia_numero: "{clave} has to be a number from {minimo} up",
+  preferencia_opcion: "{clave} only takes: {validas}",
   aviso_bolsa_vieja:
     "the bag has been open for {dias} days (more than {umbral}): from there on the " +
     "coffee fades through oxidation and not through anything you do while brewing, " +
@@ -311,7 +318,13 @@ const en = {
   cambio_madre_retirada: "The previous one is withdrawn: nothing to compare",
 };
 
-const CATALOGO = { es, en };
+/**
+ * Exportado para que un test compare los dos idiomas clave a clave. Una
+ * frase que falta en inglés cae al castellano y no rompe nada, que es mejor
+ * que enseñar la clave — pero pasa desapercibida, y así se coló un bloque
+ * entero sin traducir.
+ */
+export const CATALOGO = { es, en };
 
 /** `{campo}` -> lo que traiga `datos`. Lo que falte se queda como estaba. */
 function interpolar(plantilla, datos) {
