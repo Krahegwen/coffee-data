@@ -61,6 +61,23 @@ se manda si ese día te desviaste de la receta.
 `siguiente_ajuste` **tampoco hace falta**: si no lo mandas, el servidor guarda
 la sugerencia principal. Lo que escribas manda siempre sobre eso.
 
+`variable_cambiada` **igual**: sin ella, el servidor la compone del diff contra
+la madre —`temp_c 91 → 94`—, y si no se movió nada apunta «Sin cambios»,
+«Primera extracción» o «Taza suelta» según el caso. Mándala solo cuando el
+cambio no sea una columna: otra agua, otra báscula, la mano del día. Si el
+usuario cambió dos cosas, el diff las cuenta las dos y la respuesta trae un
+aviso — el dato queda apuntado, pero no formará par.
+
+Ese texto tiene **un solo formato**, el de `textoDeVariables` en el núcleo:
+nombre de columna y slug, sin traducir, como ya hacía `siguiente_ajuste` con
+`clics +2`. La app compone el suyo con la misma función; las etiquetas bonitas
+—«Temperatura», el nombre de la receta— son de la pantalla que lo enseña y no
+de la columna. Si añades otro sitio que escriba ahí, sale de esa función.
+
+`molinillo` **se hereda de la madre** cuando no se manda, en vez de volver al
+valor de fábrica. Es el único campo de `VARIABLES` que la app no tiene en su
+formulario, y con el defecto cada taza «cambiaba de molinillo» sola.
+
 `desde_id` **tampoco**: dice de qué extracción es variación ésta —contra ella
 mide el motor los deltas— y sin él el servidor cuelga la nueva de la última de
 esa bolsa, que es el caso de todos los días. Se manda **solo al volver a una
@@ -72,8 +89,8 @@ tiene que ser anterior, y una taza suelta no cuelga de nadie.
 dosis da la retención (unos 2 g por gramo de café en V60) y el servidor avisa
 si se sale, que ahí lo que falla es la medida y no el café.
 
-Si falta algún obligatorio (`temp_c`, `clics`, `tiempo_total`,
-`variable_cambiada`, `defecto`, `nota`), pregúntaselo en vez de inventarlo.
+Si falta algún obligatorio (`temp_c`, `clics`, `tiempo_total`, `defecto`,
+`nota`), pregúntaselo en vez de inventarlo.
 
 **`defecto` admite varios**, en orden de relevancia: array
 (`["amargor","astringente"]`) o texto con comas. Se registran todos y **la

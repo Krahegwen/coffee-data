@@ -151,7 +151,11 @@ export interface NuevaExtraccion {
   temp_c: number
   clics: number
   tiempo_total: string
-  variable_cambiada: string
+  /**
+   * Qué se movió respecto a la madre. Opcional: sin él, el servidor lo
+   * compone del diff —«temp_c 91 → 94»— y lo que mandes manda siempre.
+   */
+  variable_cambiada?: string
   /**
    * Uno, o varios en orden de relevancia. Como cadena —`"amargor,plano"`, la
    * forma en que se guarda— o como array; el núcleo acepta las dos y devuelve

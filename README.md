@@ -494,8 +494,10 @@ curl -X POST https://brew.krahegwen.com/api/extracciones \
        "nota":8,"notas_cata":"Más dulzor"}'
 ```
 
-Obligatorios: `temp_c`, `clics`, `tiempo_total`, `variable_cambiada`, `defecto`
-y `nota`. `defecto` admite un array (`["amargor","astringente"]`) o el texto ya
+Obligatorios: `temp_c`, `clics`, `tiempo_total`, `defecto` y `nota`.
+`variable_cambiada` no lo es: sin ella, el servidor la escribe comparando con la
+madre —`temp_c 91 → 94`, o «Sin cambios» si repetiste a propósito—, y lo que
+mandes manda. `defecto` admite un array (`["amargor","astringente"]`) o el texto ya
 separado por comas; se guarda siempre en su forma canónica. Lo que no mandes
 toma la receta base: `dosis_g` 20, `agua_g` 300,
 molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la

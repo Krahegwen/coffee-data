@@ -84,11 +84,17 @@ export function useTextos() {
   }
 
   /**
-   * «Temperatura 91 → 88 · Clics 28 → 26».
+   * «Temperatura 91 → 88 · Clics 28 → 26», para leer en pantalla.
    *
-   * Vive aquí y no en cada pantalla porque lo escriben dos —el alta y la
+   * Vive aquí y no en cada pantalla porque lo enseñan dos —el alta y la
    * corrección— y dos versiones del mismo texto acabarían diciendo cosas
    * distintas de lo mismo.
+   *
+   * **Esto se lee, no se guarda.** Lo que va a la columna lo compone
+   * `textoDeVariables` del núcleo, con el nombre de la columna y el slug:
+   * componiendo cada uno el suyo, la misma bitácora acababa con dos
+   * vocabularios —«Temperatura 91 → 94» de la app y «temp_c 91 → 94» del
+   * servidor— según por dónde hubiera entrado la fila.
    */
   function textoDeCambios(
     claves: string[],

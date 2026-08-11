@@ -98,8 +98,14 @@ export const POR_DEFECTO = {
 
 // cafe_id no está: una taza sin ficha —el café de un amigo, una muestra— se
 // apunta sin bolsa. Sin ella no hay serie que comparar, pero la taza queda.
+//
+// `variable_cambiada` tampoco: si no llega, el servidor la compone del diff
+// contra la madre, igual que hace con `siguiente_ajuste`. Pedirla siempre
+// obligaba a inventarse un texto justo cuando no había nada que contar —la
+// primera de una bolsa, o una repetición a propósito—, que es cuando más
+// tienta escribir cualquier cosa con tal de que el formulario deje pasar.
 export const OBLIGATORIOS = [
-  "temp_c", "clics", "tiempo_total", "variable_cambiada", "defecto", "nota",
+  "temp_c", "clics", "tiempo_total", "defecto", "nota",
 ];
 
 // Columnas que acepta el endpoint. reparto entra pero se calcula si falta;

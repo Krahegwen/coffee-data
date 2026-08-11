@@ -21,7 +21,9 @@
 import { derivar } from "./derivar.js";
 import { uuidv7 } from "./ids.js";
 import { guion, repartoDe } from "./recetas.js";
-import { avisosDe, sugerir, textoCorto } from "./sugerencias.js";
+import {
+  avisosDe, madreDe, sugerir, textoCorto, variableCambiadaDe,
+} from "./sugerencias.js";
 import { textos } from "./textos.js";
 import {
   CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, validarCafe,
@@ -284,6 +286,21 @@ export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) 
     valores.desde_id = vivas[vivas.length - 1]?.id ?? null;
   }
 
+  /*
+   * El molinillo, cuando no se manda, se hereda de la madre en vez de volver
+   * al de fábrica. Es el único campo que la app no tiene en su formulario, y
+   * con el valor por defecto una bolsa molida con otro aparato veía cómo cada
+   * taza nueva «cambiaba de molinillo» ella sola — un cambio que nadie hizo,
+   * anunciado por el servidor y contado como segunda variable.
+   */
+  const madreInicial = valores.desde_id
+    ? deLaBolsa.find((e) => e.id === valores.desde_id)
+    : null;
+  const sinMolinillo = String(cuerpo?.molinillo ?? "").trim() === "";
+  if (madreInicial?.molinillo && sinMolinillo) {
+    valores.molinillo = madreInicial.molinillo;
+  }
+
   const recetas = await almacen.recetas.listar();
   const receta = porRef(recetas, valores.receta_id);
   const pasos = receta?.pasos ?? [];
@@ -337,6 +354,20 @@ export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) 
   if (!mia.siguiente_ajuste && resumen) {
     await almacen.extracciones.actualizar(fila.id, { siguiente_ajuste: resumen });
     mia.siguiente_ajuste = resumen;
+  }
+
+  /*
+   * Y lo mismo con qué cambió: si no lo cuentas, sale del diff contra la
+   * madre —«temp_c 91 → 94»—, que es más fiel que cualquier texto tecleado a
+   * toro pasado y no obliga a inventarse uno cuando no cambiaste nada.
+   *
+   * Después del historico y no antes: hace falta la madre ya resuelta y con
+   * sus derivados, que es de donde sale el slug de la receta.
+   */
+  if (!mia.variable_cambiada) {
+    const cambiada = variableCambiadaDe(mia, madreDe(mia, historico), t);
+    await almacen.extracciones.actualizar(fila.id, { variable_cambiada: cambiada });
+    mia.variable_cambiada = cambiada;
   }
 
   return respuesta(201, {
@@ -412,6 +443,22 @@ export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } =
   const cambios = {};
   for (const campo of columnas) cambios[campo] = valores[campo];
   cambios.actualizado_en = ahoraSQL();
+
+  /*
+   * Vaciar qué cambió no deja un hueco: se recompone, igual que en el alta.
+   * El alta garantiza que la columna nunca es nula, y un PATCH que la anulara
+   * dejaría filas que ninguna otra cosa vuelve a rellenar — el histórico
+   * imprimiendo un hueco donde debería decir contra qué se midió esa taza.
+   */
+  if (columnas.includes("variable_cambiada") && !cambios.variable_cambiada) {
+    const [susCafes, susRecetas, susFilas] = await Promise.all([
+      almacen.cafes.listar(), almacen.recetas.listar(), almacen.extracciones.listar(),
+    ]);
+    const conDerivadosDe = (e) => conDerivados(e, susCafes, susRecetas);
+    const previas = susFilas.filter((e) => !e.borrada_en).sort(cronologico).map(conDerivadosDe);
+    const suya = conDerivadosDe({ ...guardada, ...cambios });
+    cambios.variable_cambiada = variableCambiadaDe(suya, madreDe(suya, previas), t);
+  }
 
   try {
     await almacen.extracciones.actualizar(id, cambios);
