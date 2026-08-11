@@ -5,19 +5,23 @@
  * Va en `app.vue` una sola vez y no pantalla por pantalla. Lo que hace larga
  * una lista son **tus datos** —cuántas bolsas tengas, cuántas extracciones
  * lleves—, no el fichero: una lista fija de rutas acertaría hoy y fallaría en
- * tres meses, y habría que acordarse de añadir cada pantalla nueva. Aquí la
- * condición es la de verdad: hay bastante que subir.
+ * tres meses, y habría que acordarse de añadir cada pantalla nueva.
  *
- * Con dos excepciones escritas abajo: el reloj, donde las manos están
- * ocupadas, y el pie, que se lo tapaba.
+ * **Se pega solo, no se calcula.** Va dentro de `main`, con un ancla
+ * `position: sticky` de altura cero: el navegador lo mantiene pegado al fondo
+ * de la ventana mientras haya contenido y lo suelta al llegar al final, que
+ * es justo donde empieza el pie. Antes esto lo hacía JS midiendo el pie y
+ * empujando el botón con un `transform`, y se notaba: la medida iba a saltos
+ * de cien milisegundos, así que el botón daba tirones en vez de acompañar al
+ * scroll. Lo que el compositor hace gratis no hay que calcularlo.
+ *
+ * Al JS solo le queda decidir si asomarse.
  */
 const { t } = useI18n()
 const ruta = useRoute()
 const localePath = useLocalePath()
 
 const visible = ref(false)
-/** Cuánto se levanta para no pisar el pie, en píxeles. */
-const levanta = ref(0)
 
 /**
  * En el cronómetro no. Es la única pantalla que se usa con el hervidor en la
@@ -29,65 +33,21 @@ const permitido = computed(() => ruta.path !== localePath('/crono/reloj'))
 /**
  * Media pantalla de recorrido, no un número de píxeles: «he bajado un buen
  * rato» son píxeles distintos en el móvil y en el escritorio, y las mismas
- * pantallas.
- *
- * Y el apartado del pie. El botón flota en la esquina, que en un móvil es
- * justo donde acaba el pie: al llegar al final tapaba el selector de idioma.
- * **Se levanta en vez de esconderse** — esconderlo dejaba el botón inútil en
- * media app, porque en una pantalla de alto normal el pie ya asoma en cuanto
- * bajas lo suficiente para quererlo, y entonces no aparecía nunca.
+ * pantallas. Solo lee `scrollY`, que no fuerza reflujo.
  */
-function medir() {
-  visible.value = window.scrollY > window.innerHeight * 0.5
-  const pie = document.querySelector('footer')
-  const arriba = pie ? pie.getBoundingClientRect().top : Number.POSITIVE_INFINITY
-  levanta.value = Math.max(0, Math.round(window.innerHeight - arriba))
-}
-
-/*
- * Como mucho una medida cada 100 ms: leer la posición del pie fuerza un
- * reflujo y el scroll es el evento que más se dispara de la app.
- *
- * Con reloj y no con `requestAnimationFrame`, que era lo primero que salió:
- * el navegador congela los cuadros cuando la pestaña no está pintando, y con
- * ella se congelaba la medida — el botón aparecía pero se quedaba encima del
- * pie sin apartarse. Es el mismo motivo por el que el cronómetro programa sus
- * avisos con un intervalo.
- */
-let ultima = 0
-let alFinal: ReturnType<typeof setTimeout> | null = null
 function mirar() {
-  const resto = 100 - (Date.now() - ultima)
-  if (resto <= 0) {
-    ultima = Date.now()
-    medir()
-    return
-  }
-  /*
-   * Y si toca esperar, se apunta una medida para el final del respiro. Sin
-   * esto —descartando a secas— la última posición no se medía nunca: un
-   * scroll largo dispara docenas de eventos en pocos milisegundos, se atendía
-   * el primero y se tiraban todos los demás, incluido el que decía dónde
-   * habías parado. El botón se quedaba con la medida de hace medio segundo.
-   */
-  if (alFinal) return
-  alFinal = setTimeout(() => {
-    alFinal = null
-    ultima = Date.now()
-    medir()
-  }, resto)
+  visible.value = window.scrollY > window.innerHeight * 0.5
 }
 
 onMounted(() => {
   window.addEventListener('scroll', mirar, { passive: true })
   window.addEventListener('resize', mirar, { passive: true })
-  medir()
+  mirar()
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', mirar)
   window.removeEventListener('resize', mirar)
-  if (alFinal) clearTimeout(alFinal)
 })
 
 function subir() {
@@ -99,29 +59,44 @@ function subir() {
 </script>
 
 <template>
-  <Transition name="asomar">
-    <button
-      v-if="visible && permitido"
-      type="button" class="arriba" :aria-label="t('comun.arriba')"
-      :style="{ transform: `translateY(-${levanta}px)` }"
-      @click="subir"
-    >
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 19V5" />
-        <path d="m5 12 7-7 7 7" />
-      </svg>
-    </button>
-  </Transition>
+  <!-- El ancla no ocupa sitio (alto cero) para no empujar el contenido; el
+       botón cuelga de ella hacia arriba. -->
+  <div class="ancla" aria-hidden="false">
+    <Transition name="asomar">
+      <button
+        v-if="visible && permitido"
+        type="button" class="arriba" :aria-label="t('comun.arriba')"
+        @click="subir"
+      >
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 19V5" />
+          <path d="m5 12 7-7 7 7" />
+        </svg>
+      </button>
+    </Transition>
+  </div>
 </template>
 
 <style scoped>
-.arriba {
-  position: fixed;
-  /* Sobre la zona segura: en un iPhone, `1.25rem` a secas lo mete debajo de
-     la barra de gestos. */
+.ancla {
+  position: sticky;
+  /* Sobre la zona segura: en un iPhone, pegarlo al cero lo mete debajo de la
+     barra de gestos. */
   bottom: calc(1.25rem + env(safe-area-inset-bottom));
-  right: calc(1.25rem + env(safe-area-inset-right));
+  height: 0;
+  /* Sin sitio propio no hay nada que desbordar, pero el botón sí sobresale. */
+  overflow: visible;
   z-index: 20;
+  pointer-events: none;
+}
+
+.arriba {
+  position: absolute;
+  right: calc(0.25rem + env(safe-area-inset-right));
+  /* Sube su propia altura desde el ancla: así el borde de abajo del botón
+     queda donde está el ancla, y no la mitad por debajo. */
+  bottom: 0;
+  pointer-events: auto;
 
   display: grid;
   place-items: center;
@@ -133,15 +108,13 @@ function subir() {
   background: var(--tarjeta);
   color: var(--acento);
   cursor: pointer;
-  /* La sombra es lo único que lo despega del contenido que pasa por debajo;
-     con los temas oscuros apenas se nota, y ahí el borde hace el trabajo. */
+  /* Lo único que lo despega del contenido que pasa por debajo; con los temas
+     oscuros apenas se nota y ahí el borde hace el trabajo. */
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
 }
 
 .arriba:hover { border-color: var(--acento); }
 
-/* La entrada solo desvanece: el `transform` lo lleva el estilo en línea para
-   apartarse del pie, y animarlo aquí pelearía con él. */
 .asomar-enter-active, .asomar-leave-active { transition: opacity 0.18s ease; }
 .asomar-enter-from, .asomar-leave-to { opacity: 0; }
 
