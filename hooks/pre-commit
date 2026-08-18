@@ -2,6 +2,22 @@
 # Ejecuta los tests antes de cada commit y lo aborta si fallan.
 # Activar tras clonar:  git config core.hooksPath hooks
 
+# Un commit que solo toca datos/ se va de rositas: ninguna suite mira los CSV
+# —son una exportación de D1, no código—, y gastar versión en ellos mentiría
+# en el pie de la app, que dice qué código lleva el móvil delante. Esto no es
+# comodidad: el hook de pre-push regenera el respaldo y te manda commitearlo,
+# y si ese commit cuesta un minuto de tests y un número de versión, lo que se
+# acaba tecleando es --no-verify. La puerta de atrás se evita quitándole el
+# motivo, no vigilando mejor.
+#
+# Con el índice vacío —un --amend sin cambios, por ejemplo— no se salta nada:
+# ahí no sabemos qué se está commiteando.
+CAMBIOS=$(git diff --cached --name-only)
+if [ -n "$CAMBIOS" ] && ! printf '%s\n' "$CAMBIOS" | grep -qv '^datos/'; then
+    echo "pre-commit: esto solo toca datos/ — ni tests ni versión."
+    exit 0
+fi
+
 PYTHON=""
 for candidato in python3 python py; do
     if command -v "$candidato" >/dev/null 2>&1 && "$candidato" -c "import sys" >/dev/null 2>&1; then

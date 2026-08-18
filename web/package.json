@@ -1,6 +1,6 @@
 {
   "name": "@coffee/web",
-  "version": "0.1.80",
+  "version": "0.1.81",
   "private": true,
   "type": "module",
   "description": "Bitácora de café: app instalable",

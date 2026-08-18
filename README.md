@@ -538,6 +538,14 @@ La versión sale en el pie de la app, y no es cosmética: instalada como PWA es
 lo único que responde a «¿ya tengo el despliegue nuevo o el service worker me
 está sirviendo el de ayer?».
 
+Hay una excepción, y es la única: **un commit que solo toca `datos/` sale sin
+tests y sin versión**. Los CSV son una exportación de D1, ninguna suite los
+mira, y subir la versión por ellos le diría al pie que el móvil lleva código
+nuevo cuando no lo lleva. Importa porque el hook de `pre-push` regenera el
+respaldo y te manda commitearlo: si ese commit costara un minuto de tests y un
+número de versión, lo que se acabaría tecleando es `--no-verify`. Las puertas
+de atrás se cierran quitándoles el motivo.
+
 | Comando | Qué hace |
 |---|---|
 | `python resumen.py` | Ranking, histórico y frescura, desde la API |
