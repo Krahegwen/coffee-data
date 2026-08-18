@@ -202,10 +202,20 @@ const late = computed(() =>
     || (corriendo.value && siguiente.value !== null && (faltan.value ?? Infinity) <= 3)),
 )
 
+/**
+ * Los mandos que arrancan el reloj dicen otra cosa con la cuenta atrás
+ * puesta: tocar no echa a andar nada, da tres segundos de margen, y quien no
+ * lo sepa vierte antes de tiempo. Las claves van en pares —«x» y «x_cuenta»—
+ * y ésta elige; pausar no está en el par, que pausar es inmediato siempre.
+ */
+function segunCuenta(clave: string) {
+  return t(ajustes.value.cuenta_atras ? `${clave}_cuenta` : clave)
+}
+
 const etiquetaEsfera = computed(() => {
   if (preroll.value !== null) return t('comun.cancelar')
-  if (!enMarcha.value) return t('reloj.iniciar_esfera')
-  return corriendo.value ? t('reloj.pausar') : t('reloj.reanudar_esfera')
+  if (!enMarcha.value) return segunCuenta('reloj.iniciar_esfera')
+  return corriendo.value ? t('reloj.pausar') : segunCuenta('reloj.reanudar_esfera')
 })
 
 // El anillo: la bola da una vuelta entera por paso.
@@ -540,12 +550,16 @@ onUnmounted(() => {
 
     <!-- En pausa de verdad, no a mitad de cuenta atrás: ahí el círculo ya
          está contando y ofrecer «toca para seguir» diría lo contrario. -->
-    <p v-else-if="pausado && preroll === null" class="faltan">{{ $t('reloj.en_pausa') }}</p>
+    <p v-else-if="pausado && preroll === null" class="faltan">
+      {{ segunCuenta('reloj.en_pausa') }}
+    </p>
 
     <!-- Que se sepa que el círculo también arranca: es un gesto que nadie
-         descubre solo. -->
+         descubre solo. Y con la cuenta atrás puesta, el gesto no es «toca y
+         vierte»: hay tres segundos de por medio y quien no lo sepa vierte
+         antes de tiempo. -->
     <p v-else-if="!enMarcha && finGoteo === null && preroll === null" class="faltan">
-      {{ $t('reloj.toca_para_empezar') }}
+      {{ segunCuenta('reloj.toca_para_empezar') }}
     </p>
 
     <!-- El total, siempre a la vista y en su formato: m:ss es el tiempo de
