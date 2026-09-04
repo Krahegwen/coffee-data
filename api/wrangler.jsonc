@@ -13,7 +13,18 @@
   // cuenta se generó a partir del correo y lleva el nombre real dentro, así
   // que no puede ser la URL que acabe incrustada en la app.
   "workers_dev": false,
-  "routes": [{ "pattern": "brew.krahegwen.com", "custom_domain": true }],
+  // El `www.` va aparte y no es cosmético: quien teclea la dirección a mano lo
+  // pone sin pensar, y sin esta entrada se lleva un error de DNS en vez de la
+  // app. `custom_domain` hace que wrangler dé de alta el nombre y su
+  // certificado al desplegar — el de `brew` ya cubre `*.brew.krahegwen.com`.
+  //
+  // Sirve la misma app, y no hace falta redirigir: las etiquetas og y el
+  // `og:url` de web/nuxt.config.ts son absolutas al ápice, así que un enlace
+  // compartido desde `www` declara la dirección buena igualmente.
+  "routes": [
+    { "pattern": "brew.krahegwen.com", "custom_domain": true },
+    { "pattern": "www.brew.krahegwen.com", "custom_domain": true }
+  ],
 
   // La app y la API viven en el mismo origen: un Worker sirve las dos cosas.
   // Eso elimina CORS de raíz y deja la puerta abierta a guardar el token en
