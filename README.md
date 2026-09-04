@@ -101,6 +101,24 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
+### La tarjeta de enlace
+
+Lo que sale al pegar `brew.krahegwen.com` en un chat. Las etiquetas están en
+`app.head` de `web/nuxt.config.ts`, en estático y por el mismo motivo que el
+título: con `ssr: false` lo que ponga `useHead` solo existe tras hidratar, y
+ningún scraper ejecuta JavaScript.
+
+**Es una sola tarjeta para toda la app**, y aquí eso es lo correcto además de
+lo único posible: todas las rutas sirven la misma cáscara, y la bitácora pide
+token, así que una tarjeta por pantalla no tendría a quién enseñarle nada
+—salvo el nombre de la pantalla a quien no puede entrar—. La tarjeta describe
+la app, no los datos.
+
+La imagen es `web/public/og.png`, 1200×630, impresa de
+`herramientas/og-plantilla.html` con el Chrome de la máquina y commiteada; la
+plantilla lleva el comando. Queda fuera de `globPatterns` de workbox: se la
+bajan los servidores de WhatsApp o Discord, no la app.
+
 ### Castellano e inglés
 
 El idioma de partida es el del dispositivo, y se cambia desde el pie. Las URLs

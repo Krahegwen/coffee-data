@@ -96,6 +96,42 @@ export default defineNuxtConfig({
         // reescribe con el del tema elegido en cuanto monta la app, y con un
         // color distinto de partida la barra parpadeaba en cada carga.
         { name: 'theme-color', content: '#faf7f2' },
+        /*
+         * Tarjeta de enlace: lo que sale al pegar la dirección en un chat.
+         *
+         * Va aquí y en estático por el mismo motivo que el título de arriba —
+         * con `ssr: false` lo que ponga `useHead` solo existe tras hidratar, y
+         * ningún scraper ejecuta JavaScript—, y por otro que es de este
+         * proyecto: todas las rutas sirven la misma cáscara, así que la
+         * tarjeta es una y describe la app.
+         *
+         * Que es lo correcto además de lo posible: la bitácora es privada y
+         * pide token, y una tarjeta por pantalla no tendría a quién enseñarle
+         * nada, salvo el nombre de la pantalla a quien no puede entrar.
+         */
+        { property: 'og:title', content: 'Bitácora de café' },
+        {
+          property: 'og:description',
+          content:
+            'Registro de extracciones en V60 con el método 4:6 de Tetsu Kasuya: '
+            + 'una sola variable por taza, y qué mover en la siguiente.',
+        },
+        { property: 'og:type', content: 'website' },
+        { property: 'og:site_name', content: 'Bitácora de café' },
+        { property: 'og:locale', content: 'es_ES' },
+        { property: 'og:url', content: 'https://brew.krahegwen.com/' },
+        { property: 'og:image', content: 'https://brew.krahegwen.com/og.png' },
+        { property: 'og:image:type', content: 'image/png' },
+        // Sin las medidas, WhatsApp y Slack se bajan el PNG entero antes de
+        // decidir si la tarjeta es grande o un cuadradito.
+        { property: 'og:image:width', content: '1200' },
+        { property: 'og:image:height', content: '630' },
+        {
+          property: 'og:image:alt',
+          content: 'Bitácora de café: extracciones en V60 con el método 4:6',
+        },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:image', content: 'https://brew.krahegwen.com/og.png' },
       ],
       // El enlace al manifiesto va a mano: con `ssr: false` el módulo genera
       // el fichero pero no lo enlaza en el HTML, y sin ese enlace el
@@ -148,6 +184,10 @@ export default defineNuxtConfig({
       // `m4a` incluido: sin él los clips de voz no se precachean y la cocina
       // sin cobertura se queda muda justo cuando más falta hace.
       globPatterns: ['**/*.{js,css,html,png,svg,ico,m4a,json}'],
+      // La tarjeta de enlace se la bajan los servidores de WhatsApp o Discord,
+      // no la app: precacharla cobraba 140 KB a cada instalación por una imagen
+      // que nadie ve desde dentro. Los iconos sí se quedan.
+      globIgnores: ['og.png'],
       // La API va por red primero: unos datos viejos en la bitácora confunden
       // más que un error. Pero si no hay cobertura, la caché responde.
       navigateFallbackDenylist: [/^\/api\//],
