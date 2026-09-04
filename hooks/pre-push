@@ -15,6 +15,30 @@
 # con el árbol sucio. Lo que hace es exportar, y si algo cambió, parar y
 # decírtelo para que lo commitees y vuelvas a empujar.
 
+# Un borrado de rama no sube contenido, así que no puede dejar el respaldo
+# desfasado: cortarlo por los CSV es fricción pura, y era lo que impedía limpiar
+# una rama ya mergeada — el hook exportaba, encontraba extracciones nuevas y
+# abortaba un push que no subía ni un byte.
+#
+# Git manda por la entrada estándar una línea por ref, y la del borrado trae la
+# sha local a ceros. Si no llega ninguna línea no nos saltamos nada, igual que
+# el de pre-commit con el índice vacío: ahí no sabemos qué se está empujando.
+REFS=0
+BORRADOS=0
+while read -r ref_local sha_local ref_remota sha_remota; do
+    REFS=$((REFS + 1))
+    case "$sha_local" in
+        "") ;;                                 # línea rara: mejor comprobar
+        *[!0]*) ;;                             # trae contenido
+        *) BORRADOS=$((BORRADOS + 1)) ;;
+    esac
+done
+
+if [ "$REFS" -gt 0 ] && [ "$REFS" -eq "$BORRADOS" ]; then
+    echo "pre-push: solo se borran ramas, no hay respaldo que comprobar."
+    exit 0
+fi
+
 PYTHON=""
 for candidato in python3 python py; do
     if command -v "$candidato" >/dev/null 2>&1 && "$candidato" -c "import sys" >/dev/null 2>&1; then
