@@ -220,7 +220,10 @@ El orden al cerrar una tarea es **commit → merge → push → deploy**, y las 
 últimas no dependen de que alguien se acuerde:
 
 - El hook de **`pre-push`** exporta los CSV y **corta el push** si estaban
-  desfasados, para que lo commitees. Sin red no corta: avisa y deja pasar.
+  desfasados, para que lo commitees. Sin red no corta: avisa y deja pasar, y
+  **un push que solo borra ramas tampoco paga el peaje** — no sube contenido,
+  así que no puede dejar el respaldo viejo. Si va contenido en el mismo push,
+  se comprueba igual.
 - **`pnpm run deploy`** llama antes a `herramientas/comprobar_despliegue.py`, que
   se niega si no estás en `main`, si hay algo sin commitear o si quedan commits
   sin subir. Producción tiene que poder reconstruirse desde el repo público.
