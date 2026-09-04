@@ -221,13 +221,19 @@ El orden al cerrar una tarea es **commit → merge → push → deploy**, y las 
 
 - El hook de **`pre-push`** exporta los CSV y **corta el push** si estaban
   desfasados, para que lo commitees. Sin red no corta: avisa y deja pasar.
-- **`pnpm deploy`** llama antes a `herramientas/comprobar_despliegue.py`, que se
-  niega si no estás en `main`, si hay algo sin commitear o si quedan commits sin
-  subir. Producción tiene que poder reconstruirse desde el repo público.
+- **`pnpm run deploy`** llama antes a `herramientas/comprobar_despliegue.py`, que
+  se niega si no estás en `main`, si hay algo sin commitear o si quedan commits
+  sin subir. Producción tiene que poder reconstruirse desde el repo público.
 
 Ninguno de los dos tiene puerta de atrás, igual que el de `pre-commit`. Para una
-vuelta atrás de emergencia con GitHub caído está `pnpm deploy:api`, que se salta
-el guardia y hay que teclear a conciencia.
+vuelta atrás de emergencia con GitHub caído está `pnpm run deploy:api`, que se
+salta el guardia y hay que teclear a conciencia.
+
+**Siempre `pnpm run <script>`, nunca `pnpm <script>`.** `deploy` es además un
+comando propio de pnpm y gana al del `package.json`: el despliegue moría en
+`ERR_PNPM_INVALID_DEPLOY_TARGET` con la web ya construida, y el error no
+nombraba el `package.json` por ningún lado. `test_scripts.py` lo vigila en los
+cuatro paquetes, así que también cubre el comando que pnpm estrene mañana.
 
 ## La voz del cronómetro
 
