@@ -38,6 +38,12 @@ def insertar_extraccion(db, **cambios):
     que esto, así que pedir «la última» empata con ella y el desempate es un
     uuid4 aleatorio. Un test que releyera por orden acertaría unas veces sí y
     otras no.
+
+    Cuatro tests lo hacían igualmente, y la cuenta sale: la id de la semilla es
+    un UUIDv7 —empieza por el sello de tiempo, hoy `01a0…`— y un uuid4 cae por
+    debajo el 0,63 % de las veces. Con cuatro, uno de cada cuarenta `pytest`
+    reventaba con un `assert None == 260` que no señala a ninguna parte, y
+    siempre al commitear, que es cuando corre el hook. **Relee por id.**
     """
     clave = str(uuid.uuid4())
     campos = {"id": f"'{clave}'", **EXTRACCION, **cambios}
@@ -142,9 +148,9 @@ def test_la_vista_calcula_ratio_y_dias_tueste(db):
 
 
 def test_los_dias_se_cuentan_desde_la_fecha_de_la_extraccion(db):
-    insertar_extraccion(db, fecha="'2026-05-25'")
+    clave = insertar_extraccion(db, fecha="'2026-05-25'")
     dias = db.execute(
-        "SELECT dias_tueste FROM v_extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
+        "SELECT dias_tueste FROM v_extracciones WHERE id = ?", (clave,)
     ).fetchone()[0]
     assert dias == 5  # Gary se tostó el 2026-05-20
 
@@ -179,18 +185,17 @@ def test_los_pasos_exigen_que_la_receta_exista(db):
 # admite NULL, pero si viene tiene que existir (el test de arriba).
 
 def test_una_extraccion_sin_bolsa_entra(db):
-    insertar_extraccion(db, cafe_id="NULL")
-    fila = db.execute(
-        "SELECT cafe_id FROM extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
-    ).fetchone()
+    clave = insertar_extraccion(db, cafe_id="NULL")
+    fila = db.execute("SELECT cafe_id FROM extracciones WHERE id = ?", (clave,)).fetchone()
     assert fila[0] is None
 
 
 def test_la_vista_saca_la_extraccion_sin_bolsa_con_el_cafe_a_null(db):
-    insertar_extraccion(db, cafe_id="NULL")
+    clave = insertar_extraccion(db, cafe_id="NULL")
     fila = db.execute(
         "SELECT cafe_nombre, cafe_slug, dias_tueste, dias_abierta, ratio "
-        "FROM v_extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
+        "FROM v_extracciones WHERE id = ?",
+        (clave,),
     ).fetchone()
     assert fila == (None, None, None, None, 15.0)
 
@@ -276,10 +281,8 @@ def test_lo_extraido_tiene_que_ser_positivo(db):
 
 
 def test_la_vista_saca_lo_extraido(db):
-    insertar_extraccion(db, extraido_g="260")
-    fila = db.execute(
-        "SELECT extraido_g FROM v_extracciones ORDER BY creado_en DESC, id DESC LIMIT 1"
-    ).fetchone()
+    clave = insertar_extraccion(db, extraido_g="260")
+    fila = db.execute("SELECT extraido_g FROM v_extracciones WHERE id = ?", (clave,)).fetchone()
     assert fila[0] == 260
 
 

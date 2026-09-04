@@ -85,7 +85,7 @@ nombre real dentro, y esa URL acabaría incrustada en el código de la app.
 | `herramientas/exportar_csv.py` | Vuelca D1 a los CSV. Es el respaldo. |
 | `herramientas/csv_a_sql.py` | Generó la semilla desde los CSV originales. Ya cumplió. |
 | `herramientas/subir_version.py` | Sube el parche en los cuatro `package.json`. Lo llama el hook. |
-| `herramientas/comprobar_despliegue.py` | Se niega a desplegar lo que no está en GitHub. Lo llama `pnpm deploy`. |
+| `herramientas/comprobar_despliegue.py` | Se niega a desplegar lo que no está en GitHub. Lo llama `pnpm run deploy`. |
 
 Ya no hay CLI de alta. Se registra por la API, y de ahí tira la app.
 
@@ -273,8 +273,14 @@ Por `curl` no hay encogido: sube lo que le des.
 La app se despliega dentro del Worker, así que **hay que construirla antes**:
 
 ```bash
-pnpm deploy      # construye la app y despliega el Worker, en ese orden
+pnpm run deploy  # construye la app y despliega el Worker, en ese orden
 ```
+
+El `run` no es adorno: `deploy` es también un comando propio de pnpm —empaqueta
+un paquete del workspace a una carpeta— y gana al script del `package.json`.
+Sin él, el despliegue muere en `ERR_PNPM_INVALID_DEPLOY_TARGET` después de
+haber construido la web, con un mensaje que no menciona el `package.json`.
+`test_scripts.py` vigila que los scripts de aquí no caigan en lo mismo.
 
 Comprueba siempre que el despliegue subió **las dos cosas**. Ha pasado dos
 veces que wrangler suba solo los assets, o solo el script, y lo dé por bueno:
