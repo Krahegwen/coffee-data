@@ -21,7 +21,13 @@ MIGRACIONES = sorted((BASE / "api" / "migrations").glob("*.sql"))
 # migración y cambia en cada ejecución, como debe ser.
 GARY = "(SELECT id FROM cafes WHERE slug = 'gary')"
 RECETA_BASE = "(SELECT id FROM recetas WHERE slug = 'kasuya-46-base')"
-SEMILLA = "(SELECT id FROM extracciones ORDER BY creado_en LIMIT 1)"
+# Las extracciones no tienen slug, así que la semilla se busca por lo que la
+# distingue: es la única `basal`. Pedía «la más antigua» por `creado_en`, y ahí
+# estaba el fallo — empata al segundo con lo que inserte el test, el desempate
+# lo decide SQLite según el plan que elija, y cuando tira del índice de la clave
+# primaria gana el uuid más bajo. Medido sobre 3000 bases: elegía la fila
+# equivocada 17 veces.
+SEMILLA = "(SELECT id FROM extracciones WHERE variable_cambiada = 'basal')"
 
 EXTRACCION = {
     "fecha": "'2026-08-06'", "cafe_id": GARY, "dosis_g": "20", "agua_g": "300",
@@ -81,6 +87,23 @@ def test_la_semilla_entra(db):
     assert db.execute("SELECT COUNT(*) FROM recetas").fetchone()[0] == 3
     assert db.execute("SELECT COUNT(*) FROM pasos").fetchone()[0] == 19
     assert db.execute("SELECT COUNT(*) FROM extracciones").fetchone()[0] == 1
+
+
+def test_semilla_sigue_apuntando_a_la_semilla_con_otra_extraccion_delante(db):
+    """
+    Media docena de tests usan SEMILLA con más filas en la tabla. Mientras se
+    resolvía por `ORDER BY creado_en LIMIT 1` esto fallaba una de cada ~175:
+    el empate al segundo lo desempataba el uuid, y el de la semilla no siempre
+    gana. Aquí la fila recién insertada es la trampa.
+    """
+    esperada = db.execute(
+        "SELECT id FROM extracciones WHERE variable_cambiada = 'basal'"
+    ).fetchone()[0]
+
+    insertar_extraccion(db)
+
+    assert db.execute(f"SELECT {SEMILLA}").fetchone()[0] == esperada
+    assert db.execute("SELECT COUNT(*) FROM extracciones").fetchone()[0] == 2
 
 
 def test_las_tablas_son_strict(db):
