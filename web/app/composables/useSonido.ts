@@ -152,21 +152,24 @@ export function useSonido() {
   }
 
   /**
-   * Tres pips y un GO, y el GO avisa: es la cuenta atrás de arrancar y de
-   * reanudar, que va anclada al gesto y no al plan. Devuelve cómo
+   * La cuenta atrás de arrancar y de reanudar, que va anclada al gesto y no
+   * al plan. Qué suena y cuándo lo dice el núcleo —`cuentaAtrasDe`: la frase
+   * del paso si arranca uno, tres pips y el arranque—; aquí se toca, y se
+   * avisa a la pantalla en cada pip y al llegar al final. Devuelve cómo
    * cancelarla — tocar la esfera a mitad de cuenta se arrepiente gratis.
    */
-  function cuentaAtras(avisos: { alTic: (n: number) => void; alGo: () => void }) {
+  function cuentaAtras(agenda: Cue[], avisos: { alTic: (n: number) => void; alGo: () => void }) {
     desbloquear()
     const base = ctx ? ctx.currentTime + 0.05 : 0
     const nodos: AudioScheduledSourceNode[] = []
     const timeouts: ReturnType<typeof setTimeout>[] = []
-    for (let i = 0; i < 3; i += 1) {
-      if (ctx) nodos.push(...sonar('pip', base + i))
-      timeouts.push(setTimeout(() => avisos.alTic(3 - i), i * 1000))
-    }
-    if (ctx) nodos.push(...sonar('go', base + 3))
-    timeouts.push(setTimeout(avisos.alGo, 3000))
+    if (ctx) agenda.forEach((cue) => nodos.push(...sonar(cue.tipo, base + cue.t, cue.clave)))
+    // Los números van con los pips, 3-2-1: la frase de delante no cuenta.
+    const pips = agenda.filter((cue) => cue.tipo === 'pip')
+    pips.forEach((cue, i) => {
+      timeouts.push(setTimeout(() => avisos.alTic(pips.length - i), cue.t * 1000))
+    })
+    timeouts.push(setTimeout(avisos.alGo, (agenda[agenda.length - 1]?.t ?? 0) * 1000))
     return () => {
       timeouts.forEach(clearTimeout)
       apagar(nodos)

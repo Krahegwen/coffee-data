@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { cuesDe } from '@coffee/nucleo/crono'
+import { cuentaAtrasDe, cuesDe } from '@coffee/nucleo/crono'
 import { finDeLosVertidos } from '@coffee/nucleo/recetas'
 import { relojDe } from '@coffee/nucleo/validacion'
 
@@ -58,6 +58,10 @@ watchEffect(() => silenciar(!ajustes.value.sonido))
  * los pips, y el reloj no se mueve hasta el GO. Es del componente y no del
  * estado compartido: salir del reloj a mitad de cuenta la cancela, que
  * todavía no había empezado nada.
+ *
+ * Vale 0 mientras se dice el paso que arranca: la cuenta ya ha empezado
+ * —los mandos se apartan y tocar el círculo cancela—, pero hasta el primer
+ * pip no hay número que enseñar, y el círculo sigue con lo que va a contar.
  */
 const preroll = ref<number | null>(null)
 let cancelarPreroll: (() => void) | null = null
@@ -179,7 +183,7 @@ const enGoteoVivo = computed(
  * pasada la hora de retirar, goteo en vivo si el plan no la trae.
  */
 const numeroPaso = computed(() => {
-  if (preroll.value !== null) return String(preroll.value)
+  if (preroll.value) return String(preroll.value)
   if (finGoteo.value !== null) return relojDe(finGoteo.value)
   if (!enMarcha.value) return primerTramo.value !== null ? String(primerTramo.value) : relojDe(0)
   if (siguiente.value !== null) return String(Math.max(0, Math.ceil(faltan.value ?? 0)))
@@ -198,7 +202,8 @@ const numeroPaso = computed(() => {
  */
 const late = computed(() =>
   ajustes.value.latido
-  && (preroll.value !== null
+  // Con los pips de la cuenta, no con la frase que va delante.
+  && (Boolean(preroll.value)
     || (corriendo.value && siguiente.value !== null && (faltan.value ?? Infinity) <= 3)),
 )
 
@@ -299,7 +304,8 @@ function cancelarCuentaAtras() {
 /**
  * Tres pips, GO, y el reloj echa a andar desde donde se le diga. El cue del
  * segundo 0 del plan no suena aparte: el GO de esta cuenta es ese arranque,
- * y el bucle solo ancla lo estrictamente futuro.
+ * y el bucle solo ancla lo estrictamente futuro. Si lo que arranca es un
+ * paso, antes de los pips se dice cuál: la agenda es del núcleo.
  */
 function conCuentaAtras(desde: number) {
   cancelarCuentaAtras()
@@ -309,7 +315,11 @@ function conCuentaAtras(desde: number) {
     void arrancarDesde(desde)
     return
   }
-  cancelarPreroll = cuentaAtras({
+  // Con el sonido apagado la frase no se oye, y esperarla sería un silencio
+  // de más antes del 3.
+  const agenda = cuentaAtrasDe(pasos.value, desde, ajustes.value.sonido ? vozLista.value : null)
+  preroll.value = 0
+  cancelarPreroll = cuentaAtras(agenda, {
     alTic: (n) => { preroll.value = n },
     alGo: () => {
       cancelarPreroll = null

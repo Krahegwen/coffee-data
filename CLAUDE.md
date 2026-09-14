@@ -243,7 +243,9 @@ cuatro paquetes, así que también cubre el comando que pnpm estrene mañana.
 Los clips viven en `web/public/audio/{es,en}/` con un `duraciones.json` al
 lado. **El manifiesto no es un extra**: `cuesDe()` lo necesita para colocar
 cada frase de modo que acabe justo antes del primer pip, y sin él la agenda
-sale sin voz y todo lo demás funciona igual.
+sale sin voz y todo lo demás funciona igual. El primer paso no cabe en el
+plan —antes del segundo 0 no hay nada—, así que lo dice la cuenta atrás de
+arrancar (`cuentaAtrasDe()`): ahí son los pips los que esperan a la frase.
 
 Se generaron con **Piper** (voz `es_ES-carlfm-x_low`, `en_GB-alan-medium`),
 con un script que vive fuera del repo — al repositorio solo entra el audio.
