@@ -35,8 +35,8 @@ export const HUECO_VOZ = 0.35;
  *
  * Dos reglas de colisión, para que dos pasos pegados no suenen a caos: un
  * pip nunca pisa el arranque del paso anterior —si no cabe, se cae— y
- * tampoco suena antes del segundo 0, que la cuenta atrás de arrancar es del
- * reproductor y no del plan.
+ * tampoco suena antes del segundo 0, que la cuenta atrás de arrancar va
+ * aparte: es `cuentaAtrasDe`.
  */
 export function cuesDe(pasos, duraciones = null) {
   const todos = pasos ?? [];
@@ -109,6 +109,45 @@ export function cuesDe(pasos, duraciones = null) {
   });
 
   return cues.sort((a, b) => a.t - b.t);
+}
+
+/**
+ * La cuenta atrás que pone el reloj en marcha, en segundos desde el toque:
+ * tres pips y el arranque, con la misma forma que los cues de `cuesDe`.
+ *
+ * Va aparte del plan porque se ancla al gesto —arrancar, reanudar— y no a un
+ * segundo de la receta: mientras suena, el reloj está quieto.
+ *
+ * Si arranca justo donde empieza un paso, lo dice primero, con la regla de
+ * siempre: la frase acaba `HUECO_VOZ` antes del primer pip. Aquí son los pips
+ * los que esperan a la frase, y no la frase la que se cae si no cabe: la
+ * cuenta se alarga lo que dura. Es la voz que le faltaba al primer paso, que
+ * en el plan no cabe nunca —antes del segundo 0 no hay nada— y arrancaba
+ * mudo. Reanudar a mitad de un paso no dice nada: no empieza ninguno.
+ *
+ * Y el arranque suena como el paso al que llega. La cuenta ocupa el lugar
+ * de ese cue —el bucle solo ancla lo estrictamente futuro—, así que si el
+ * paso es el último vertido tiene que sonar doble y no un `go` a secas.
+ */
+export function cuentaAtrasDe(pasos, desde, duraciones = null) {
+  const todos = pasos ?? [];
+  const inicio = Number(desde);
+
+  const paso = todos.find((p) => tieneHora(p) && Number(p.t_inicio_s) === inicio);
+  const llegada = cuesDe(todos).find((c) => c.t === inicio && c.tipo !== "pip");
+  const frase = paso ? duraciones?.[vozDe(paso)] : undefined;
+
+  const cues = [];
+  let t = 0;
+  if (frase) {
+    cues.push({ t: 0, tipo: "voz", clave: vozDe(paso) });
+    t = Number((frase + HUECO_VOZ).toFixed(2));
+  }
+  for (let d = 0; d < AVISO_S; d += 1) {
+    cues.push({ t: Number((t + d).toFixed(2)), tipo: "pip" });
+  }
+  cues.push({ t: Number((t + AVISO_S).toFixed(2)), tipo: llegada?.tipo ?? "go" });
+  return cues;
 }
 
 /**

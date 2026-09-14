@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { cuesDe, vozDe } from "../src/crono.js";
+import { AVISO_S, cuentaAtrasDe, cuesDe, HUECO_VOZ, vozDe } from "../src/crono.js";
 import { finDeLosVertidos } from "../src/recetas.js";
 
 /** La 4:6 base de la semilla, solo lo que la agenda mira. */
@@ -133,17 +133,17 @@ describe("colisiones y bordes", () => {
   });
 });
 
-describe("la voz, cuando hay clips", () => {
-  // Las duraciones reales de los clips en castellano, redondeadas.
-  const DURACIONES = {
-    verter: 1.06,
-    verter_espiral: 1.3,
-    verter_centro: 1.38,
-    agitar: 1.06,
-    esperar: 1.01,
-    retirar: 1.25,
-  };
+// Las duraciones reales de los clips en castellano, redondeadas.
+const DURACIONES = {
+  verter: 1.06,
+  verter_espiral: 1.3,
+  verter_centro: 1.38,
+  agitar: 1.06,
+  esperar: 1.01,
+  retirar: 1.25,
+};
 
+describe("la voz, cuando hay clips", () => {
   it("sin manifiesto la agenda sale igual que siempre", () => {
     assert.deepEqual(cuesDe(KASUYA), cuesDe(KASUYA, null));
     assert.ok(!cuesDe(KASUYA).some((c) => c.tipo === "voz"));
@@ -202,7 +202,8 @@ describe("la voz, cuando hay clips", () => {
   it("el primer paso tampoco habla: antes del segundo 0 no hay plan", () => {
     const cues = cuesDe(KASUYA, DURACIONES);
     assert.ok(!cues.some((c) => c.tipo === "voz" && c.t < 0));
-    // El del segundo 0 no cabe, así que su frase no está.
+    // El del segundo 0 no cabe, así que su frase no está: la dice la cuenta
+    // atrás de arrancar, que va aparte.
     const primeras = cues.filter((c) => c.t < 10 && c.tipo === "voz");
     assert.deepEqual(primeras, []);
   });
@@ -210,5 +211,72 @@ describe("la voz, cuando hay clips", () => {
   it("sale ordenada aunque la voz se cuele entre medias", () => {
     const tiempos = cuesDe(KASUYA, DURACIONES).map((c) => c.t);
     assert.deepEqual(tiempos, [...tiempos].sort((a, b) => a - b));
+  });
+});
+
+describe("la cuenta atrás de arrancar", () => {
+  it("sin voz son tres pips y el go, un segundo cada uno", () => {
+    assert.deepEqual(cuentaAtrasDe(KASUYA, 0), [
+      { t: 0, tipo: "pip" },
+      { t: 1, tipo: "pip" },
+      { t: 2, tipo: "pip" },
+      { t: 3, tipo: "go" },
+    ]);
+    assert.deepEqual(cuentaAtrasDe(KASUYA, 0, null), cuentaAtrasDe(KASUYA, 0));
+  });
+
+  it("dice el primer paso antes de los pips, que en el plan no cabe", () => {
+    const cuenta = cuentaAtrasDe(KASUYA, 0, DURACIONES);
+    assert.deepEqual(cuenta[0], { t: 0, tipo: "voz", clave: "verter" });
+    // 1.06 de frase + 0.35 de respiro: los pips esperan a que acabe.
+    assert.deepEqual(cuenta.slice(1), [
+      { t: 1.41, tipo: "pip" },
+      { t: 2.41, tipo: "pip" },
+      { t: 3.41, tipo: "pip" },
+      { t: 4.41, tipo: "go" },
+    ]);
+  });
+
+  it("con estilo, la frase del estilo", () => {
+    const cuenta = cuentaAtrasDe(
+      [{ accion: "verter", estilo: "espiral", t_inicio_s: 0 }], 0, DURACIONES,
+    );
+    assert.equal(cuenta[0].clave, "verter_espiral");
+    const primerPip = cuenta.find((c) => c.tipo === "pip");
+    assert.equal(primerPip.t, Number((DURACIONES.verter_espiral + HUECO_VOZ).toFixed(2)));
+    assert.equal(cuenta.filter((c) => c.tipo === "pip").length, AVISO_S);
+  });
+
+  it("reanudar a mitad de un paso no dice nada: no empieza ninguno", () => {
+    assert.deepEqual(
+      cuentaAtrasDe(KASUYA, 30.4, DURACIONES).map((c) => c.tipo),
+      ["pip", "pip", "pip", "go"],
+    );
+    // Tampoco al arrancar una receta cuyo primer paso no está en el 0: lo
+    // que empieza ahí es la espera, y la frase del paso la pone el plan.
+    const tarde = [{ accion: "verter", t_inicio_s: 20 }];
+    assert.ok(!cuentaAtrasDe(tarde, 0, DURACIONES).some((c) => c.tipo === "voz"));
+  });
+
+  it("un paso sin clip cuenta como siempre", () => {
+    // `remover` no está en el manifiesto de este test.
+    const cuenta = cuentaAtrasDe([{ accion: "remover", t_inicio_s: 0 }], 0, DURACIONES);
+    assert.deepEqual(cuenta, cuentaAtrasDe([{ accion: "remover", t_inicio_s: 0 }], 0));
+  });
+
+  it("el arranque suena como el paso al que llega", () => {
+    assert.equal(cuentaAtrasDe(KASUYA, 45).at(-1).tipo, "go");
+    assert.equal(cuentaAtrasDe(KASUYA, 145).at(-1).tipo, "go_doble");
+    assert.equal(cuentaAtrasDe(KASUYA, 170).at(-1).tipo, "cadencia");
+    // Y es el mismo cue que el plan pone en ese segundo, no uno parecido.
+    for (const t of [0, 15, 45, 145, 170, 200]) {
+      const delPlan = cuesDe(KASUYA).find((c) => c.t === t && c.tipo !== "pip");
+      assert.equal(cuentaAtrasDe(KASUYA, t).at(-1).tipo, delPlan.tipo, `en el ${t}`);
+    }
+  });
+
+  it("sin pasos sigue contando: el reloj arranca igual", () => {
+    assert.deepEqual(cuentaAtrasDe([], 0).map((c) => c.tipo), ["pip", "pip", "pip", "go"]);
+    assert.deepEqual(cuentaAtrasDe(null, 0), cuentaAtrasDe([], 0));
   });
 });
