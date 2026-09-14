@@ -494,6 +494,16 @@ export function contratoDelAlmacen(titulo, fabrica) {
         assert.equal(datos.preferencias.crono_dosis_g, 18);
       });
 
+      it("un interruptor que nace apagado se enciende y vuelve encendido", async () => {
+        // La cuenta atrás de los saltos es el único que nace apagado: con los
+        // demás, leer `true` no distingue lo guardado de lo de fábrica.
+        const antes = await leerPreferencias(almacen);
+        assert.equal(antes.datos.preferencias.cuenta_atras_saltos, false);
+        await guardarPreferencias(almacen, { cuenta_atras_saltos: true });
+        const { datos } = await leerPreferencias(almacen);
+        assert.equal(datos.preferencias.cuenta_atras_saltos, true);
+      });
+
       it("solo toca lo que le mandan: dos escrituras se suman, no se pisan", async () => {
         // Es la razón de que esto sea un PATCH: el móvil apaga el sonido y el
         // portátil el latido, y ninguno de los dos revive lo del otro.

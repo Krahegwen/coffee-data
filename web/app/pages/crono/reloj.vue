@@ -26,10 +26,12 @@ const { estado, soltarReloj } = useCrono()
 
 const {
   cafeId, recetaId, desdeId, dosis, agua, pasos, corriendo, transcurrido,
-  finGoteo, inicioMs, goteoIba,
+  finGoteo, inicioMs, goteoIba, saltoEnPausa,
 } = toRefs(estado.value)
 
-const { pitido, cuentaAtras, programar, detener, silenciar, cargarVoz } = useSonido()
+const {
+  desbloquear, pitido, cuentaAtras, programar, detener, silenciar, cargarVoz,
+} = useSonido()
 const { ajustes, cargar: cargarAjustes } = usePreferencias()
 void cargarAjustes()
 
@@ -208,13 +210,24 @@ const late = computed(() =>
 )
 
 /**
+ * Si el próximo toque en el círculo arranca con cuenta atrás. Lo dice su
+ * ajuste, salvo al reanudar tras elegir paso con las flechas: eso es un
+ * salto, y manda el de los saltos.
+ */
+const conCuenta = computed(() =>
+  pausado.value && saltoEnPausa.value
+    ? ajustes.value.cuenta_atras_saltos
+    : ajustes.value.cuenta_atras,
+)
+
+/**
  * Los mandos que arrancan el reloj dicen otra cosa con la cuenta atrás
  * puesta: tocar no echa a andar nada, da tres segundos de margen, y quien no
  * lo sepa vierte antes de tiempo. Las claves van en pares —«x» y «x_cuenta»—
  * y ésta elige; pausar no está en el par, que pausar es inmediato siempre.
  */
 function segunCuenta(clave: string) {
-  return t(ajustes.value.cuenta_atras ? `${clave}_cuenta` : clave)
+  return t(conCuenta.value ? `${clave}_cuenta` : clave)
 }
 
 const etiquetaEsfera = computed(() => {
@@ -288,9 +301,16 @@ async function rearmar() {
  * requestAnimationFrame la bola va fluida en vez de a diez saltos por segundo.
  */
 async function arrancarDesde(desde: number) {
+  // Casi siempre llega desde un toque, que es cuando el navegador deja
+  // despertar el audio. La cuenta atrás ya lo hace, pero sin ella —apagada,
+  // o un salto— nadie más lo despertaba: tras un bloqueo de pantalla en
+  // iOS, el resto de la extracción iba muda.
+  desbloquear()
   inicioMs.value = performance.now() - desde * 1000
   transcurrido.value = desde
   corriendo.value = true
+  // El paso elegido en pausa, si lo había, ya ha empezado.
+  saltoEnPausa.value = false
   await rearmar()
 }
 
@@ -306,12 +326,15 @@ function cancelarCuentaAtras() {
  * segundo 0 del plan no suena aparte: el GO de esta cuenta es ese arranque,
  * y el bucle solo ancla lo estrictamente futuro. Si lo que arranca es un
  * paso, antes de los pips se dice cuál: la agenda es del núcleo.
+ *
+ * Si hay cuenta o no lo decide quien llama, que son dos ajustes: arrancar y
+ * reanudar miran uno, los saltos el otro.
  */
-function conCuentaAtras(desde: number) {
+function conCuentaAtras(desde: number, cuenta: boolean) {
   cancelarCuentaAtras()
   // Sin ella, el reloj arranca en el acto: quien la apaga es porque prefiere
   // el control de siempre, no porque quiera esperar tres segundos en silencio.
-  if (!ajustes.value.cuenta_atras) {
+  if (!cuenta) {
     void arrancarDesde(desde)
     return
   }
@@ -331,7 +354,7 @@ function conCuentaAtras(desde: number) {
 
 function iniciar() {
   finGoteo.value = null
-  conCuentaAtras(0)
+  conCuentaAtras(0, ajustes.value.cuenta_atras)
 }
 
 /** Pausa de verdad: lo que dure no cuenta para la extracción. */
@@ -353,27 +376,53 @@ function tocarEsfera() {
   }
   if (!enMarcha.value) iniciar()
   else if (corriendo.value) pausar()
+  // Con paso elegido en la pausa, reanudar es empezarlo: va como un salto.
+  else if (saltoEnPausa.value) empezarPaso(transcurrido.value)
   // Reanudar también avisa: se pausó por falta de manos, y volver en frío
   // es peor que volver con tres pips de margen.
-  else conCuentaAtras(transcurrido.value)
+  else conCuentaAtras(transcurrido.value, ajustes.value.cuenta_atras)
 }
 
-/** Mueve el reloj a un segundo dado sin cambiar si va o está en pausa. */
-function moverA(segundo: number) {
-  if (!corriendo.value) {
+/**
+ * Pone a andar el paso de ese segundo como lo pone una flecha: en el acto, o
+ * con la cuenta atrás si su ajuste la pide. Lo usan el salto con el reloj
+ * andando y el reanudar que sigue a elegir paso en pausa.
+ */
+function empezarPaso(segundo: number) {
+  if (ajustes.value.cuenta_atras_saltos) {
+    // La cuenta espera quieta en el paso, como la de reanudar: el reloj se
+    // para ahí y echa a andar con el GO. Cancelarla a medias lo deja en
+    // pausa en ese paso, que ya estaba elegido.
+    if (corriendo.value) parar()
     transcurrido.value = segundo
+    saltoEnPausa.value = true
+    conCuentaAtras(segundo, true)
     return
   }
+  void arrancarDesde(segundo)
   /*
    * El sonido de llegada lo toca el salto. El bucle solo ancla lo
    * estrictamente futuro —al arrancar y al reanudar ese hueco lo tapa el GO
    * de la cuenta atrás—, pero aquí no hay cuenta atrás, así que sin esto
    * saltar al último vertido aterrizaba en silencio: justo el aviso que
-   * dice que ése es el último y hay que soltar el hervidor.
+   * dice que ése es el último y hay que soltar el hervidor. Detrás del
+   * arranque, que es quien despierta el audio.
    */
   const llegada = cues.value.find((c) => c.t === segundo && c.tipo !== 'pip')
   if (llegada) pitido(llegada.tipo)
-  void arrancarDesde(segundo)
+}
+
+/**
+ * Mueve el reloj a un segundo dado sin cambiar si va o está en pausa. En
+ * pausa solo apunta el paso: empezará al reanudar.
+ */
+function moverA(segundo: number) {
+  if (!corriendo.value) {
+    transcurrido.value = segundo
+    saltoEnPausa.value = true
+    return
+  }
+  empezarPaso(segundo)
 }
 
 function alSiguientePaso() {

@@ -20,6 +20,11 @@ const INTERRUPTORES = [
   { clave: 'sonido', titulo: 'ajustes.sonido', pista: 'ajustes.sonido_pista' },
   { clave: 'voz', titulo: 'ajustes.voz', pista: 'ajustes.voz_pista' },
   { clave: 'cuenta_atras', titulo: 'ajustes.cuenta_atras', pista: 'ajustes.cuenta_atras_pista' },
+  {
+    clave: 'cuenta_atras_saltos',
+    titulo: 'ajustes.cuenta_atras_saltos',
+    pista: 'ajustes.cuenta_atras_saltos_pista',
+  },
   { clave: 'latido', titulo: 'ajustes.latido', pista: 'ajustes.latido_pista' },
 ] as const
 

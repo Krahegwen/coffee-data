@@ -36,6 +36,14 @@ export const CATALOGO = {
   latido: { tipo: "booleano", defecto: true },
   cuenta_atras: { tipo: "booleano", defecto: true },
   /*
+   * La de los saltos va aparte y nace apagada. Quien toca una flecha ya está
+   * en ese paso —se le alargó el vertido, o se lo salta con el café delante—
+   * y tres segundos de espera le desalinean el reloj justo cuando acaba de
+   * alinearlo. Vale también para reanudar tras elegir paso en pausa, que es
+   * el mismo gesto con una parada en medio.
+   */
+  cuenta_atras_saltos: { tipo: "booleano", defecto: false },
+  /*
    * El tema son tres claves y no una, porque son tres decisiones distintas:
    * si seguir al teléfono o mandar tú, y qué juego usar en cada modo. Quien
    * pone el móvil en oscuro por la noche quiere que la app le siga, pero eso

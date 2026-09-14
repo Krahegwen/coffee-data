@@ -312,6 +312,8 @@
     "voz_pista": "«Pour in a spiral» before the pips, so you need not look at the screen.",
     "cuenta_atras": "Countdown on start",
     "cuenta_atras_pista": "Three seconds to pick up the kettle, on resume too.",
+    "cuenta_atras_saltos": "Countdown when skipping steps",
+    "cuenta_atras_saltos_pista": "Three seconds before the step you pick with the arrows, even if you pick it while paused.",
     "latido": "Pulsing number",
     "latido_pista": "The number grows with every warning: visible even on silent.",
     "tema_titulo": "Colours",

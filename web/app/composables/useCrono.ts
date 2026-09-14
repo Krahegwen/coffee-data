@@ -55,6 +55,15 @@ export const CRONO_EN_BLANCO = () => ({
    * ponerse al día al deshacer: en pausa, la parada fue a propósito.
    */
   goteoIba: false,
+  /**
+   * Si en esta pausa se eligió paso con las flechas. Entonces reanudar no es
+   * seguir por donde ibas sino empezar ese paso, y va como un salto: con la
+   * cuenta atrás de los saltos y no con la de reanudar. Se gasta en cuanto
+   * el reloj echa a andar. Aquí y no en el reloj por lo mismo que lo demás:
+   * salir a mirar una ficha en plena pausa no puede cambiar lo que hará el
+   * círculo al volver.
+   */
+  saltoEnPausa: false,
 })
 
 export function useCrono() {
@@ -85,6 +94,7 @@ export function useCrono() {
       finGoteo: null,
       inicioMs: null,
       goteoIba: false,
+      saltoEnPausa: false,
       /*
        * Y la rama se suelta con la medición, aunque viaje con la selección.
        * Volver a la extracción de anteayer es una decisión **de esa taza**:
