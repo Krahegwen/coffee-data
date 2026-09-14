@@ -273,6 +273,12 @@ dominio: qué claves existen y de qué tipo es cada una lo dice
 `nucleo/src/preferencias.js`, no el esquema, y así un interruptor nuevo no
 pide una migración.
 
+La cuenta atrás son **dos interruptores**: `cuenta_atras` para arrancar y
+reanudar, y `cuenta_atras_saltos` para las flechas, que nace apagado —quien
+salta ya está en ese paso—. Reanudar tras elegir paso con las flechas en
+pausa **es un salto** y va con el segundo (`saltoEnPausa` en `useCrono()`):
+no es un fallo que no cuente aunque el primero esté puesto.
+
 Se leen con `usePreferencias()` y **se guardan con un PATCH parcial**: solo
 las claves que mandas. Un PUT entero haría que dos dispositivos que cambian
 cosas distintas se borrasen el uno al otro. Cada clave lleva su

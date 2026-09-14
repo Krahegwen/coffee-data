@@ -312,6 +312,8 @@
     "voz_pista": "«Vierte en espiral» antes de los pitidos, para no mirar la pantalla.",
     "cuenta_atras": "Cuenta atrás al arrancar",
     "cuenta_atras_pista": "Tres segundos para coger el hervidor, también al reanudar.",
+    "cuenta_atras_saltos": "Cuenta atrás al saltar de paso",
+    "cuenta_atras_saltos_pista": "Tres segundos antes del paso que eliges con las flechas, aunque lo elijas en pausa.",
     "latido": "Latido del número",
     "latido_pista": "El número crece con cada aviso: se ve aunque el móvil esté en silencio.",
     "tema_titulo": "Los colores",
