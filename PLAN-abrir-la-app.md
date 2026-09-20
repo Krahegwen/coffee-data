@@ -219,14 +219,21 @@ Por orden de lo que más duele.
    ambas sobre los mismos datos, pero es deuda permanente.
 
 4. **Mis CSV están en un repo público.** Sí, todo está ya en D1 y R2; los CSV
-   de `datos/` son **una copia**, y son literalmente 1,9 KB con esto dentro:
+   de `datos/` son **una copia**. Cuando se escribió esto eran 1,9 KB; a
+   2026-09-20 son **10,4 KB**, y lo que llevan dentro es de la misma clase:
 
-   - `cafes.csv` (726 B): las dos bolsas enteras — tostador, origen, variedad,
-     proceso, altitud, SCA, fechas, **precio pagado** y notas del tostador.
-   - `extracciones.csv` (691 B): las dos extracciones con sus **notas de cata**
-     tal cual las escribí, incluida la de «no sé si algo menos amargo que ayer».
-   - `recetas.csv` y `pasos.csv` (526 B): la receta y sus pasos.
+   - `cafes.csv` (1,3 KB): las **cuatro bolsas** enteras — tostador, origen,
+     variedad, proceso, altitud, SCA, fechas, **precio pagado** y notas del
+     tostador.
+   - `extracciones.csv` (8,3 KB): las **26 extracciones** con sus **notas de
+     cata** tal cual las escribí, incluida la de «no sé si algo menos amargo
+     que ayer».
+   - `recetas.csv` y `pasos.csv` (0,8 KB): la receta y sus pasos.
    - Las fotos **no** están: en el CSV solo va la clave de R2.
+
+   Crecen, y conviene releer esto de vez en cuando: el argumento para dejarlos
+   no es que sean poca cosa, es que no hay nada personal dentro. El día que lo
+   haya, la conclusión cambia aunque el tamaño no.
 
    Proteger los `GET` no esconde nada de eso, y el histórico de git guarda
    además todas las versiones anteriores.
@@ -390,9 +397,11 @@ con información vieja.
 
 ### Cómo: traer todo y reemplazar
 
-Nada de sincronización incremental. Mis datos enteros son **menos de 2 KB de
-CSV**; pedirlos todos en cada arranque cuesta menos que la lógica de calcular
-qué ha cambiado desde cuándo.
+Nada de sincronización incremental. Mis datos enteros son **10,4 KB de CSV** a
+2026-09-20 — eran menos de 2 KB cuando se decidió esto —; pedirlos todos en
+cada arranque sigue costando menos que la lógica de calcular qué ha cambiado
+desde cuándo. El umbral a partir del cual deja de valer no está puesto: la
+puerta para cruzarlo es el `?desde=` de más abajo.
 
 Y reemplazar el local con lo que diga el servidor tiene un premio que la fusión
 no da: **los borrados salen gratis**. Si borro una receta en el Android, en el
