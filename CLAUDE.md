@@ -20,7 +20,7 @@ Los datos viven en **Cloudflare D1** y se registran por la **API**
   tocar la app, y toda la decisión de auth vive en `api/src/auth.js`.
 - **Nada de GitHub Actions.** La verificación vive en el hook de `pre-commit`,
   que ejecuta pytest y los tests del Worker, y al final —solo si pasan— sube
-  el parche de la versión en los tres `package.json` y lo mete en el commit.
+  el parche de la versión en los cuatro `package.json` y lo mete en el commit.
   Esa versión es la que sale en el pie de la app: no la toques a mano salvo
   para subir mayor o menor, que eso sí es una decisión. Un commit que **solo
   toca `datos/`** se salta las dos cosas —ninguna suite mira los CSV y la
@@ -157,7 +157,7 @@ sola ficha.**
 
 El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
 del usuario no son un banco de pruebas**: para verificar, usa la base local
-(`pnpm dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
+(`pnpm run dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
 
 La foto de la bolsa va aparte, en binario (jpeg, png o webp, 10 MB máximo);
 **no entra por JSON**, así el servidor mantiene la columna y el objeto de R2
@@ -215,6 +215,14 @@ curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
 al terminarla, con `git merge --no-ff` para que la tarea se lea como un bloque
 en el histórico. Nada de `develop` ni de ramas de release: eso coordina equipos
 y versiones en paralelo, y aquí hay una persona y un despliegue a mano.
+
+Tampoco hacen falta PR: el merge es local. La única vez que se salió de aquí fue
+el **2026-09-04**, cuando las cinco tareas del día salieron de una sola rama
+`claude/chat-link-preview-9509tw` y se cerraron con cinco PR — así nacen las
+sesiones de Claude Code en la nube, que no tienen el disco delante. Se lee peor
+en el histórico (hay un `Merge branch 'main'` de por medio que no dice nada), y
+por eso queda anotado y no como precedente. Si una sesión trabaja en la nube,
+que traiga su rama y se mezcle aquí como las demás.
 
 El orden al cerrar una tarea es **commit → merge → push → deploy**, y las dos
 últimas no dependen de que alguien se acuerde:
@@ -344,7 +352,7 @@ herramientas de Python. `datos/` son los CSV exportados.
 - **Si añades un endpoint, el manejador va en `nucleo/src/api.js`** con su
   test en `nucleo/test/api.test.js` contra el almacén en memoria; en el Worker
   solo se añade la ruta.
-- Las suites de Node van con `pnpm test` (el runner de Node; la única
+- Las suites de Node van con `pnpm run test` (el runner de Node; la única
   dependencia de test es fake-indexeddb, en `web/`).
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
