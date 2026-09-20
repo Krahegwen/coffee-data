@@ -292,20 +292,34 @@ ahí es el mismo origen y el código no se entera de la diferencia.
 
 ## Esquema · `cafes.csv`
 
-`id` · `nombre` · `tostador` · `origen` · `region` · `variedad` · `proceso` ·
-`altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) · `consumir_antes` · `peso_g` ·
-`precio_eur` · `notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
-`fecha_apertura` ·
+En el orden en que las escribe `herramientas/exportar_csv.py`, que es el
+contrato:
+
+`id` (uuid) · `slug` · `nombre` · `tostador` · `origen` · `region` ·
+`variedad` · `proceso` · `altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) ·
+`consumir_antes` · `fecha_apertura` · `peso_g` · `precio_eur` ·
+`notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
 `foto` (clave del objeto en R2; la mantiene
-el endpoint de subida, no entra por JSON) · `url`
+el endpoint de subida, no entra por JSON) · `url` · `conservacion` ·
+`creado_en`
+
+`slug` sale del nombre y es lo que se lee en las URL — ver «La identidad» al
+final. `creado_en` va al respaldo desde la fase 8: la app restaura desde estos
+mismos CSV y una fila sin su fecha de creación volvería con una inventada.
 
 ## Esquema · `extracciones.csv`
 
-`id` · `fecha` · `cafe_id` · `dias_tueste` · `dosis_g` · `agua_g` · `ratio` ·
-`temp_c` · `molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` ·
-`extraido_g` · `variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
-`siguiente_ajuste` · `receta_id` · `drawdown_s` · `dripper` · `desde_id` ·
-`borrada_en`
+`id` (uuid) · `fecha` · `creado_en` · `cafe_id` · `cafe_slug` ·
+`dias_tueste` · `dias_abierta` · `dosis_g` · `agua_g` · `ratio` · `temp_c` ·
+`molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` · `extraido_g` ·
+`variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
+`siguiente_ajuste` · `receta_id` · `receta_slug` · `drawdown_s` · `dripper` ·
+`borrada_en` · `desde_id`
+
+`cafe_slug` y `receta_slug` van además de los uuid porque el CSV lo lee un
+humano, y un humano no resuelve uuids de cabeza. `ratio`, `dias_tueste` y
+`dias_abierta` **no se guardan**: los deriva la vista y se exportan ya
+calculados. El **orden** de las filas lo manda `creado_en`.
 
 `extraido_g`: lo que acabó en la taza. Con el agua y la dosis sale la
 **retención** —los gramos que se queda el lecho por gramo de café—, que en V60
@@ -377,7 +391,7 @@ quieto: se convierte en conclusión.
 
 ## Esquema · `recetas.csv` y `pasos.csv`
 
-`recetas.csv`: `id` · `nombre` · `ratio` · `notas`
+`recetas.csv`: `id` (uuid) · `slug` · `nombre` · `ratio` · `notas` · `creado_en`
 
 `pasos.csv`: `receta_id` · `orden` · `t_inicio_s` · `accion` · `estilo` ·
 `agua_g` · `notas`
