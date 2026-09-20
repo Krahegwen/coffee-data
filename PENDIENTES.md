@@ -29,7 +29,7 @@ Del 2026-08-10, con lo que conviene recordar de cada una:
   hizo está en el README, bajo `drawdown_s`.
 - **La exploración es un árbol** (punto 7). El motor emparejaba por vecindad
   —cada extracción contra la anterior del mismo café— y eso daba por supuesto
-  que se explora en línea recta. Con la escalera de Gary (94 amargo, 91
+  que se explora en línea recta. Con la escalera de Gary (93 amargo, 91
   equilibrado, 88 astringente) lo razonable era volver al 91 y mover la
   molienda: contra la de ayer son dos cambios y el par se descarta, contra el 91
   es uno limpio. Ahora `desde_id` dice de qué extracción es variación cada una.
