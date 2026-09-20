@@ -570,7 +570,7 @@ y aborta el commit si fallan. Hay que ejecutarlo una vez por clon: git no
 activa los hooks solo.
 
 El hook hace una cosa más al final, y solo si los tests pasan: **sube el
-parche de la versión** en los tres `package.json` y la mete en ese mismo
+parche de la versión** en los cuatro `package.json` y la mete en ese mismo
 commit. Va al final para que un commit que no llega a hacerse no gaste número.
 La versión sale en el pie de la app, y no es cosmética: instalada como PWA es
 lo único que responde a «¿ya tengo el despliegue nuevo o el service worker me

@@ -20,7 +20,7 @@ Los datos viven en **Cloudflare D1** y se registran por la **API**
   tocar la app, y toda la decisión de auth vive en `api/src/auth.js`.
 - **Nada de GitHub Actions.** La verificación vive en el hook de `pre-commit`,
   que ejecuta pytest y los tests del Worker, y al final —solo si pasan— sube
-  el parche de la versión en los tres `package.json` y lo mete en el commit.
+  el parche de la versión en los cuatro `package.json` y lo mete en el commit.
   Esa versión es la que sale en el pie de la app: no la toques a mano salvo
   para subir mayor o menor, que eso sí es una decisión. Un commit que **solo
   toca `datos/`** se salta las dos cosas —ninguna suite mira los CSV y la

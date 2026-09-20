@@ -5,8 +5,9 @@ No es cosmética: es lo que enseña el pie de la app y lo único que responde de
 un vistazo a «¿el móvil ya tiene el despliegue nuevo o el service worker me
 está sirviendo el de antes?».
 
-Los tres paquetes van a la vez a propósito. Son el mismo producto y tres
-números distintos solo servirían para no saber cuál mirar.
+Los cuatro ficheros van a la vez a propósito — la raíz y los tres paquetes.
+Son el mismo producto, y cuatro números distintos solo servirían para no saber
+cuál mirar.
 
 Solo librería estándar, como el resto de scripts del repo.
 """
