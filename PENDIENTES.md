@@ -4,8 +4,14 @@ Cosas vistas usando la app de verdad, para abordar más adelante. No es un
 backlog de deseos: cada punto sale de una extracción registrada a mano y
 lleva anotado lo que ya se sabe, para no volver a investigarlo desde cero.
 
-**Ahora mismo no hay ninguno.** Las anotadas el 2026-08-07 sobre la versión
+**Vacío desde el 2026-08-10.** Las anotadas el 2026-08-07 sobre la versión
 0.1.40 están todas hechas, y el sitio queda abierto para la siguiente.
+
+Que siga vacío no quiere decir que nadie haya mirado: desde entonces han
+entrado el bloque de sonido, ajustes, temas y flujo (cerrado el 2026-08-18) y
+dos tandas sueltas, el 2026-09-04 y el 2026-09-14. Ninguna dejó nada apuntado
+aquí. Si lees esto meses después, la fecha de arriba es la que dice cuándo se
+revisó por última vez — `git log -- PENDIENTES.md` lo confirma.
 
 ## Lo que salió de aquí
 
