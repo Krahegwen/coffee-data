@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Se niega a desplegar lo que no está en GitHub. Lo llama `pnpm deploy`.
+"""Se niega a desplegar lo que no está en GitHub. Lo llama `pnpm run deploy`.
 
-`pnpm deploy` sube **lo que hay en el disco**, no lo que hay en `main`. Sin
+El despliegue sube **lo que hay en el disco**, no lo que hay en `main`. Sin
 ramas eso daba igual porque el disco y `main` eran lo mismo; con una rama por
 tarea deja de serlo, y desplegar sin querer desde `feature/loquesea` es
 exactamente el accidente que las ramas venían a evitar.
@@ -19,8 +19,8 @@ sirva el Worker tiene que poder reconstruirse desde el repo público.
 
 No lleva puerta de atrás a propósito, igual que el hook de pre-commit no la
 lleva. Si algún día hace falta desplegar de verdad saltándose esto —una vuelta
-atrás con GitHub caído—, ahí está `pnpm deploy:api`, que hace justo eso y
-obliga a teclearlo a conciencia.
+atrás con GitHub caído—, ahí está `pnpm run deploy:api`, que hace justo eso
+y obliga a teclearlo a conciencia.
 """
 import subprocess
 import sys
