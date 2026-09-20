@@ -216,6 +216,14 @@ al terminarla, con `git merge --no-ff` para que la tarea se lea como un bloque
 en el histórico. Nada de `develop` ni de ramas de release: eso coordina equipos
 y versiones en paralelo, y aquí hay una persona y un despliegue a mano.
 
+Tampoco hacen falta PR: el merge es local. La única vez que se salió de aquí fue
+el **2026-09-04**, cuando las cinco tareas del día salieron de una sola rama
+`claude/chat-link-preview-9509tw` y se cerraron con cinco PR — así nacen las
+sesiones de Claude Code en la nube, que no tienen el disco delante. Se lee peor
+en el histórico (hay un `Merge branch 'main'` de por medio que no dice nada), y
+por eso queda anotado y no como precedente. Si una sesión trabaja en la nube,
+que traiga su rama y se mezcle aquí como las demás.
+
 El orden al cerrar una tarea es **commit → merge → push → deploy**, y las dos
 últimas no dependen de que alguien se acuerde:
 
