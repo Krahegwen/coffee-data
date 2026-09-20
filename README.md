@@ -20,9 +20,9 @@ En local, con su propia base y sin tocar la de verdad:
 
 ```bash
 pnpm install
-pnpm db:local     # esquema y semilla en una D1 local
-pnpm dev:api      # la API en :8787
-pnpm dev:web      # la app en :3000, con /api proxeado a :8787
+pnpm run db:local     # esquema y semilla en una D1 local
+pnpm run dev:api      # la API en :8787
+pnpm run dev:web      # la app en :3000, con /api proxeado a :8787
 ```
 
 | Ruta | Qué hace |
@@ -589,9 +589,10 @@ de atrás se cierran quitándoles el motivo.
 | `python resumen.py` | Ranking, histórico y frescura, desde la API |
 | `python herramientas/exportar_csv.py` | Vuelca D1 a los CSV del repo |
 | `python -m pytest` | Tests del esquema SQL |
-| `pnpm test` | Tests del Worker |
-| `pnpm dev` | La API en local, contra una D1 local |
-| `pnpm exec wrangler deploy` | A producción |
+| `pnpm run test` | Las tres suites de Node: núcleo, Worker y almacén de la app |
+| `pnpm run dev:api` | La API en local, contra una D1 local |
+| `pnpm run dev:web` | La app en local, con `/api` proxeado a la API |
+| `pnpm run deploy` | A producción: construye la app y despliega el Worker, tras pasar por el guardia |
 
 Apunta a otra API con `COFFEE_API`, por ejemplo `COFFEE_API=http://127.0.0.1:8787`.
 

@@ -157,7 +157,7 @@ sola ficha.**
 
 El `PATCH` solo toca lo que mandes; el `id` no se puede cambiar. **Los datos
 del usuario no son un banco de pruebas**: para verificar, usa la base local
-(`pnpm dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
+(`pnpm run dev:api`) o un cuerpo inválido, que devuelve 422 sin escribir nada.
 
 La foto de la bolsa va aparte, en binario (jpeg, png o webp, 10 MB máximo);
 **no entra por JSON**, así el servidor mantiene la columna y el objeto de R2
@@ -344,7 +344,7 @@ herramientas de Python. `datos/` son los CSV exportados.
 - **Si añades un endpoint, el manejador va en `nucleo/src/api.js`** con su
   test en `nucleo/test/api.test.js` contra el almacén en memoria; en el Worker
   solo se añade la ruta.
-- Las suites de Node van con `pnpm test` (el runner de Node; la única
+- Las suites de Node van con `pnpm run test` (el runner de Node; la única
   dependencia de test es fake-indexeddb, en `web/`).
 - `api/migrations/` es la definición de los datos. Un cambio de esquema es una
   migración nueva, nunca editar una ya aplicada. `test_esquema.py` las aplica
