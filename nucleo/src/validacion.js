@@ -127,8 +127,16 @@ export const ESTADOS = ["abierto", "terminado", "pendiente"];
 export const CAMPOS_CAFE = [
   "nombre", "tostador", "origen", "region", "variedad", "proceso",
   "altitud_m", "sca", "fecha_tueste", "consumir_antes", "fecha_apertura",
-  "peso_g", "precio_eur", "notas_tostador", "estado", "url", "conservacion",
+  "peso_g", "restante_g", "precio_eur", "notas_tostador", "estado", "url",
+  "conservacion",
 ];
+
+// `restante_en` no está arriba a propósito: es el sello del pesaje y no se
+// teclea, lo pone quien maneja la escritura igual que `creado_en`. Se acepta
+// del cuerpo —con formato— porque la cola de salida reenvía el que ya cuenta
+// en local, y dos sellos distintos para el mismo pesaje descontarían tazas
+// distintas a cada lado.
+export const SELLO_CAFE = "restante_en";
 
 const FECHAS_CAFE = ["fecha_tueste", "consumir_antes", "fecha_apertura"];
 const TEXTOS_CAFE = [
@@ -141,6 +149,9 @@ const NUMEROS_CAFE = {
   altitud_m: { min: 0, incluido: false, regla: "regla_mayor_que_0" },
   sca: { min: 0, max: 100, incluido: true, regla: "regla_entre_0_y_100" },
   peso_g: { min: 0, incluido: false, regla: "regla_mayor_que_0" },
+  // El pesaje sí admite el cero, que el peso de la bolsa no: una bolsa de 0 g
+  // no existe, pero una bolsa vacía es el final normal de todas.
+  restante_g: { min: 0, incluido: true, regla: "regla_cero_o_mas" },
   precio_eur: { min: 0, incluido: true, regla: "regla_cero_o_mas" },
 };
 
@@ -360,7 +371,8 @@ export function validarCafe(cuerpo, { nuevo, t = CASTELLANO }) {
   // id y creado_en solo en el alta: en una corrección son la identidad de la
   // fila y no se tocan.
   const desconocidos = Object.keys(entrada)
-    .filter((c) => !CAMPOS_CAFE.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
+    .filter((c) => !CAMPOS_CAFE.includes(c) && c !== SELLO_CAFE
+      && !(nuevo && IDENTIDAD.includes(c)));
   if (desconocidos.length) {
     errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
   }
@@ -423,6 +435,25 @@ export function validarCafe(cuerpo, { nuevo, t = CASTELLANO }) {
   for (const campo of TEXTOS_CAFE) {
     if (!nuevo && entrada[campo] === undefined) continue;
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
+  }
+
+  /*
+   * El sello del pesaje. Se acepta puesto pero nunca solo: sin los gramos es
+   * una fecha que no recalibra nada, y la base lo rechazaría de todas formas
+   * —van los dos o no va ninguno—. Al revés sí vale, y es el caso de todos
+   * los días: mandas los gramos y el sello lo pone quien escribe.
+   */
+  if (entrada[SELLO_CAFE] !== undefined) {
+    if (vacio(entrada[SELLO_CAFE])) {
+      valores[SELLO_CAFE] = null;
+    } else {
+      const sello = String(entrada[SELLO_CAFE]).trim();
+      if (!SELLO.test(sello)) {
+        errores.push(t("restante_en_invalido", { valor: JSON.stringify(entrada[SELLO_CAFE]) }));
+      }
+      if (vacio(entrada.restante_g)) errores.push(t("pesaje_sin_gramos"));
+      valores[SELLO_CAFE] = sello;
+    }
   }
 
   if (!nuevo && !Object.keys(valores).length) {
@@ -613,6 +644,20 @@ export function extraidoImposible(extraido, agua, t = CASTELLANO) {
   if (agua === null || agua === undefined) return null;
   if (extraido <= agua) return null;
   return t("extraido_imposible", { extraido, agua });
+}
+
+/**
+ * De una bolsa no puede quedar más de lo que traía. Avisa y no rechaza, al
+ * revés que el resto: la báscula suele tener razón y el que falla es el peso
+ * declarado —bolsas que vienen con más, el peso que nadie rellenó, la bolsa
+ * que se pesó con su envase—. Quien lee el aviso sabe cuál de los dos números
+ * corregir; la fila se guarda igual, que es el dato medido.
+ */
+export function pesajeSobreLaBolsa(restante, peso, t = CASTELLANO) {
+  if (restante === null || restante === undefined) return null;
+  if (peso === null || peso === undefined) return null;
+  if (restante <= peso) return null;
+  return t("pesaje_sobre_la_bolsa", { restante, peso });
 }
 
 /**

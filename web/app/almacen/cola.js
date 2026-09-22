@@ -13,7 +13,7 @@
  * En JS pelado y con el envío inyectado: el runner de Node lo prueba con un
  * almacén en memoria haciendo de servidor, sin red de por medio.
  */
-import { CAMPOS, CAMPOS_CAFE } from "@coffee/nucleo/validacion";
+import { CAMPOS, CAMPOS_CAFE, SELLO_CAFE } from "@coffee/nucleo/validacion";
 
 /**
  * El cuerpo con el que la red repite un alta que ya pasó en local: los campos
@@ -29,7 +29,13 @@ export function cuerpoDeAlta(fila, campos) {
   return cuerpo;
 }
 
-export const cuerpoDeCafe = (cafe) => cuerpoDeAlta(cafe, CAMPOS_CAFE);
+/*
+ * Con el sello del pesaje, que no es una columna que se teclee pero sí tiene
+ * que viajar: si lo pusiera el servidor al recibir el alta, descontaría desde
+ * su reloj y no desde la báscula, y las tazas de en medio se restarían dos
+ * veces —una vez aquí y otra allí—.
+ */
+export const cuerpoDeCafe = (cafe) => cuerpoDeAlta(cafe, [...CAMPOS_CAFE, SELLO_CAFE]);
 export const cuerpoDeExtraccion = (extraccion) => cuerpoDeAlta(extraccion, CAMPOS);
 
 /** Una receta como la espera el endpoint; sin identidad si es un PUT. */

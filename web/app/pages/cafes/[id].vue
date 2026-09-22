@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { restanteDe } from '@coffee/nucleo/restante'
 import type { Cafe } from '~/composables/useApi'
 
-const { cafes, editarCafe, subirFotoCafe, quitarFotoCafe, urlFoto } = useApi()
+const { cafes, extracciones, editarCafe, subirFotoCafe, quitarFotoCafe, urlFoto } = useApi()
 const route = useRoute()
 const id = String(route.params.id)
 
 const { data: bolsas } = await useAsyncData(`cafe-${id}`, cafes)
+// La misma clave que la lista: el histórico es el mismo y así no se pide dos
+// veces al ir y volver. Hace falta entero para descontar del pesaje.
+const { data: historial } = await useAsyncData('ext-lista', () => extracciones())
 // La URL lleva el slug; los enlaces viejos con uuid también resuelven.
 const original = computed(
   () => (bolsas.value ?? []).find((c) => c.slug === id || c.id === id) ?? null,
@@ -70,6 +74,37 @@ async function enviar() {
     errores.value = erroresDe(fallo)
   } finally {
     enviando.value = false
+  }
+}
+
+/*
+ * El pesaje va por su cuenta y no dentro del formulario de la ficha: no es un
+ * dato que se corrija, es una medida que se toma. Guarda al momento, con su
+ * sello, y si viajara con el resto de campos cada «guardar cambios» volvería
+ * a sellar un pesaje que nadie ha repetido.
+ */
+const quedan = computed(() =>
+  (original.value ? restanteDe(original.value, historial.value ?? []) : null),
+)
+
+const bascula = ref('')
+const pesando = ref(false)
+const erroresPesaje = ref<string[]>([])
+const avisosPesaje = ref<string[]>([])
+
+async function pesar(gramos: number | null) {
+  erroresPesaje.value = []
+  avisosPesaje.value = []
+  pesando.value = true
+  try {
+    const r = await editarCafe(id, { restante_g: gramos })
+    reemplazaBolsa(r.cafe)
+    avisosPesaje.value = r.avisos ?? []
+    bascula.value = ''
+  } catch (fallo) {
+    erroresPesaje.value = erroresDe(fallo)
+  } finally {
+    pesando.value = false
   }
 }
 
@@ -185,6 +220,50 @@ async function quitarFoto() {
       </div>
     </dialog>
 
+    <!-- Cuánto queda y el mando para corregirlo. El número primero, que es a
+         lo que se entra; la báscula debajo, que se usa de uvas a peras. -->
+    <section class="tarjeta">
+      <h2>{{ $t('bolsa.lo_que_queda') }}</h2>
+
+      <p v-if="quedan !== null" class="gramos">
+        {{ original.peso_g
+          ? $t('bolsas.quedan', { restante: quedan, peso: original.peso_g })
+          : $t('bolsas.quedan_sueltos', { restante: quedan }) }}
+      </p>
+      <p v-else class="meta">{{ $t('bolsa.sin_contador') }}</p>
+
+      <p class="meta">
+        {{ original.restante_en
+          ? $t('bolsa.desde_el_pesaje', { fecha: original.restante_en.slice(0, 10) })
+          : $t('bolsa.desde_las_dosis') }}
+      </p>
+
+      <label class="bascula">
+        {{ $t('bolsa.bascula') }}
+        <input v-model="bascula" type="number" min="0" step="1" inputmode="numeric">
+      </label>
+
+      <div class="acciones">
+        <button type="button" :disabled="pesando || bascula === ''" @click="pesar(Number(bascula))">
+          {{ pesando ? $t('comun.guardando') : $t('bolsa.pesar') }}
+        </button>
+        <!-- Quitar el pesaje no borra nada medido: devuelve el contador a
+             restar las dosis del peso, que es de donde venía. -->
+        <button
+          v-if="original.restante_g !== null"
+          type="button"
+          class="secundario"
+          :disabled="pesando"
+          @click="pesar(null)"
+        >
+          {{ $t('bolsa.quitar_pesaje') }}
+        </button>
+      </div>
+
+      <p v-for="a in avisosPesaje" :key="a" class="aviso">⚠ {{ a }}</p>
+      <p v-if="erroresPesaje.length" class="fallo">{{ erroresPesaje.join(' · ') }}</p>
+    </section>
+
     <form @submit.prevent="enviar">
       <i18n-t keypath="bolsa.id_fijo" tag="p" class="meta" scope="global">
         <template #id><code>{{ original.id }}</code></template>
@@ -251,6 +330,13 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .botones-foto { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
 .botones-foto button { margin-top: 0; }
+
+/* El número, a lo grande: es a lo que se entra en la ficha de una bolsa. */
+.gramos { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.bascula { display: block; margin-top: 0.75rem; }
+.acciones { display: flex; gap: 0.5rem; }
+.acciones button { margin-top: 0; }
+.aviso { font-size: 0.85rem; margin: 0.6rem 0 0; }
 .sin-foto { margin: 0; }
 .encogida { margin: 0.5rem 0 0; }
 

@@ -248,6 +248,37 @@ describe("la paridad del reenvío", () => {
     assert.equal(extServidor.siguiente_ajuste, extLocal.siguiente_ajuste);
   });
 
+  it("el pesaje sube con su sello, y los dos lados descuentan desde el mismo instante", async () => {
+    const local = cajon();
+    const servidor = almacenEnMemoria();
+
+    const bolsa = await crearCafe(local, { nombre: "Gary", peso_g: 340 });
+    const pesada = await editarCafe(local, bolsa.datos.cafe.id, { restante_g: 120 });
+
+    /*
+     * El cuerpo que compone `useApi`: los cambios más el sello que el núcleo
+     * acaba de poner aquí. Si el PATCH viajara pelado, el servidor sellaría
+     * con su reloj al recibir la cola —días después, con tazas de por medio—
+     * y cada lado restaría un juego distinto de extracciones.
+     */
+    const cola = [
+      { metodo: "POST", camino: "/api/cafes", cuerpo: cuerpoDeCafe(bolsa.datos.cafe) },
+      {
+        metodo: "PATCH",
+        camino: `/api/cafes/${bolsa.datos.cafe.id}`,
+        cuerpo: { restante_g: 120, restante_en: pesada.datos.cafe.restante_en },
+      },
+    ];
+    for (const e of cola) await local.cola.poner({ id: uuidv7(), error: null, ...e });
+    const r = await drenar(local, servidorFalso(servidor));
+    assert.deepEqual(r, { subidas: 2, quedan: 0, red: false });
+
+    const [cafeLocal] = await local.cafes.listar();
+    const [cafeServidor] = await servidor.cafes.listar();
+    assert.equal(cafeServidor.restante_g, 120);
+    assert.equal(cafeServidor.restante_en, cafeLocal.restante_en);
+  });
+
   it("reenviar un alta ya aplicado no duplica: el 409 se da por hecho", async () => {
     const local = cajon();
     const servidor = almacenEnMemoria();

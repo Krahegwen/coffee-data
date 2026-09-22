@@ -29,8 +29,8 @@ import {
 } from "./sugerencias.js";
 import { textos } from "./textos.js";
 import {
-  CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, validarCafe,
-  validarCambiosExtraccion, validarExtraccion, validarReceta,
+  CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, pesajeSobreLaBolsa,
+  validarCafe, validarCambiosExtraccion, validarExtraccion, validarReceta,
 } from "./validacion.js";
 
 /*
@@ -93,6 +93,22 @@ export async function listaCafes(almacen) {
   return respuesta(200, filas);
 }
 
+/**
+ * Pesar es escribir dos columnas: los gramos y el instante en que se midieron.
+ * El sello viene puesto cuando lo reenvía la cola de salida —el mismo que ya
+ * cuenta en local, o los dos lados descontarían tazas distintas— y si no, se
+ * pone aquí. Borrar el pesaje borra las dos: un sello suelto sería un punto de
+ * partida sin gramos, y la base se niega igual.
+ *
+ * `undefined` es «no lo toques», que es lo que manda un PATCH de cualquier
+ * otro campo.
+ */
+function selloDelPesaje(valores) {
+  if (valores.restante_g === undefined) return undefined;
+  if (valores.restante_g === null) return null;
+  return valores.restante_en ?? ahoraSQL();
+}
+
 export async function crearCafe(almacen, cuerpo, { t = CASTELLANO } = {}) {
   const { valores, errores } = validarCafe(cuerpo, { nuevo: true, t });
   if (errores.length) return respuesta(422, { errores });
@@ -109,9 +125,10 @@ export async function crearCafe(almacen, cuerpo, { t = CASTELLANO } = {}) {
   valores.creado_en = valores.creado_en ?? ahoraSQL();
   valores.actualizado_en = valores.creado_en;
   valores.foto = null;
+  valores.restante_en = selloDelPesaje(valores) ?? null;
 
   const fila = {};
-  for (const campo of ["id", "slug", ...CAMPOS_CAFE, "foto", "creado_en", "actualizado_en"]) {
+  for (const campo of ["id", "slug", ...CAMPOS_CAFE, "restante_en", "foto", "creado_en", "actualizado_en"]) {
     fila[campo] = valores[campo] ?? null;
   }
 
@@ -121,7 +138,8 @@ export async function crearCafe(almacen, cuerpo, { t = CASTELLANO } = {}) {
     return respuesta(422, { errores: [t("base_rechaza_bolsa", { error: error.message })] });
   }
   const cafe = porRef(await almacen.cafes.listar(), fila.id);
-  return respuesta(201, { cafe });
+  const excedido = pesajeSobreLaBolsa(cafe.restante_g, cafe.peso_g, t);
+  return respuesta(201, { cafe, avisos: excedido ? [excedido] : [] });
 }
 
 export async function editarCafe(almacen, ref, cuerpo, { t = CASTELLANO } = {}) {
@@ -134,6 +152,8 @@ export async function editarCafe(almacen, ref, cuerpo, { t = CASTELLANO } = {}) 
   const columnas = CAMPOS_CAFE.filter((c) => valores[c] !== undefined);
   const cambios = {};
   for (const campo of columnas) cambios[campo] = valores[campo];
+  const sello = selloDelPesaje(valores);
+  if (sello !== undefined) cambios.restante_en = sello;
   cambios.actualizado_en = ahoraSQL();
 
   try {
@@ -142,7 +162,18 @@ export async function editarCafe(almacen, ref, cuerpo, { t = CASTELLANO } = {}) 
     return respuesta(422, { errores: [t("base_rechaza_cambio", { error: error.message })] });
   }
   const actualizado = porRef(await almacen.cafes.listar(), cafe.id);
-  return respuesta(200, { cafe: actualizado, cambiado: columnas });
+
+  /*
+   * El peso contra el que se compara el pesaje es el de después del PATCH:
+   * quien corrige los dos a la vez —la bolsa traía 250 y no 200, y quedan
+   * 180— está arreglando justo lo que el aviso mira.
+   */
+  const excedido = pesajeSobreLaBolsa(actualizado.restante_g, actualizado.peso_g, t);
+  return respuesta(200, {
+    cafe: actualizado,
+    cambiado: columnas,
+    avisos: excedido ? [excedido] : [],
+  });
 }
 
 // --- recetas -----------------------------------------------------------------

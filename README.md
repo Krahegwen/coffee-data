@@ -297,7 +297,9 @@ contrato:
 
 `id` (uuid) · `slug` · `nombre` · `tostador` · `origen` · `region` ·
 `variedad` · `proceso` · `altitud_m` · `sca` · `fecha_tueste` (AAAA-MM-DD) ·
-`consumir_antes` · `fecha_apertura` · `peso_g` · `precio_eur` ·
+`consumir_antes` · `fecha_apertura` · `peso_g` · `restante_g` ·
+`restante_en` (el pesaje: lo que marcó la báscula y cuándo, los dos o
+ninguno) · `precio_eur` ·
 `notas_tostador` · `estado` (`abierto` | `terminado` | `pendiente`) ·
 `foto` (clave del objeto en R2; la mantiene
 el endpoint de subida, no entra por JSON) · `url` · `conservacion` ·
@@ -674,6 +676,44 @@ D1 no dejó:
 
 Dos columnas nulas y congeladas no molestan a nadie. Rehacer a martillazos la
 tabla que cuelga de cada extracción, sí.
+
+## Cuánto queda en la bolsa
+
+El contador sale de restar al `peso_g` las dosis de las extracciones
+registradas, y por eso es optimista: cuenta lo que pasó por la bitácora, no lo
+que pasó por el molinillo. La mañana que no apuntas, el café que le das a un
+amigo y —sobre todo— la bolsa **anterior a la app** dejan el número alto para
+siempre.
+
+El arreglo no es adivinar lo que falta, es **pesar**: `restante_g` son los
+gramos que marcó la báscula y `restante_en` el instante en que los marcó. Con
+los dos puestos el contador arranca de ahí y descuenta solo lo registrado
+**después** del sello; sin ellos se comporta como siempre. La cuenta vive en
+`nucleo/src/restante.js`, así que sale igual en la lista de bolsas, en la ficha
+y en lo que venga después.
+
+```bash
+curl -X PATCH https://brew.krahegwen.com/api/cafes/gary -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"restante_g":120}'
+```
+
+Tres cosas que se decidieron y están fijadas en tests:
+
+- **El sello no se teclea.** Si no mandas `restante_en`, lo pone quien escribe.
+  Se acepta puesto —con formato de sello de SQLite— porque la cola de salida
+  reenvía el que ya cuenta en local: si lo pusiera el servidor al recibir la
+  cola tres días después, cada lado restaría un juego distinto de tazas.
+- **Van los dos o no va ninguno**, y lo dice un `CHECK`. Unos gramos sin
+  instante serían un punto de partida sin fecha, y el contador no sabría desde
+  cuándo descontar. `{"restante_g":null}` borra el pesaje entero y devuelve el
+  contador a restar del peso.
+- **Pesar más de lo que traía la bolsa avisa, pero se guarda.** La báscula
+  suele tener razón; el que falla es el peso declarado. El aviso dice cuál de
+  los dos números mirar y no bloquea la medida.
+
+Un pesaje no corrige el pasado —no dice cuántas tazas faltaban ni cuándo se
+tomaron—, lo deja atrás. Es lo único que se puede saber de verdad, y por eso
+las extracciones anteriores al sello se quedan como están.
 
 ## Otra bolsa del mismo café
 

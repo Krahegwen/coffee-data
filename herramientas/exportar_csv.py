@@ -28,8 +28,8 @@ EXPORTS = [
     ("cafes.csv", "/api/cafes", [
         "id", "slug", "nombre", "tostador", "origen", "region", "variedad",
         "proceso", "altitud_m", "sca", "fecha_tueste", "consumir_antes",
-        "fecha_apertura", "peso_g", "precio_eur", "notas_tostador", "estado",
-        "foto", "url", "conservacion", "creado_en",
+        "fecha_apertura", "peso_g", "restante_g", "restante_en", "precio_eur",
+        "notas_tostador", "estado", "foto", "url", "conservacion", "creado_en",
     ], lambda f: f["slug"]),
 ]
 

@@ -62,6 +62,15 @@ const es = {
     "drawdown_s ({goteo} s) no puede llegar al tiempo total ({total}): " +
     "el goteo se cuenta desde el final del último vertido, así que va por dentro",
 
+  // --- validación y avisos: el pesaje de la bolsa
+  restante_en_invalido:
+    "restante_en inválido, se espera AAAA-MM-DD HH:MM:SS: {valor}",
+  pesaje_sin_gramos:
+    "restante_en no va solo: un pesaje son los gramos y cuándo se midieron",
+  pesaje_sobre_la_bolsa:
+    "el pesaje ({restante} g) pasa del peso de la bolsa ({peso} g): " +
+    "se guarda igual, pero uno de los dos números está mal",
+
   // --- validación: recetas y pasos
   receta_sin_pasos: "una receta necesita al menos un paso",
   receta_sin_vertidos:
@@ -211,6 +220,14 @@ const en = {
   goteo_imposible:
     "drawdown_s ({goteo} s) cannot reach the total time ({total}): drawdown is counted " +
     "from the end of the last pour, so it runs inside it",
+
+  restante_en_invalido:
+    "invalid restante_en, expected YYYY-MM-DD HH:MM:SS: {valor}",
+  pesaje_sin_gramos:
+    "restante_en does not travel alone: a weigh-in is the grams and when they were measured",
+  pesaje_sobre_la_bolsa:
+    "the weigh-in ({restante} g) is more than the bag held ({peso} g): " +
+    "it is saved anyway, but one of the two numbers is wrong",
 
   receta_sin_pasos: "a recipe needs at least one step",
   receta_sin_vertidos: "the recipe has no pour: the timer would have nothing to guide",

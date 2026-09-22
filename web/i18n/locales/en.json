@@ -88,7 +88,9 @@
     "titulo": "Bags",
     "vacio": "You have no bags yet. Every coffee that comes into the house is a bag —with its roast date and its own clocks— and every brew is logged against one: start the first with “New”.",
     "quedan": "~{restante} g left of {peso}",
-    "nota_restante": "The grams left come from subtracting the doses you {registradas}. If you brew without writing it down, they overestimate what is left.",
+    "quedan_sueltos": "~{restante} g left",
+    "pesada": "weighed on {fecha}",
+    "nota_restante": "The grams left come from subtracting the doses you {registradas}. If you brew without writing it down, they overestimate what is left: weigh the bag from its page and the count starts there.",
     "foto_alt": "Bag of {nombre}",
     "nota_restante_enfasis": "actually logged"
   },
@@ -278,7 +280,14 @@
     "quitar_foto_ojo": "This one is deleted for good, there is no bin: if you want it back you will have to upload it again from your phone.",
     "id_fijo": "id {id} — cannot be changed: it is the key the brews point at.",
     "guardar_cambios": "Save changes",
-    "cambiado": "Changed: {lista}"
+    "cambiado": "Changed: {lista}",
+    "lo_que_queda": "What is left",
+    "sin_contador": "With no bag weight and no weigh-in there are no grams to count: fill in the weight below, or weigh what is left.",
+    "desde_el_pesaje": "Weighed on {fecha}: since then it only subtracts what you log.",
+    "desde_las_dosis": "It subtracts the logged doses from the bag weight, so it runs high if you do not always log.",
+    "bascula": "What the scale says (g)",
+    "pesar": "Weigh",
+    "quitar_pesaje": "Remove the weigh-in"
   },
   "receta": {
     "copia_de": "Copy of {nombre}",
