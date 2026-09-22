@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { restanteDe } from '@coffee/nucleo/restante'
+import type { Cafe } from '~/composables/useApi'
+
 const { t } = useI18n()
 useHead({ title: () => t('bolsas.titulo') })
 
@@ -14,14 +17,12 @@ const porEstado = computed(() => {
   )
 })
 
-/** Solo cuenta lo registrado, así que se queda corto si no apuntas siempre. */
-function restante(cafeId: string, pesoG: number | null) {
-  if (!pesoG) return null
-  const usado = (historial.value ?? [])
-    .filter((e) => e.cafe_id === cafeId)
-    .reduce((total, e) => total + (e.dosis_g ?? 0), 0)
-  return Math.max(0, Math.round(pesoG - usado))
-}
+/**
+ * La cuenta la hace el núcleo: sale igual aquí, en la ficha y en cualquier
+ * sitio que venga después. Sin pesaje cuenta solo lo registrado y se queda
+ * largo si no apuntas siempre; con él, arranca de la báscula.
+ */
+const restante = (cafe: Cafe) => restanteDe(cafe, historial.value ?? [])
 </script>
 
 <template>
@@ -52,8 +53,13 @@ function restante(cafeId: string, pesoG: number | null) {
           · {{ $t('comun.dias_tueste_corto', { n: diasDesdeTueste(cafe.fecha_tueste) }) }}
         </span>
       </p>
-      <p v-if="restante(cafe.id, cafe.peso_g) !== null" class="meta">
-        {{ $t('bolsas.quedan', { restante: restante(cafe.id, cafe.peso_g), peso: cafe.peso_g }) }}
+      <!-- Sin peso de bolsa no hay «de 250»: una bolsa pesada y sin peso
+           declarado tiene restante, pero no tiene de dónde venir. -->
+      <p v-if="restante(cafe) !== null" class="meta">
+        {{ cafe.peso_g
+          ? $t('bolsas.quedan', { restante: restante(cafe), peso: cafe.peso_g })
+          : $t('bolsas.quedan_sueltos', { restante: restante(cafe) }) }}
+        <span v-if="cafe.restante_en"> · {{ $t('bolsas.pesada', { fecha: cafe.restante_en.slice(0, 10) }) }}</span>
       </p>
     </div>
   </NuxtLinkLocale>

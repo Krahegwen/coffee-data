@@ -38,6 +38,9 @@ export interface Cafe {
   fecha_tueste: string | null
   consumir_antes: string | null
   peso_g: number | null
+  /** Lo que marcó la báscula, y cuándo. Los dos o ninguno: es un pesaje. */
+  restante_g: number | null
+  restante_en: string | null
   precio_eur: number | null
   notas_tostador: string | null
   estado: (typeof ESTADOS)[number]
@@ -326,10 +329,21 @@ export function useApi() {
     return r
   }
 
-  /** Corrige una ficha. Solo se manda lo que cambia. */
+  /**
+   * Corrige una ficha. Solo se manda lo que cambia, con una excepción: el
+   * pesaje viaja con el sello que le puso el núcleo al escribirlo aquí. Es el
+   * instante que ya está descontando tazas en local, y si el servidor pusiera
+   * el suyo al recibir la cola —tres días después, con tres tazas de por
+   * medio— los dos lados contarían distinto para siempre.
+   */
   const editarCafe = async (id: string, cambios: Record<string, unknown>) => {
-    const r = await local<{ cafe: Cafe; cambiado: string[] }>((a) => nucleo.editarCafe(a, id, cambios, idioma()))
-    await subir({ metodo: 'PATCH', camino: `/api/cafes/${r.cafe.id}`, cuerpo: cambios })
+    const r = await local<{ cafe: Cafe; cambiado: string[]; avisos: string[] }>(
+      (a) => nucleo.editarCafe(a, id, cambios, idioma()),
+    )
+    const cuerpo = 'restante_g' in cambios
+      ? { ...cambios, restante_en: r.cafe.restante_en }
+      : cambios
+    await subir({ metodo: 'PATCH', camino: `/api/cafes/${r.cafe.id}`, cuerpo })
     return r
   }
 

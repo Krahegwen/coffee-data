@@ -148,6 +148,17 @@ tirar una tabla que cuelga de cada extracción apunta violaciones aplazadas que
 ya no se cancelan. Está contado en el README; **no lo vuelvas a intentar** sin
 una idea nueva.
 
+**Lo que queda en la bolsa se pesa, no se adivina.** El contador resta las
+dosis registradas al `peso_g`, así que se queda largo con todo lo que no pasó
+por la app —la bolsa anterior a la bitácora, la taza que no apuntaste—. Se
+corrige mandando `restante_g` con lo que marque la báscula: el sello
+(`restante_en`) lo pone quien escribe, y desde ahí se descuenta solo lo
+registrado después. Van los dos o ninguno —`{"restante_g":null}` quita el
+pesaje y el contador vuelve a restar del peso—, y si el pesaje pasa del peso
+declarado la respuesta trae un aviso pero se guarda igual: ahí lo que falla
+suele ser el peso. La cuenta es de `nucleo/src/restante.js`, que es de donde
+la saca también la app.
+
 Una fila es **una bolsa**, no un café: el tueste es lo que hace la taza, y dos
 bolsas con el mismo `cafe_id` harían que el motor emparejase extracciones de
 lotes distintos. La app duplica la ficha desde la bolsa vieja («Otra bolsa») y

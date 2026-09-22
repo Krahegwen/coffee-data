@@ -88,7 +88,9 @@
     "titulo": "Bolsas",
     "vacio": "No tienes ninguna bolsa registrada. Cada café que entra en casa es una bolsa —con su tueste y sus fechas— y toda extracción se apunta a la suya: estrena la primera con «Nueva».",
     "quedan": "quedan ~{restante} g de {peso}",
-    "nota_restante": "Los gramos restantes salen de restar las dosis {registradas}. Si preparas café sin apuntarlo, sobreestiman lo que queda.",
+    "quedan_sueltos": "quedan ~{restante} g",
+    "pesada": "pesada el {fecha}",
+    "nota_restante": "Los gramos restantes salen de restar las dosis {registradas}. Si preparas café sin apuntarlo, sobreestiman lo que queda: pesa la bolsa desde su ficha y el contador arranca de ahí.",
     "foto_alt": "Bolsa de {nombre}",
     "nota_restante_enfasis": "registradas"
   },
@@ -278,7 +280,14 @@
     "quitar_foto_ojo": "Esta sí se borra del todo, no hay papelera: si la quieres de vuelta tendrás que subirla otra vez desde el móvil.",
     "id_fijo": "id {id} — no se puede cambiar: es la clave a la que apuntan las extracciones.",
     "guardar_cambios": "Guardar cambios",
-    "cambiado": "Cambiado: {lista}"
+    "cambiado": "Cambiado: {lista}",
+    "lo_que_queda": "Lo que queda",
+    "sin_contador": "Sin peso de bolsa y sin pesaje no hay gramos que contar: rellena el peso ahí abajo, o pesa lo que queda.",
+    "desde_el_pesaje": "Pesada el {fecha}: desde entonces solo descuenta lo que registres.",
+    "desde_las_dosis": "Sale de restar las dosis registradas al peso de la bolsa, así que se queda largo si no apuntas siempre.",
+    "bascula": "Lo que marca la báscula (g)",
+    "pesar": "Pesar",
+    "quitar_pesaje": "Quitar el pesaje"
   },
   "receta": {
     "copia_de": "Copia de {nombre}",

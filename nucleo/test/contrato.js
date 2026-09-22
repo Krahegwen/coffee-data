@@ -84,6 +84,66 @@ export function contratoDelAlmacen(titulo, fabrica) {
         const { datos } = await listaCafes(almacen);
         assert.deepEqual(datos.map((c) => c.slug), ["gary", "abbie"]);
       });
+
+      describe("pesar la bolsa", () => {
+        const SELLO = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+        it("los gramos llegan solos y el sello lo pone el servidor", async () => {
+          const { estado, datos } = await editarCafe(almacen, "gary", { restante_g: 120 });
+          assert.equal(estado, 200);
+          assert.deepEqual(datos.cambiado, ["restante_g"]);
+          assert.equal(datos.cafe.restante_g, 120);
+          assert.match(datos.cafe.restante_en, SELLO);
+        });
+
+        it("pero si viene puesto se respeta: es el que ya cuenta en local", async () => {
+          const { datos } = await editarCafe(almacen, "gary", {
+            restante_g: 120, restante_en: "2026-09-10 09:00:00",
+          });
+          assert.equal(datos.cafe.restante_en, "2026-09-10 09:00:00");
+        });
+
+        it("quitar el pesaje se lleva los dos por delante", async () => {
+          await editarCafe(almacen, "gary", { restante_g: 120 });
+          const { datos } = await editarCafe(almacen, "gary", { restante_g: null });
+          assert.equal(datos.cafe.restante_g, null);
+          assert.equal(datos.cafe.restante_en, null);
+        });
+
+        it("el sello sin gramos es 422: un pesaje son las dos cosas", async () => {
+          const { estado, datos } = await editarCafe(almacen, "gary", {
+            restante_en: "2026-09-10 09:00:00",
+          });
+          assert.equal(estado, 422);
+          assert.match(datos.errores[0], /restante_en no va solo/);
+        });
+
+        it("y un sello con mala pinta tampoco entra", async () => {
+          const { estado } = await editarCafe(almacen, "gary", {
+            restante_g: 120, restante_en: "el martes",
+          });
+          assert.equal(estado, 422);
+        });
+
+        it("los gramos negativos se rechazan; el cero no, que es la bolsa vacía", async () => {
+          assert.equal((await editarCafe(almacen, "gary", { restante_g: -1 })).estado, 422);
+          const { estado, datos } = await editarCafe(almacen, "gary", { restante_g: 0 });
+          assert.equal(estado, 200);
+          assert.equal(datos.cafe.restante_g, 0);
+        });
+
+        it("pesar más de lo que traía la bolsa avisa, pero se guarda", async () => {
+          const { estado, datos } = await editarCafe(almacen, "gary", { restante_g: 400 });
+          assert.equal(estado, 200);
+          assert.equal(datos.cafe.restante_g, 400);
+          assert.match(datos.avisos[0], /pasa del peso de la bolsa/);
+        });
+
+        it("y sin pasarse no avisa de nada", async () => {
+          const { datos } = await editarCafe(almacen, "gary", { restante_g: 100 });
+          assert.deepEqual(datos.avisos, []);
+        });
+      });
     });
 
     describe("recetas por el puerto", () => {

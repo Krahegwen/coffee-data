@@ -5,7 +5,9 @@
 const { t } = useI18n()
 useHead({ title: () => t('app.nombre') })
 
+import { restanteDe } from '@coffee/nucleo/restante'
 import { avisoRespaldo } from '~/almacen/respaldo'
+import type { Cafe } from '~/composables/useApi'
 const { fechaCorta, nombreCafe } = useTextos()
 
 const { cafes, extracciones } = useApi()
@@ -39,17 +41,12 @@ const copiaVieja = computed(() =>
     }),
 )
 
-/** Café molido gastado por bolsa, para saber cuánto queda. */
-function consumido(cafeId: string) {
-  return (historial.value ?? [])
-    .filter((e) => e.cafe_id === cafeId)
-    .reduce((total, e) => total + (e.dosis_g ?? 0), 0)
-}
-
-function restante(cafeId: string, pesoG: number | null) {
-  if (!pesoG) return null
-  return Math.max(0, Math.round(pesoG - consumido(cafeId)))
-}
+/**
+ * Cuánto queda en cada bolsa. La cuenta es del núcleo y no de aquí: la misma
+ * bolsa no puede decir 250 en la portada y 120 en su ficha porque una de las
+ * dos pantallas no sepa que se pesó.
+ */
+const restante = (cafe: Cafe) => restanteDe(cafe, historial.value ?? [])
 
 const puedeInstalar = usePuedeInstalar()
 const yaInstalada = useYaInstalada()
@@ -161,8 +158,8 @@ async function instalar() {
           <span v-if="cafe.proceso"> · {{ cafe.proceso }}</span>
         </p>
         <p class="meta">
-          <span v-if="restante(cafe.id, cafe.peso_g) !== null">
-            {{ $t('portada.quedan', { n: restante(cafe.id, cafe.peso_g) }) }}
+          <span v-if="restante(cafe) !== null">
+            {{ $t('portada.quedan', { n: restante(cafe) }) }}
           </span>
           <span v-if="cafe.conservacion"> · {{ cafe.conservacion }}</span>
         </p>

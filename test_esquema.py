@@ -540,6 +540,53 @@ def test_la_sca_tiene_que_ser_puntuacion(db):
         )
 
 
+# --- el pesaje de la bolsa ---------------------------------------------------
+
+def test_el_pesaje_son_los_gramos_y_el_instante(db):
+    db.execute(
+        "UPDATE cafes SET restante_g = 120, restante_en = '2026-09-22 09:30:00' "
+        "WHERE slug = 'gary'"
+    )
+    fila = db.execute(
+        "SELECT restante_g, restante_en FROM cafes WHERE slug = 'gary'"
+    ).fetchone()
+    assert fila == (120.0, "2026-09-22 09:30:00")
+
+
+@pytest.mark.parametrize("pesaje", [
+    "restante_g = 120",                                       # gramos sin instante
+    "restante_en = '2026-09-22 09:30:00'",                    # instante sin gramos
+    "restante_g = -1, restante_en = '2026-09-22 09:30:00'",   # de una bolsa no queda menos que nada
+    "restante_g = 120, restante_en = '2026-09-22'",           # un día no dice desde cuándo descontar
+    "restante_g = 120, restante_en = '2026-13-45 99:99:99'",  # ni un instante que no existe
+])
+def test_un_pesaje_a_medias_o_imposible_no_cuela(db, pesaje):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(f"UPDATE cafes SET {pesaje} WHERE slug = 'gary'")
+
+
+def test_la_bolsa_vacia_es_un_pesaje_legitimo(db):
+    """Cero gramos sí, al revés que `peso_g`: una bolsa de 0 g no existe, pero
+    una bolsa vacía es el final normal de todas."""
+    db.execute(
+        "UPDATE cafes SET restante_g = 0, restante_en = '2026-09-22 09:30:00' "
+        "WHERE slug = 'gary'"
+    )
+    assert db.execute(
+        "SELECT restante_g FROM cafes WHERE slug = 'gary'"
+    ).fetchone()[0] == 0
+
+
+def test_las_bolsas_de_la_semilla_nacen_sin_pesar(db):
+    """La migración no inventa pesajes: sin báscula, el contador sigue siendo
+    el peso menos las dosis, que es como se comportaba antes."""
+    sin_pesar = db.execute(
+        "SELECT count(*) FROM cafes WHERE restante_g IS NULL AND restante_en IS NULL"
+    ).fetchone()[0]
+    total = db.execute("SELECT count(*) FROM cafes").fetchone()[0]
+    assert sin_pesar == total
+
+
 # --- marcas de tiempo --------------------------------------------------------
 
 def test_actualizado_en_se_mueve_al_editar(db):
