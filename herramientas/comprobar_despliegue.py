@@ -22,10 +22,13 @@ lleva. Si algún día hace falta desplegar de verdad saltándose esto —una vue
 atrás con GitHub caído—, ahí está `pnpm run deploy:api`, que hace justo eso
 y obliga a teclearlo a conciencia.
 """
+import os
 import subprocess
 import sys
+from pathlib import Path
 
 RAMA_DE_PRODUCCION = "main"
+VARIABLE_ANALITICA = "NUXT_PUBLIC_ANALYTICS_TOKEN"
 
 
 def git(*argumentos):
@@ -98,7 +101,30 @@ def main():
         )
 
     print(f"despliegue: {RAMA_DE_PRODUCCION} limpia y al día con origin.")
+    avisar_sin_analitica()
     return 0
+
+
+def avisar_sin_analitica():
+    """Avisa, sin cortar, si el build va a salir sin el beacon de analítica.
+
+    El token se hornea al compilar desde `web/.env`, y sin él el despliegue sale
+    bien y sencillamente no mide, sin un error en ninguna parte. No corta porque
+    la app funciona igual: lo que se pierde son las visitas de ese despliegue.
+    """
+    if os.environ.get(VARIABLE_ANALITICA):
+        return
+    env = Path(__file__).resolve().parent.parent / "web" / ".env"
+    if env.exists():
+        for linea in env.read_text(encoding="utf-8").splitlines():
+            clave, _, valor = linea.partition("=")
+            if clave.strip() == VARIABLE_ANALITICA and valor.strip():
+                return
+    print(
+        f"aviso: sin {VARIABLE_ANALITICA} en web/.env, este despliegue no "
+        "llevará analítica",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":

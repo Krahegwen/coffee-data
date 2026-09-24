@@ -157,6 +157,27 @@ La imagen es `web/public/og.png`, 1200×630, impresa de
 plantilla lleva el comando. Queda fuera de `globPatterns` de workbox: se la
 bajan los servidores de WhatsApp o Discord, no la app.
 
+### La analítica
+
+Cloudflare Web Analytics, para saber si alguien más que su autor abre la app.
+No pone cookies ni identificador persistente: cuenta visitas y rutas, y no ve
+nada de la bitácora.
+
+El beacon va en `app.head` de `web/nuxt.config.ts` y su token **se hornea al
+compilar**, desde `web/.env` (ignorado por git):
+
+```
+NUXT_PUBLIC_ANALYTICS_TOKEN=el_token_que_da_cloudflare
+```
+
+Una variable del Worker no haría nada: el HTML es estático y lo sirve Static
+Assets sin pasar por el script. Por lo mismo, en el panel el sitio se da de
+alta con **«Habilitar con la instalación del snippet JS»** y no con la
+inyección automática, que necesita un origen tras el proxy y aquí no lo hay.
+Sin token el build sale sin beacon —en local no se mide— y
+`comprobar_despliegue.py` avisa antes de desplegar, sin cortar: la app funciona
+igual, pero ese despliegue no mediría.
+
 ### Castellano e inglés
 
 El idioma de partida es el del dispositivo, y se cambia desde el pie. Las URLs
