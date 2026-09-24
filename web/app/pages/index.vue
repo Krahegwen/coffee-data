@@ -115,6 +115,10 @@ async function instalar() {
     <p v-if="comoInstalar" class="ayuda">{{ $t('portada.como_instalar') }}</p>
   </section>
 
+  <!-- Provisional: la prueba del crono en la pantalla de bloqueo, aquí para
+       que quien la pruebe en su móvil no tenga que pasar por el crono. -->
+  <PruebaBloqueo />
+
   <!-- El recordatorio del respaldo, cuando hay historial en juego y hace
        demasiado del último. Discreto pero visible: en local nadie más guarda
        esto. -->
@@ -331,7 +335,7 @@ h2 {
 }
 
 /* El del respaldo llega después de las acciones: el hueco lo pone él. */
-.acciones + .aviso, .instalacion + .aviso { margin-top: 1rem; }
+.acciones + .aviso, .instalacion + .aviso, .prueba + .aviso { margin-top: 1rem; }
 
 .aviso a { color: var(--acento); }
 
