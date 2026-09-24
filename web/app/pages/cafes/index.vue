@@ -26,7 +26,7 @@ const restante = (cafe: Cafe) => restanteDe(cafe, historial.value ?? [])
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: $t('bolsas.titulo') }]" />
+  <Migas :ruta="[{ texto: $t('menu.titulo'), a: '/menu' }, { texto: $t('bolsas.titulo') }]" />
 
   <!-- Sin título: lo dice la última miga, y repetirlo aquí era leer «Bolsas»
        dos veces seguidas. -->

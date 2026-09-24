@@ -15,7 +15,7 @@ function reparto(pasos: { accion: string; agua_g: number }[]) {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: $t('recetas.titulo') }]" />
+  <Migas :ruta="[{ texto: $t('menu.titulo'), a: '/menu' }, { texto: $t('recetas.titulo') }]" />
 
   <!-- Sin título: lo dice la última miga. -->
   <div class="cabecera">

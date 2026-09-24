@@ -2,9 +2,7 @@
   "app": {
     "nombre": "Coffee log",
     "cargando": "One moment…",
-    "recetas": "Recipes",
     "respaldo": "Backup",
-    "ajustes": "Settings",
     "kofi": "Buy me a coffee",
     "licencia": "© 2026 Krahegwen · MIT ·",
     "en_el_servidor": " · on the server",
@@ -83,6 +81,12 @@
     "abierto": "open",
     "terminado": "finished",
     "pendiente": "pending"
+  },
+  "menu": {
+    "titulo": "Menu",
+    "ajustes_pista": "How the timer cues you, and the app colours.",
+    "recetas_pista": "The steps the timer walks you through and how the water is split.",
+    "bolsas_pista": "Every coffee that comes into the house: roast, freshness and what is left."
   },
   "bolsas": {
     "titulo": "Bags",

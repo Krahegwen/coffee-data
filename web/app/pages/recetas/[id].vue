@@ -171,6 +171,7 @@ async function borrar() {
 <template>
   <Migas
     :ruta="[
+      { texto: $t('menu.titulo'), a: '/menu' },
       { texto: $t('recetas.titulo'), a: '/recetas' },
       {
         texto: esNueva
