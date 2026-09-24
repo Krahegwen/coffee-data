@@ -146,6 +146,32 @@ export default defineNuxtConfig({
         { rel: 'icon', type: 'image/png', href: '/favicon.png' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
       ],
+      /*
+       * Cloudflare Web Analytics, para saber si alguien más que su autor abre
+       * la app. Sin cookies ni identificador persistente: cuenta visitas y
+       * rutas, no personas, y no ve nada de la bitácora.
+       *
+       * El token se lee de `process.env` **al compilar** —del `web/.env`,
+       * ignorado por git— porque el HTML es estático y el Worker no lo toca:
+       * una variable suya no haría nada. Y va aquí y no en un `useHead`, igual
+       * que el título, para que entre en el HTML generado de todas las rutas.
+       * Sin token no se inyecta nada: en local no se mide.
+       *
+       * `spa: true` porque aquí la navegación no recarga la página, y sin él
+       * contaría una visita a la portada por sesión y ni una ruta más.
+       */
+      script: [
+        ...(process.env.NUXT_PUBLIC_ANALYTICS_TOKEN
+          ? [{
+              src: 'https://static.cloudflareinsights.com/beacon.min.js',
+              defer: true,
+              'data-cf-beacon': JSON.stringify({
+                token: process.env.NUXT_PUBLIC_ANALYTICS_TOKEN,
+                spa: true,
+              }),
+            }]
+          : []),
+      ],
     },
   },
 
