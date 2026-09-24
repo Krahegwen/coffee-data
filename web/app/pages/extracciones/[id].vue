@@ -5,7 +5,7 @@ const localePath = useLocalePath()
 
 import { TIPOS_ACCESORIO } from '~/composables/useApi'
 import type { Extraccion } from '~/composables/useApi'
-import { textoDeVariables } from '@coffee/nucleo/sugerencias'
+import { diferencias, textoDeVariables } from '@coffee/nucleo/sugerencias'
 import { defectosDe } from '@coffee/nucleo/validacion'
 const { t } = useI18n()
 const { VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
@@ -69,17 +69,24 @@ const cambiadas = ref<string[]>([])
  */
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: opcionesAccesorio(
-    equipo.value, 'dripper', form.dripper, original.value?.dripper, anterior.value?.dripper,
-  ),
-  molinillo: opcionesAccesorio(
-    equipo.value, 'molinillo', form.molinillo, original.value?.molinillo, anterior.value?.molinillo,
-  ),
+  ...Object.fromEntries(TIPOS_ACCESORIO.map((tipo) => [
+    tipo,
+    opcionesAccesorio(equipo.value, tipo, form[tipo], original.value?.[tipo], anterior.value?.[tipo]),
+  ])),
 }))
+
+/**
+ * Los desplegables de accesorios que salen: el dripper y el molinillo siempre,
+ * y los demás si hay alguno que ofrecer o la ficha ya tiene uno puesto.
+ */
+const SIEMPRE: readonly string[] = ['dripper', 'molinillo']
+const tiposVisibles = computed(() =>
+  TIPOS_ACCESORIO.filter((tipo) => SIEMPRE.includes(tipo) || opciones.value[tipo]!.length),
+)
 
 const EDITABLES = [
   'fecha', 'cafe_id', 'desde_id', 'dosis_g', 'agua_g', 'temp_c', 'clics',
-  'receta_id', 'reparto', 'dripper', 'molinillo', 'tiempo_total', 'drawdown_s', 'extraido_g',
+  'receta_id', 'reparto', ...TIPOS_ACCESORIO, 'tiempo_total', 'drawdown_s', 'extraido_g',
   'variable_cambiada', 'defecto', 'notas_cata', 'nota', 'siguiente_ajuste',
 ] as const
 
@@ -132,9 +139,10 @@ const derivadas = computed(() => {
   if (!anterior.value || !original.value) return []
   const antes = anterior.value as Record<string, unknown>
   const ahora = original.value as unknown as Record<string, unknown>
-  return Object.keys(VARIABLES.value).filter(
-    (c) => String(antes[c] ?? '') !== String(ahora[c] ?? ''),
-  )
+  // Con el criterio del núcleo, el mismo que escribe el servidor: un
+  // accesorio que no consta en la madre no es un cambio, y comparándolo aquí
+  // a mano la ficha se abría con una fila que el texto guardado no tenía.
+  return diferencias(antes, ahora, Object.keys(VARIABLES.value)).map((d) => d.variable)
 })
 
 // La tabla sale puesta al abrir la ficha, y sale de ahí. Sembrar una sola vez:
@@ -179,8 +187,9 @@ const compuesta = computed(() =>
     ? textoDeVariables(cambiadas.value, anterior.value, {
       ...form,
       receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
-      dripper_slug: (equipo.value ?? []).find((a) => a.id === form.dripper)?.slug ?? null,
-      molinillo_slug: (equipo.value ?? []).find((a) => a.id === form.molinillo)?.slug ?? null,
+      ...Object.fromEntries(TIPOS_ACCESORIO.map((tipo) => [
+        `${tipo}_slug`, (equipo.value ?? []).find((a) => a.id === form[tipo])?.slug ?? null,
+      ])),
     })
     : null,
 )
@@ -368,7 +377,7 @@ async function retirar() {
       <!-- Una ficha vieja puede no tener alguno: el hueco se ofrece solo si ya
            está vacía, que quitarle el dripper a una taza no es corregirla. -->
       <div class="pareja">
-        <label v-for="tipo in TIPOS_ACCESORIO" :key="tipo">
+        <label v-for="tipo in tiposVisibles" :key="tipo">
           {{ $t(`alta.${tipo}`) }}
           <select v-model="form[tipo]">
             <option v-if="!original?.[tipo]" value="">—</option>

@@ -368,7 +368,49 @@ def test_sin_accesorios_tambien_entra(db):
 
 def test_el_tipo_de_accesorio_es_una_lista_cerrada(db):
     with pytest.raises(sqlite3.IntegrityError):
-        insertar_accesorio(db, tipo="'hervidor'")
+        insertar_accesorio(db, tipo="'jarra'")
+
+
+@pytest.mark.parametrize("tipo", ["filtro", "bascula", "hervidor", "agua"])
+def test_los_tipos_de_la_0015_entran_y_cada_uno_va_en_su_columna(db, tipo):
+    """Un tipo nuevo tiene su columna, y no vale en la de otro."""
+    suyo = insertar_accesorio(db, tipo=f"'{tipo}'")
+    clave = insertar_extraccion(db, **{tipo: f"'{suyo}'"})
+    assert db.execute(
+        f"SELECT {tipo}_slug FROM v_extracciones WHERE id = ?", (clave,)
+    ).fetchone()[0] is not None
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, **{tipo: COMANDANTE})
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, dripper=f"'{suyo}'")
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(f"UPDATE extracciones SET {tipo} = {PLASTICO} WHERE id = {SEMILLA}")
+
+
+def test_la_0015_no_toca_ninguna_taza(tmp_path):
+    """
+    Cuatro ADD COLUMN y nada más: las filas de antes se quedan con los accesorios
+    nuevos en blanco —no consta con qué filtro se hicieron— y sin que el trigger
+    de `actualizado_en` las dé por corregidas.
+    """
+    nuevos = next(m for m in MIGRACIONES if m.name.startswith("0015_"))
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys = ON")
+    for migracion in MIGRACIONES:
+        if migracion.name >= nuevos.name:
+            break
+        db.executescript(migracion.read_text(encoding="utf-8"))
+    antes = db.execute("SELECT * FROM extracciones").fetchall()
+
+    db.executescript(nuevos.read_text(encoding="utf-8"))
+
+    filas = db.execute(
+        "SELECT filtro, bascula, hervidor, agua, actualizado_en FROM extracciones"
+    ).fetchall()
+    assert len(filas) == len(antes)
+    assert all(f == (None, None, None, None, None) for f in filas)
+    assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+    db.close()
 
 
 def test_un_accesorio_no_cambia_de_tipo(db):

@@ -29,14 +29,14 @@ pnpm run dev:web      # la app en :3000, con /api proxeado a :8787
 |---|---|
 | `GET /api/cafes` | Las bolsas |
 | `GET /api/recetas` | Recetas con sus pasos |
-| `GET /api/accesorios` | El catálogo de drippers y molinillos |
+| `GET /api/accesorios` | El catálogo: drippers, molinillos, filtros, básculas, hervidores y aguas |
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` derivados. `?cafe=gary` filtra, `?retiradas=1` es la papelera |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
 | `POST /api/cafes` | Da de alta una bolsa. Sin `id`, se deriva del nombre |
 | `POST /api/recetas` | Crea una receta con sus pasos |
 | `PUT /api/recetas/:id` | Guarda una receta. Los pasos **reemplazan** a los que había |
 | `DELETE /api/recetas/:id` | La borra con sus pasos. **Sin papelera**, y da 409 si alguna extracción la usa |
-| `POST /api/accesorios` | Da de alta un dripper o un molinillo |
+| `POST /api/accesorios` | Da de alta un accesorio de cualquiera de esos tipos |
 | `PATCH /api/accesorios/:id` | Lo corrige. Solo toca lo que mandes, y el tipo no se cambia |
 | `DELETE /api/accesorios/:id` | Lo borra. **Sin papelera**, y da 409 si alguna extracción lo usa: ésos se sacan de uso |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
@@ -324,7 +324,11 @@ mismos CSV y una fila sin su fecha de creación volvería con una inventada.
 `tiempo_total` · `extraido_g` · `variable_cambiada` · `defecto` ·
 `notas_cata` · `nota` (1-10) · `siguiente_ajuste` · `receta_id` ·
 `receta_slug` · `drawdown_s` · `dripper` · `dripper_slug` · `borrada_en` ·
-`desde_id`
+`desde_id` · `filtro` · `filtro_slug` · `bascula` · `bascula_slug` ·
+`hervidor` · `hervidor_slug` · `agua` · `agua_slug`
+
+Los cuatro accesorios de la 0015 van al final para que el diff del CSV no se
+moviera al añadirlos.
 
 Los slugs de café, receta y accesorios van además de los uuid porque el CSV lo
 lee un humano, y un humano no resuelve uuids de cabeza. `ratio`, `dias_tueste` y
@@ -337,7 +341,8 @@ ronda 2. Fuera de la horquilla no dice que la taza esté mala: dice que algo se
 midió mal, y una medida torcida invalida la comparación con las demás. Nunca
 puede pasar del agua; el servidor lo rechaza con 422.
 
-`dripper` y `molinillo`: la id de un accesorio del catálogo —ver «Los
+`dripper`, `molinillo`, `filtro`, `bascula`, `hervidor` y `agua` (qué agua;
+cuánta es `agua_g`): la id de un accesorio del catálogo —ver «Los
 accesorios», más abajo—. Entran en la detección de pares, así que cambiar de
 uno a otro es la variable de esa extracción. Un dripper con masa térmica,
 sin precalentar, da una temperatura de extracción más baja con el mismo
@@ -446,7 +451,8 @@ escalada, acumulado y si la lectura es fiable en cada paso.
 
 ## Esquema · `accesorios.csv`
 
-`id` (uuid) · `slug` · `tipo` (`dripper` | `molinillo`) · `nombre` ·
+`id` (uuid) · `slug` · `tipo` (`dripper` | `molinillo` | `filtro` |
+`bascula` | `hervidor` | `agua`) · `nombre` ·
 `masa_termica` (0 o 1, solo un dripper) · `en_uso` (0 o 1) · `notas` ·
 `creado_en`
 
@@ -460,7 +466,7 @@ esquema y las aplica D1 aunque el que escriba sea otro.
 - Claves foráneas: no hay extracción sin café, ni paso sin receta, ni taza que
   apunte a un accesorio que no existe
 - Y por trigger, que un `CHECK` no mira otras tablas: cada columna apunta a un
-  accesorio **de su tipo**, el tipo es `dripper` o `molinillo`, y no cambia
+  accesorio **de su tipo**, el tipo es uno de los seis de la lista, y no cambia
 - Fechas en AAAA-MM-DD **que existan de verdad**: el 30 de febrero se rechaza
 - `ratio` y `dias_tueste` no se guardan, los deriva la vista `v_extracciones`
 
@@ -765,8 +771,11 @@ ganar nada. Una ficha y, como mucho, súbele el peso.
 
 ## Los accesorios
 
-El dripper y el molinillo de cada taza son filas de un **catálogo propio**,
-`accesorios`, con su pantalla en el menú del engranaje. Hasta la 0014 eran dos
+Con qué se hace cada taza —dripper, molinillo, filtro, báscula, hervidor y
+agua— son filas de un **catálogo propio**, `accesorios`, con su pantalla en el
+menú del engranaje. Cada tipo tiene su columna en `extracciones`, con su mismo
+nombre, y cambiar de uno a otro es la variable de esa taza. Hasta la 0014 el
+dripper y el molinillo eran dos
 columnas de texto: el dripper, una lista cerrada con su `CHECK`, y el
 molinillo, texto libre que el formulario ni enseñaba. Comprar un Origami pedía
 una migración, y qué dripper tiene masa térmica lo decía una constante del
@@ -788,10 +797,18 @@ Los dos drippers de la lista cerrada, con la cerámica marcando masa térmica;
 un molinillo por cada texto distinto; y cada accesorio nace con la fecha de la
 primera taza que lo usó.
 
-Sin mandarlos, el dripper y el molinillo **se heredan de la madre**, y si no la
-hay, el último que usaste. Nunca vuelven a uno de fábrica: con un valor por
-defecto, una bolsa molida con otro aparato veía cómo cada taza «cambiaba de
-molinillo» ella sola.
+Sin mandarlos, los accesorios **se heredan de la madre**, y si no la hay, el
+último que usaste. Nunca vuelven a uno de fábrica: con un valor por defecto,
+una bolsa molida con otro aparato veía cómo cada taza «cambiaba de molinillo»
+ella sola.
+
+**Un accesorio que no consta no es otro accesorio.** El filtro, la báscula, el
+hervidor y el agua llegaron con la 0015, y las tazas de antes no dicen cuáles
+usaron. La primera que los apunta usó los de siempre: contarlo como cambio la
+dejaría con dos variables movidas y sin par. Así que `diferencias`, en el
+núcleo, solo ve un cambio de accesorio cuando consta a los dos lados. En el
+alta, los tipos de los que no tienes ninguno ni salen: solo el dripper y el
+molinillo ofrecen darlo de alta, que sin ellos no hay taza.
 
 **Borrar es solo para lo que no ha usado nadie** —409 si alguna taza lo
 nombra, retiradas incluidas, como las recetas—. Lo que se vende o se rompe se
@@ -802,9 +819,10 @@ que el de una ficha vieja se enseña aunque esté fuera de uso, y marcado.
 **El tipo va en un trigger, no en un `CHECK`.** La tabla cuelga de cada
 extracción, igual que `cafes`, y eso la deja sin reconstrucción posible en D1
 —ver «Los dos relojes de la frescura»—: un `CHECK (tipo IN ...)` quedaría
-congelado. El trigger se tira y se rehace en tres líneas el día que haya
-filtros o hervidores, que además pedirán su columna en `extracciones`. El tipo
-de un accesorio no cambia: las tazas que lo usan lo apuntaron en su columna.
+congelado. El trigger se tira y se rehace, y es justo lo que hizo la 0015 para
+añadir filtro, báscula, hervidor y agua: el trigger nuevo y cuatro `ADD COLUMN`,
+sin rehacer ninguna tabla. El tipo de un accesorio no cambia: las tazas que lo
+usan lo apuntaron en su columna.
 
 ## La identidad: UUID de clave, slug de etiqueta
 

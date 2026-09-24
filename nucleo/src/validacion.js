@@ -114,7 +114,7 @@ export const CAMPOS = [
   "fecha", "cafe_id", "dosis_g", "agua_g", "temp_c", "molinillo", "clics",
   "metodo", "reparto", "tiempo_total", "variable_cambiada", "defecto",
   "notas_cata", "nota", "siguiente_ajuste", "receta_id", "drawdown_s", "dripper",
-  "extraido_g", "desde_id",
+  "extraido_g", "desde_id", "filtro", "bascula", "hervidor", "agua",
 ];
 
 export const ESTADOS = ["abierto", "terminado", "pendiente"];

@@ -80,6 +80,9 @@ const COLUMNAS_EXTRACCIONES = [
   "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
   "receta_id", "receta_slug", "drawdown_s", "dripper", "dripper_slug",
   "borrada_en", "desde_id",
+  // Los accesorios de la 0015, al final para que el diff del CSV no se mueva.
+  "filtro", "filtro_slug", "bascula", "bascula_slug", "hervidor", "hervidor_slug",
+  "agua", "agua_slug",
 ];
 
 const COLUMNAS_RECETAS = ["id", "slug", "nombre", "ratio", "notas", "creado_en"];
@@ -125,8 +128,9 @@ export async function crearRespaldo(almacen, { version = "", ahora = new Date() 
       ...derivar(e, cafe),
       cafe_slug: cafe?.slug ?? null,
       receta_slug: slugDe(recetas, e.receta_id),
-      dripper_slug: slugDe(accesorios, e.dripper),
-      molinillo_slug: slugDe(accesorios, e.molinillo),
+      ...Object.fromEntries(
+        TIPOS_ACCESORIO.map((tipo) => [`${tipo}_slug`, slugDe(accesorios, e[tipo])]),
+      ),
     };
   });
 

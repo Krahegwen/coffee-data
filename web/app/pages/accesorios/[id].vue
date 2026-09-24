@@ -163,7 +163,7 @@ async function borrar() {
       <p v-if="!esNuevo" class="aviso">{{ $t('accesorio.tipo_fijo') }}</p>
 
       <label>{{ $t('accesorio.nombre') }}<input
-        v-model="form.nombre" :placeholder="$t('accesorio.nombre_ejemplo')" required></label>
+        v-model="form.nombre" :placeholder="$t(`accesorio.ejemplos.${form.tipo}`)" required></label>
 
       <!-- Los interruptores, como en ajustes: la fila entera es pulsable. -->
       <label v-if="form.tipo === 'dripper'" class="fila">

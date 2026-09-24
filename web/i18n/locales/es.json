@@ -52,7 +52,11 @@
     "agua_g": "Agua (g)",
     "receta_id": "Receta",
     "dripper": "Dripper",
-    "molinillo": "Molinillo"
+    "molinillo": "Molinillo",
+    "filtro": "Filtro",
+    "bascula": "Báscula",
+    "hervidor": "Hervidor",
+    "agua": "Tipo de agua"
   },
   "comun": {
     "sin_bolsa": "Sin bolsa",
@@ -86,7 +90,7 @@
     "ajustes_pista": "Cómo avisa el cronómetro y los colores de la app.",
     "recetas_pista": "Los pasos que guía el cronómetro y cómo se reparte el agua.",
     "bolsas_pista": "Cada café que entra en casa: tueste, frescura y lo que queda.",
-    "accesorios_pista": "Drippers y molinillos: con qué se hace cada taza."
+    "accesorios_pista": "Dripper, molinillo, filtro, báscula, hervidor y agua: con qué se hace cada taza."
   },
   "bolsas": {
     "titulo": "Bolsas",
@@ -105,14 +109,22 @@
   },
   "accesorios": {
     "titulo": "Accesorios",
-    "vacio": "Aún no tienes accesorios. El dripper y el molinillo de cada taza salen de aquí: da de alta los tuyos con «Nuevo».",
+    "vacio": "Aún no tienes accesorios. Lo que usas en cada taza —dripper, molinillo, filtro, báscula, hervidor, agua— sale de aquí: da de alta lo tuyo con «Nuevo».",
     "tipos": {
       "dripper": "Drippers",
-      "molinillo": "Molinillos"
+      "molinillo": "Molinillos",
+      "filtro": "Filtros",
+      "bascula": "Básculas",
+      "hervidor": "Hervidores",
+      "agua": "Aguas"
     },
     "tipo": {
       "dripper": "Dripper",
-      "molinillo": "Molinillo"
+      "molinillo": "Molinillo",
+      "filtro": "Filtro",
+      "bascula": "Báscula",
+      "hervidor": "Hervidor",
+      "agua": "Agua"
     },
     "usos": "{n} extracción | {n} extracciones",
     "sin_usos": "Sin usar todavía",
@@ -124,7 +136,6 @@
     "tipo": "Tipo",
     "tipo_fijo": "El tipo no se cambia: las tazas que lo usan lo apuntaron así.",
     "nombre": "Nombre",
-    "nombre_ejemplo": "Hario V60 02 cerámica",
     "masa_termica": "Masa térmica",
     "masa_termica_pista": "Cerámica, vidrio o metal grueso: roba calor al lecho si no lo precalientas, y cada taza te lo recordará.",
     "en_uso": "En uso",
@@ -137,7 +148,15 @@
     "borrar_titulo": "¿Borrar «{nombre}»?",
     "borrar_ojo": "Se va del todo, sin papelera. Solo se puede con lo que no ha usado ninguna taza.",
     "no_se_borra": "Hay {usos} con él, así que no se puede borrar: las tazas tienen que seguir diciendo con qué se hicieron. Si ya no lo tienes, sácalo de uso.",
-    "borrando": "Borrando…"
+    "borrando": "Borrando…",
+    "ejemplos": {
+      "dripper": "Hario V60 02 cerámica",
+      "molinillo": "Comandante C40",
+      "filtro": "Cafec Abaca",
+      "bascula": "Acaia Pearl S",
+      "hervidor": "Fellow Stagg EKG",
+      "agua": "Grifo filtrada"
+    }
   },
   "portada": {
     "sin_api": "No se pudo hablar con la API. Si estás sin cobertura, esto se verá con los últimos datos guardados en cuanto la app esté instalada.",
@@ -424,7 +443,7 @@
     "opcion_nota": " · {n}/10",
     "vuelves_atras": "Vuelves a una anterior: los deltas se miden contra ella y no contra la última, que es lo que hace que este cambio sea uno solo y no dos.",
     "dosis": "Dosis (g)",
-    "agua": "Agua (g)",
+    "agua": "Agua",
     "ratio": "Ratio 1:{n}",
     "temp": "Temperatura (°C)",
     "clics": "Clics",
@@ -464,7 +483,10 @@
     "otra": "Registrar otra",
     "al_inicio": "Volver al inicio",
     "molinillo": "Molinillo",
-    "sin_accesorio": "Aún no tienes ninguno: dalo de alta en Accesorios"
+    "sin_accesorio": "Aún no tienes ninguno: dalo de alta en Accesorios",
+    "filtro": "Filtro",
+    "bascula": "Báscula",
+    "hervidor": "Hervidor"
   },
   "extraccion": {
     "titulo": "Extracción",

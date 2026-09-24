@@ -77,8 +77,9 @@ nombre de columna y slug, sin traducir, como ya hacía `siguiente_ajuste` con
 —«Temperatura», el nombre de la receta— son de la pantalla que lo enseña y no
 de la columna. Si añades otro sitio que escriba ahí, sale de esa función.
 
-`dripper` y `molinillo` son **accesorios del catálogo** (ver «Accesorios») y
-se mandan por uuid, slug o nombre: `"origami"`, `"Comandante C40"`. Sin
+`dripper`, `molinillo`, `filtro`, `bascula`, `hervidor` y `agua` (qué agua;
+cuánta es `agua_g`) son **accesorios del catálogo** (ver «Accesorios») y se
+mandan por uuid, slug o nombre: `"origami"`, `"Comandante C40"`. Sin
 mandarlos **se heredan de la madre**, y sin madre se pone el último que usó;
 no hay valor de fábrica, que con él cada taza «cambiaba de molinillo» sola.
 Así que no los mandes salvo que el usuario diga que cambió de aparato — y
@@ -225,7 +226,8 @@ curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
 
 ## Accesorios
 
-El dripper y el molinillo son filas de `accesorios`, con pantallas en
+El dripper, el molinillo, el filtro, la báscula, el hervidor y el agua son
+filas de `accesorios`, con pantallas en
 `/accesorios`, `/accesorios/nuevo` y `/accesorios/<slug>` (en inglés, `/gear`).
 Se llega desde el menú del engranaje, arriba a la derecha.
 
@@ -238,8 +240,15 @@ curl -X PATCH https://brew.krahegwen.com/api/accesorios/comandante_c40 -H "Autho
 ```
 
 Como en las bolsas: **sin `id` ni `slug`**, que salen solos, y los endpoints
-aceptan uuid o slug. `tipo` es `dripper` o `molinillo` y **no se cambia** —las
-tazas que lo usan lo apuntaron en su columna—. `masa_termica` solo la lleva un
+aceptan uuid o slug. `tipo` es `dripper`, `molinillo`, `filtro`, `bascula`,
+`hervidor` o `agua`, cada uno con su columna del mismo nombre en `extracciones`,
+y **no se cambia** —las tazas que lo usan lo apuntaron en su columna—. Un tipo
+nuevo es una migración como la 0015: rehacer el trigger `accesorios_tipo_conocido`
+y los dos de `extracciones`, y un `ADD COLUMN`.
+
+Un accesorio que **no consta** en la madre no cuenta como cambio: las tazas de
+antes de la 0015 no dicen qué filtro usaron, y la primera que lo apunta no
+«cambió de filtro». Lo decide `diferencias` en el núcleo; no lo reimplementes. `masa_termica` solo la lleva un
 dripper, y es de donde saca el motor el aviso de precalentar: ya no hay una
 lista de drippers escrita en el código.
 

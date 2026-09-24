@@ -53,8 +53,13 @@ export interface Cafe {
   conservacion: string | null
 }
 
-/** Lo que guarda una extracción de cada uno: una columna por tipo. */
-export const TIPOS_ACCESORIO = ['dripper', 'molinillo'] as const
+/**
+ * Lo que guarda una extracción de cada uno: una columna por tipo, con su mismo
+ * nombre. El mismo orden que `TIPOS_ACCESORIO` del núcleo, que es el que manda.
+ */
+export const TIPOS_ACCESORIO = [
+  'dripper', 'molinillo', 'filtro', 'bascula', 'hervidor', 'agua',
+] as const
 export type TipoAccesorio = (typeof TIPOS_ACCESORIO)[number]
 
 export interface Accesorio {
@@ -106,6 +111,16 @@ export interface Extraccion {
   dripper_masa_termica: boolean
   molinillo: string | null
   molinillo_slug: string | null
+  /** Los de la 0015. Nulos en las tazas de antes: no consta, que no es «otro». */
+  filtro: string | null
+  filtro_slug: string | null
+  bascula: string | null
+  bascula_slug: string | null
+  hervidor: string | null
+  hervidor_slug: string | null
+  /** Qué agua, no cuánta: esa es `agua_g`. */
+  agua: string | null
+  agua_slug: string | null
   /** Lo que acabó en la taza. Con el agua y la dosis da la retención. */
   extraido_g: number | null
   /**
@@ -223,6 +238,10 @@ export interface NuevaExtraccion {
    */
   dripper?: string
   molinillo?: string
+  filtro?: string
+  bascula?: string
+  hervidor?: string
+  agua?: string
   notas_cata?: string
   siguiente_ajuste?: string
   fecha?: string

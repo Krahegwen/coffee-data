@@ -16,8 +16,13 @@
  */
 import { esUuid } from "./ids.js";
 
-/** Los tipos que guarda una extracción. Uno por columna. */
-export const TIPOS_ACCESORIO = ["dripper", "molinillo"];
+/**
+ * Los tipos que guarda una extracción, **uno por columna y con su mismo
+ * nombre**: el código lee `extraccion[tipo]`. El orden es el de las pantallas.
+ * Los cuatro últimos llegaron con la 0015; las tazas de antes no los tienen, y
+ * eso es «no consta», no un accesorio distinto — ver `diferencias`.
+ */
+export const TIPOS_ACCESORIO = ["dripper", "molinillo", "filtro", "bascula", "hervidor", "agua"];
 
 /** Solo lo que un humano puede teclear distinto de como se guardó. */
 const plano = (texto) => String(texto ?? "").trim().toLowerCase();

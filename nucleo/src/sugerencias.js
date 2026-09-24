@@ -6,6 +6,7 @@
  * extracciones consecutivas del mismo café.
  */
 
+import { TIPOS_ACCESORIO } from "./accesorios.js";
 import { finDeLosVertidos } from "./recetas.js";
 import { textos } from "./textos.js";
 import { defectosDe, segundosDe, SIN_DEFECTO } from "./validacion.js";
@@ -40,7 +41,7 @@ export const MINIMO_PARES = 2;
 
 export const VARIABLES = [
   "temp_c", "clics", "dosis_g", "agua_g", "reparto", "receta_id", "molinillo",
-  "dripper",
+  "dripper", "filtro", "bascula", "hervidor", "agua",
 ];
 
 /**
@@ -68,7 +69,20 @@ export const VARIABLES_DECLARADAS = VARIABLES.filter((v) => v !== "reparto");
 export function diferencias(antes, despues, variables = VARIABLES_DECLARADAS) {
   if (!antes || !despues) return [];
   return variables
-    .filter((v) => String(antes[v] ?? "") !== String(despues[v] ?? ""))
+    .filter((v) => {
+      const a = String(antes[v] ?? "");
+      const d = String(despues[v] ?? "");
+      if (a === d) return false;
+      /*
+       * Un accesorio que no consta a un lado no es otro accesorio. Las tazas
+       * de antes de la 0015 no dicen con qué filtro se hicieron, y la primera
+       * que lo apunta usó el de siempre: contarlo como cambio la dejaría con
+       * dos variables movidas —el filtro y la que de verdad se tocó— y sin par.
+       * Lo mismo al revés, si se quita el dato al corregir.
+       */
+      if (TIPOS_ACCESORIO.includes(v) && (!a || !d)) return false;
+      return true;
+    })
     .map((variable) => ({
       variable,
       antes: antes[variable] ?? null,
@@ -82,8 +96,7 @@ export function diferencias(antes, despues, variables = VARIABLES_DECLARADAS) {
  */
 const SLUG_DE = {
   receta_id: "receta_slug",
-  dripper: "dripper_slug",
-  molinillo: "molinillo_slug",
+  ...Object.fromEntries(TIPOS_ACCESORIO.map((tipo) => [tipo, `${tipo}_slug`])),
 };
 
 function valorLegible(fila, variable) {
