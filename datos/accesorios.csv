@@ -1,4 +1,5 @@
 id,slug,tipo,nombre,masa_termica,en_uso,notas,creado_en
 019fd22f-391b-7f3a-840d-66ae6b3f9ec6,comandante_c40,molinillo,Comandante C40,0,1,,2026-08-05 13:48:58
+01a0d3ad-f241-7053-9bf2-10caafdc963c,fellow_stagg_ekg_pro,hervidor,Fellow Stagg EKG Pro,0,1,,2026-09-24 13:49:47
 01a0d266-8bfa-7c49-8453-590c40967a7d,v60-02-ceramica,dripper,V60 02 cerámica,1,1,,2026-09-24 07:52:11
 019fd22f-3911-7569-8f08-6e4f586a83d9,v60-02-plastico,dripper,V60 02 plástico,0,1,,2026-08-05 13:48:58
