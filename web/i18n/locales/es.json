@@ -189,10 +189,14 @@
     "fallo": "El navegador no dejó arrancar el sonido. Vuelve a tocar el botón.",
     "pausar": "Pausar",
     "reanudar": "Reanudar",
-    "parar": "Parar",
-    "siguiente": "Luego: {paso} a las {a}",
+    "parar": "Parar"
+  },
+  "sistema": {
+    "titulo_verter": "{paso} hasta {n} g",
+    "luego": "Luego: {paso}",
     "ultimo": "Último paso",
-    "album": "Prueba · {receta}"
+    "goteando": "Goteando",
+    "prueba": "Prueba · {receta}"
   },
   "defectos_info": {
     "equilibrado": "No le sobra nada. No es que la taza sea excelente —para eso está la nota—, sino que no hay un defecto que corregir.",
@@ -396,6 +400,8 @@
     "cuenta_atras_saltos_pista": "Tres segundos antes del paso que eliges con las flechas, aunque lo elijas en pausa.",
     "latido": "Latido del número",
     "latido_pista": "El número crece con cada aviso: se ve aunque el móvil esté en silencio.",
+    "pantalla_bloqueo": "El paso en la pantalla de bloqueo",
+    "pantalla_bloqueo_pista": "Sale como si fuera música, con pausa y saltos desde ahí. Apágalo si escuchas la tuya mientras preparas.",
     "tema_titulo": "Los colores",
     "tema_intro": "En automático sigue a lo que tengas puesto en el teléfono.",
     "tema_modo": "Cuándo usar el modo oscuro",

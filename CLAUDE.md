@@ -325,6 +325,30 @@ Lo que se decidió escuchando, por si hay que rehacerlos:
 `m4a` está en `globPatterns` de workbox: sin eso los clips no se precachean y
 la cocina sin cobertura se queda muda.
 
+## El cronómetro en la pantalla de bloqueo
+
+Una web no llega a las Live Activities de iOS ni a las notificaciones con
+cronómetro de Android. Lo que sí llega es el reproductor del sistema, así que
+`usePantallaBloqueo` reproduce **un silencio en bucle por un `<audio>`** y
+escribe el paso como si fuera una canción (Media Session): título, el siguiente
+paso debajo y la barra del paso, que es la vuelta del anillo. En el OnePlus
+sale también en la cápsula de OxygenOS; en un iPhone, falta probarlo.
+
+- El silencio **no puede ir por Web Audio**, que es por donde suenan los pips:
+  el sistema solo ve elementos multimedia. Y dura más de 5 s, porque Chrome
+  trata lo más corto como un aviso suelto.
+- La primera reproducción **tiene que salir de un toque** (iOS); por eso el
+  reloj llama a `alSistema()` desde los gestos que arrancan, y a partir de ahí
+  el audio sigue solo al reloj.
+- Con la pantalla bloqueada `requestAnimationFrame` no pinta: el reloj lleva un
+  intervalo de respaldo que avanza `transcurrido` mientras `document.hidden`,
+  o la tarjeta no cambiaría de paso justo cuando es lo único que se ve.
+- Los botones del sistema son funciones de la pantalla del reloj: se quitan al
+  salir de ella y se ponen al volver. Parar no está, que restablecer pregunta.
+- Se apaga en el ajuste `pantalla_bloqueo`. La prueba de la portada
+  (`PruebaBloqueo.vue`) es provisional: está para que alguien con iPhone lo
+  pruebe sin saber usar el crono.
+
 ## Ajustes
 
 `/ajustes` (`/en/settings`) guarda lo que se decide una vez: los avisos del

@@ -88,6 +88,7 @@ export function useCrono() {
 
   /** El reloj a cero, sin tocar la selección: la taza siguiente es del mismo café. */
   function soltarReloj() {
+    apagarDelReloj()
     Object.assign(estado.value, {
       corriendo: false,
       transcurrido: 0,
@@ -109,7 +110,17 @@ export function useCrono() {
 
   /** Como recién llegado: fuera también la selección y las cantidades. */
   function olvidarTodo() {
+    apagarDelReloj()
     Object.assign(estado.value, CRONO_EN_BLANCO())
+  }
+
+  /**
+   * Sin medición no hay nada que enseñar en la pantalla de bloqueo. Lo apaga
+   * el reloj al cerrar el goteo, pero soltar también se hace desde el alta,
+   * con el reloj fuera de pantalla.
+   */
+  function apagarDelReloj() {
+    if (sistemaEsDe('reloj')) apagarSistema()
   }
 
   return { estado, hayMedicion, soltarReloj, olvidarTodo }

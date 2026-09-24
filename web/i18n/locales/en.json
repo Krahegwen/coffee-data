@@ -189,10 +189,14 @@
     "fallo": "The browser wouldn't start the sound. Tap the button again.",
     "pausar": "Pause",
     "reanudar": "Resume",
-    "parar": "Stop",
-    "siguiente": "Next: {paso} at {a}",
+    "parar": "Stop"
+  },
+  "sistema": {
+    "titulo_verter": "{paso} up to {n} g",
+    "luego": "Next: {paso}",
     "ultimo": "Last step",
-    "album": "Test · {receta}"
+    "goteando": "Dripping",
+    "prueba": "Test · {receta}"
   },
   "defectos_info": {
     "equilibrado": "Nothing to fix. Not that the cup is excellent —that is what the score is for— but that there is no flaw to correct.",
@@ -396,6 +400,8 @@
     "cuenta_atras_saltos_pista": "Three seconds before the step you pick with the arrows, even if you pick it while paused.",
     "latido": "Pulsing number",
     "latido_pista": "The number grows with every warning: visible even on silent.",
+    "pantalla_bloqueo": "Step on the lock screen",
+    "pantalla_bloqueo_pista": "Shows up as if it were music, with pause and skip from there. Turn it off if you play your own while brewing.",
     "tema_titulo": "Colours",
     "tema_intro": "On automatic it follows whatever your phone is set to.",
     "tema_modo": "When to use dark mode",
