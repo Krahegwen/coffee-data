@@ -107,18 +107,37 @@ la caché.
 
 ### Las versiones nuevas
 
-**La app nunca se recarga sola.** Con el `autoUpdate` del módulo de PWA, en
-cuanto el service worker nuevo se activaba la página se recargaba donde
-estuvieras: navegando, a medio escribir una nota o con el reloj corriendo. Y
-llegaba tarde, porque el navegador solo busca versión al cargar la página, y
-la app instalada en Android casi nunca se carga: vuelve del fondo como estaba.
+**La versión nueva se pone sola, pero nunca a traición.** Con el
+`autoUpdate` del módulo de PWA, en cuanto el service worker nuevo se activaba
+la página se recargaba donde estuvieras: navegando, a medio escribir una nota
+o con el reloj corriendo. Y llegaba tarde, porque el navegador solo busca
+versión al cargar la página, y la app instalada en Android casi nunca se carga:
+vuelve del fondo como estaba.
 
-Ahora va en modo `prompt`. Se pregunta al abrir, **al volver a la app** y cada
-media hora mientras está a la vista (`plugins/actualizar.client.ts`). La
-versión nueva se baja por detrás y espera: arriba sale «Hay una versión nueva
-· Actualizar», y se pone al tocarlo o sola la próxima vez que la app arranque
-de cero. El aviso no sale con una medición en marcha, que recargar se lleva el
-reloj y ese café ya está colado.
+Ahora la app registra su propio service worker (sin el plugin del módulo) y
+decide cuándo, en `useVersion` y `plugins/actualizar.client.ts`:
+
+- **Al abrir**, detrás del splash de arranque (`Arranque.vue`). La pregunta va
+  a la par que la de la sesión, así que sin novedades no tarda más; si hay
+  versión nueva, se baja y se pone antes de enseñar nada. Con plazos —3 s para
+  preguntar, 10 para bajar— para no quedarse colgado sin red.
+- **Al cambiar de página**: se pregunta por detrás, y si ya hay una bajada, esa
+  navegación se hace como una carga entera **hacia la página a la que ibas**.
+- **Al volver a la app**, si ya había una bajada, antes de tocar nada; y cada
+  media hora mientras está a la vista, se pregunta.
+- **A mano**, en «La versión» de ajustes.
+
+Y **nunca con algo que perder**: una medición del reloj, o un borrador a medias
+de la taza, la bolsa o la receta, que sobreviven a cambiar de pantalla pero no
+a una recarga. Entonces espera a la siguiente ocasión.
+
+Lo que no se puede dar por hecho es que la página que llega sea la nueva: el
+worker nuevo no se activa mientras el viejo tenga algo en marcha, y la
+navegación la puede contestar todavía el viejo. Se probó, y llegaba la página
+de antes con el nuevo ya al mando. Por eso cada arranque compara su id de
+construcción con la de `/_nuxt/builds/latest.json` que sirve el worker y, si no
+cuadran, se recarga una vez —y solo una por versión, que un bucle sería peor
+que una página vieja—.
 
 ### La tarjeta de enlace
 

@@ -10,9 +10,7 @@
     "sincronizando": "Sincronizando…",
     "por_subir": "{n} por subir",
     "al_dia": "Al día",
-    "version_nueva": "Hay una versión nueva de la app.",
-    "actualizar": "Actualizar",
-    "actualizando": "Actualizando…"
+    "actualizando": "Poniendo la versión nueva…"
   },
   "sesion": {
     "abrir": "Abrir sesión",
@@ -398,7 +396,16 @@
     "tema_pizarra": "Pizarra",
     "tema_tostado": "Tostado",
     "tema_carbon": "Carbón",
-    "donde_viven": "Los ajustes se guardan en este navegador. Con la sesión abierta viajan al servidor y bajan a los demás dispositivos."
+    "donde_viven": "Los ajustes se guardan en este navegador. Con la sesión abierta viajan al servidor y bajan a los demás dispositivos.",
+    "version_titulo": "La versión",
+    "version_intro": "Tienes la v{version}. La app busca versiones nuevas al abrirla, al volver a ella y al cambiar de página, y se pone sola cuando no hay nada a medias.",
+    "version_buscar": "Buscar ahora",
+    "version_buscando": "Buscando…",
+    "version_bajando": "Bajando la versión nueva…",
+    "version_al_dia": "Ya tienes la última.",
+    "version_sin_red": "Sin conexión no se puede comprobar.",
+    "version_pendiente": "Hay una versión nueva, pero tarda en bajar: se pondrá sola al cambiar de página.",
+    "version_a_medias": "Hay una versión nueva, pero tienes una medición o un borrador a medias: se pondrá cuando lo termines."
   },
   "respaldo": {
     "titulo": "Respaldo",
