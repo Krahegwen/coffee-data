@@ -44,6 +44,18 @@ export function useTema() {
   )
 
   /**
+   * El color de la barra del navegador: el fondo del tema que rige. Null hasta
+   * que `seguir` lo lee del CSS, y mientras tanto manda el de `nuxt.config`.
+   *
+   * Se entrega a `useHead` en `app.vue` en vez de escribirlo en el `<meta>` a
+   * mano, que es como estaba: unhead es el dueño de esa etiqueta y la vuelve a
+   * pintar con el valor de `nuxt.config` cada vez que cambia el título — en
+   * cada navegación y, la que se veía siempre, al terminar de arrancar. La
+   * barra salía blanca tras cada F5 con cualquier tema oscuro puesto.
+   */
+  const barra = useState<string | null>('tema-barra', () => null)
+
+  /**
    * Arranca el seguimiento del sistema y aplica el tema a la raíz. Se llama
    * una vez, desde `app.vue`; llamarlo otra vez no engancha un segundo
    * escuchador —en desarrollo, cada recarga en caliente montaba uno nuevo
@@ -73,10 +85,9 @@ export function useTema() {
        */
       const fondo = getComputedStyle(document.documentElement)
         .getPropertyValue('--fondo').trim()
-      const meta = document.querySelector('meta[name="theme-color"]')
-      if (fondo && meta) meta.setAttribute('content', fondo)
+      if (fondo) barra.value = fondo
     })
   }
 
-  return { modo, tema, seguir }
+  return { modo, tema, barra, seguir }
 }
