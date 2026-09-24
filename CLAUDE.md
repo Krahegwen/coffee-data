@@ -22,7 +22,9 @@ Los datos viven en **Cloudflare D1** y se registran por la **API**
   que ejecuta pytest y los tests del Worker, y al final —solo si pasan— sube
   el parche de la versión en los cuatro `package.json` y lo mete en el commit.
   Esa versión es la que sale en el pie de la app: no la toques a mano salvo
-  para subir mayor o menor, que eso sí es una decisión. Un commit que **solo
+  para subir mayor o menor, que eso sí es una decisión — y entonces basta con
+  el `package.json` de la raíz: si su número ya no es el de `HEAD`, el hook lo
+  copia a los otros tres y no sube el parche encima. Un commit que **solo
   toca `datos/`** se salta las dos cosas —ninguna suite mira los CSV y la
   versión miente si sube sin cambiar código—, que es como poner el respaldo
   al día deja de invitar a `--no-verify`.

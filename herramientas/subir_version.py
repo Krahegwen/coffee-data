@@ -5,6 +5,12 @@ No es cosmética: es lo que enseña el pie de la app y lo único que responde de
 un vistazo a «¿el móvil ya tiene el despliegue nuevo o el service worker me
 está sirviendo el de antes?».
 
+**Una versión puesta a mano se respeta.** Mayor y menor son decisiones y se
+escriben a mano en el `package.json` de la raíz; si el hook subiera el parche
+encima, el 1.0.0 que se decidió saldría como 1.0.1. Así que cuando el número
+del disco ya no es el del último commit, es que alguien lo puso: se copia a los
+demás tal cual y no se sube.
+
 Los cuatro ficheros van a la vez a propósito — la raíz y los tres paquetes.
 Son el mismo producto, y cuatro números distintos solo servirían para no saber
 cuál mirar.
@@ -12,6 +18,7 @@ cuál mirar.
 Solo librería estándar, como el resto de scripts del repo.
 """
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -35,8 +42,31 @@ def siguiente(version):
     return f"{mayor}.{menor}.{parche + 1}"
 
 
+def la_que_toca(en_disco, en_head):
+    """La del disco si alguien la puso a mano; si no, el parche siguiente.
+
+    Sin commit anterior —el primero del repo— no hay con qué comparar y se
+    sube como siempre.
+    """
+    if en_head is not None and en_disco != en_head:
+        siguiente(en_disco)  # que sea una versión que se sepa subir después
+        return en_disco, True
+    return siguiente(en_disco), False
+
+
+def version_en_head():
+    hecho = subprocess.run(
+        ["git", "show", "HEAD:package.json"],
+        capture_output=True, text=True, encoding="utf-8", cwd=BASE,
+    )
+    if hecho.returncode != 0:
+        return None
+    return json.loads(hecho.stdout)["version"]
+
+
 def main():
-    nueva = siguiente(json.loads(FICHEROS[0].read_text(encoding="utf-8"))["version"])
+    en_disco = json.loads(FICHEROS[0].read_text(encoding="utf-8"))["version"]
+    nueva, a_mano = la_que_toca(en_disco, version_en_head())
     for fichero in FICHEROS:
         datos = json.loads(fichero.read_text(encoding="utf-8"))
         datos["version"] = nueva
@@ -44,7 +74,7 @@ def main():
         # En bytes y no con write_text: así el salto de línea es LF en Windows
         # también, que es lo que pide .gitattributes.
         fichero.write_bytes(texto.encode("utf-8"))
-    print(f"pre-commit: versión {nueva}")
+    print(f"pre-commit: versión {nueva}" + (" (puesta a mano)" if a_mano else ""))
 
 
 if __name__ == "__main__":
