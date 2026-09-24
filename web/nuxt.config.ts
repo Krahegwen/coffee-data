@@ -96,7 +96,8 @@ export default defineNuxtConfig({
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
         // El fondo del tema de casa, no el marrón de la marca: `useTema` lo
-        // reescribe con el del tema elegido en cuanto monta la app, y con un
+        // cambia por el del tema elegido en cuanto monta la app —a través de
+        // `useHead` en app.vue, que si no unhead lo vuelve a poner—, y con un
         // color distinto de partida la barra parpadeaba en cada carga.
         { name: 'theme-color', content: '#faf7f2' },
         /*

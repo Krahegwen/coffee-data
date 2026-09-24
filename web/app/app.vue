@@ -45,7 +45,7 @@ const { version } = useRuntimeConfig().public
 const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const { releer: releerAjustes, cargar: cargarAjustes } = usePreferencias()
-const { seguir: seguirTema } = useTema()
+const { seguir: seguirTema, barra } = useTema()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
@@ -143,6 +143,11 @@ useHead({
   // Que el `lang` del documento diga la verdad: de ahí tiran el lector de
   // pantalla, el corrector y la traducción automática del navegador.
   htmlAttrs: computed(() => ({ lang: locale.value === 'en' ? 'en-GB' : 'es-ES' })),
+  // La barra del navegador, con el fondo del tema que rige. Por aquí y no a
+  // mano en el `<meta>`: unhead repinta esa etiqueta en cada navegación con lo
+  // que le hayan dado, y el de `nuxt.config` pisaba el del tema tras cada F5.
+  // Mientras `useTema` no lo ha leído, no se manda nada y manda el de casa.
+  meta: computed(() => (barra.value ? [{ name: 'theme-color', content: barra.value }] : [])),
 })
 </script>
 
