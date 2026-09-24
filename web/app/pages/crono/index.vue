@@ -111,19 +111,6 @@ for (const [clave, campo] of Object.entries(CLAVES_CRONO)) {
  */
 onUnmounted(escribir)
 
-// La selección guardada puede apuntar a una bolsa ya cerrada o borrada: si no
-// está entre las abiertas, la primera. Y si no hay ninguna, nada — aquí se
-// puede cronometrar sin bolsa.
-watchEffect(() => {
-  if (!abiertas.value.length) return
-  // La primera de la lista **ordenada**, que es la que el desplegable enseña
-  // arriba: eligiendo por el orden crudo, la bolsa que salía puesta no era la
-  // que se veía primero.
-  if (!abiertas.value.some((c) => c.id === cafeId.value)) {
-    cafeId.value = bolsasOrdenadas.value[0]!.id
-  }
-})
-
 // La receta de siempre como arranque. Por slug, que es lo único estable: los
 // uuids cambian entre la base local y la de verdad.
 watchEffect(() => {
@@ -178,6 +165,23 @@ const bolsasOrdenadas = computed(() => {
     // de alta y no hay nada que las ordene mejor.
     return a.nombre < b.nombre ? -1 : 1
   })
+})
+
+// La selección guardada puede apuntar a una bolsa ya cerrada o borrada: si no
+// está entre las abiertas, la primera. Y si no hay ninguna, nada — aquí se
+// puede cronometrar sin bolsa.
+//
+// Detrás de `bolsasOrdenadas` y no antes: el efecto corre en el acto, y
+// declarado arriba leía la constante antes de existir. La pantalla entera
+// reventaba justo cuando la bolsa guardada ya estaba cerrada.
+watchEffect(() => {
+  if (!abiertas.value.length) return
+  // La primera de la lista **ordenada**, que es la que el desplegable enseña
+  // arriba: eligiendo por el orden crudo, la bolsa que salía puesta no era la
+  // que se veía primero.
+  if (!abiertas.value.some((c) => c.id === cafeId.value)) {
+    cafeId.value = bolsasOrdenadas.value[0]!.id
+  }
 })
 
 const recetasOrdenadas = computed(() => {
