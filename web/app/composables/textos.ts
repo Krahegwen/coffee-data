@@ -25,6 +25,7 @@ export const CLAVES_DEFECTO = [
  */
 export const CLAVES_VARIABLE = [
   'temp_c', 'clics', 'dosis_g', 'agua_g', 'receta_id', 'dripper', 'molinillo',
+  'filtro', 'bascula', 'hervidor', 'agua',
 ] as const
 
 export type Accion = (typeof CLAVES_ACCION)[number]

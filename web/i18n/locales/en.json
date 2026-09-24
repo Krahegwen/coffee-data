@@ -52,7 +52,11 @@
     "agua_g": "Water (g)",
     "receta_id": "Recipe",
     "dripper": "Dripper",
-    "molinillo": "Grinder"
+    "molinillo": "Grinder",
+    "filtro": "Filter",
+    "bascula": "Scale",
+    "hervidor": "Kettle",
+    "agua": "Water type"
   },
   "comun": {
     "sin_bolsa": "No bag",
@@ -86,7 +90,7 @@
     "ajustes_pista": "How the timer cues you, and the app colours.",
     "recetas_pista": "The steps the timer walks you through and how the water is split.",
     "bolsas_pista": "Every coffee that comes into the house: roast, freshness and what is left.",
-    "accesorios_pista": "Drippers and grinders: what each cup is made with."
+    "accesorios_pista": "Dripper, grinder, filter, scale, kettle and water: what each cup is made with."
   },
   "bolsas": {
     "titulo": "Bags",
@@ -105,14 +109,22 @@
   },
   "accesorios": {
     "titulo": "Gear",
-    "vacio": "No gear yet. Each brew's dripper and grinder come from here: add yours with “New”.",
+    "vacio": "No gear yet. What you use for each cup —dripper, grinder, filter, scale, kettle, water— comes from here: add yours with “New”.",
     "tipos": {
       "dripper": "Drippers",
-      "molinillo": "Grinders"
+      "molinillo": "Grinders",
+      "filtro": "Filters",
+      "bascula": "Scales",
+      "hervidor": "Kettles",
+      "agua": "Waters"
     },
     "tipo": {
       "dripper": "Dripper",
-      "molinillo": "Grinder"
+      "molinillo": "Grinder",
+      "filtro": "Filter",
+      "bascula": "Scale",
+      "hervidor": "Kettle",
+      "agua": "Water"
     },
     "usos": "{n} brew | {n} brews",
     "sin_usos": "Not used yet",
@@ -124,7 +136,6 @@
     "tipo": "Type",
     "tipo_fijo": "The type does not change: the brews that use it were logged that way.",
     "nombre": "Name",
-    "nombre_ejemplo": "Hario V60 02 ceramic",
     "masa_termica": "Thermal mass",
     "masa_termica_pista": "Ceramic, glass or thick metal: it steals heat from the bed unless you preheat it, and every brew will remind you.",
     "en_uso": "In use",
@@ -137,7 +148,15 @@
     "borrar_titulo": "Delete “{nombre}”?",
     "borrar_ojo": "It goes for good, with no bin. Only possible with what no brew has used.",
     "no_se_borra": "Used by {usos}, so it cannot be deleted: the brews have to keep saying what they were made with. If you no longer have it, take it out of use.",
-    "borrando": "Deleting…"
+    "borrando": "Deleting…",
+    "ejemplos": {
+      "dripper": "Hario V60 02 ceramic",
+      "molinillo": "Comandante C40",
+      "filtro": "Cafec Abaca",
+      "bascula": "Acaia Pearl S",
+      "hervidor": "Fellow Stagg EKG",
+      "agua": "Filtered tap"
+    }
   },
   "portada": {
     "sin_api": "Could not reach the API. If you are offline, this will show the last saved data once the app is installed.",
@@ -424,7 +443,7 @@
     "opcion_nota": " · {n}/10",
     "vuelves_atras": "You are going back to an earlier one: the deltas are measured against it and not against the last, which is what makes this a single change and not two.",
     "dosis": "Dose (g)",
-    "agua": "Water (g)",
+    "agua": "Water",
     "ratio": "Ratio 1:{n}",
     "temp": "Temperature (°C)",
     "clics": "Clicks",
@@ -464,7 +483,10 @@
     "otra": "Log another",
     "al_inicio": "Back to home",
     "molinillo": "Grinder",
-    "sin_accesorio": "None yet: add one in Gear"
+    "sin_accesorio": "None yet: add one in Gear",
+    "filtro": "Filter",
+    "bascula": "Scale",
+    "hervidor": "Kettle"
   },
   "extraccion": {
     "titulo": "Brew",

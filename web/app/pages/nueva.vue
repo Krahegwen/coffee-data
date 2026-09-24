@@ -42,6 +42,10 @@ const EN_BLANCO = (): Record<string, unknown> => ({
   // watchEffect de más abajo.
   dripper: '',
   molinillo: '',
+  filtro: '',
+  bascula: '',
+  hervidor: '',
+  agua: '',
   tiempo_total: '',
   drawdown_s: '' as number | '',
   extraido_g: '' as number | '',
@@ -87,8 +91,7 @@ watchEffect(() => {
 })
 
 /*
- * Y lo mismo con el dripper y el molinillo, cuando no hay taza de la que
- * copiarlos: los que pondría el servidor —el último que usaste, o el primero
+ * Y lo mismo con los accesorios, cuando no hay taza de la que copiarlos: los que pondría el servidor —el último que usaste, o el primero
  * que diste de alta—, con la misma función del núcleo. Solo si el campo está
  * vacío, como la receta; el desplegable no ofrece el hueco, así que esto no
  * puede pisar una elección.
@@ -184,9 +187,21 @@ const cambiadas = useState<string[]>('borrador-extraccion-variables', () => [])
  */
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: opcionesAccesorio(equipo.value, 'dripper', form.dripper, anterior.value?.dripper),
-  molinillo: opcionesAccesorio(equipo.value, 'molinillo', form.molinillo, anterior.value?.molinillo),
+  ...Object.fromEntries(TIPOS_ACCESORIO.map((tipo) => [
+    tipo, opcionesAccesorio(equipo.value, tipo, form[tipo], anterior.value?.[tipo]),
+  ])),
 }))
+
+/**
+ * Qué desplegables de accesorios salen. El dripper y el molinillo siempre, y
+ * sin ninguno en el catálogo en su sitio va el camino para darlo de alta: sin
+ * ellos no hay taza. Los demás, solo si tienes alguno de ese tipo; a quien no
+ * apunta el agua, cuatro enlaces vacíos le taparían el formulario.
+ */
+const SIEMPRE: readonly string[] = ['dripper', 'molinillo']
+const tiposVisibles = computed(() =>
+  TIPOS_ACCESORIO.filter((tipo) => SIEMPRE.includes(tipo) || opciones.value[tipo]!.length),
+)
 
 /*
  * Se arranca con la anterior puesta: el protocolo es repetir y mover una sola
@@ -276,8 +291,9 @@ const slugDeAccesorio = (id: unknown) =>
 const conSlug = computed(() => ({
   ...form,
   receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
-  dripper_slug: slugDeAccesorio(form.dripper),
-  molinillo_slug: slugDeAccesorio(form.molinillo),
+  ...Object.fromEntries(
+    TIPOS_ACCESORIO.map((tipo) => [`${tipo}_slug`, slugDeAccesorio(form[tipo])]),
+  ),
 }))
 
 const seRegistrara = computed(() =>
@@ -468,15 +484,19 @@ const resumen = computed(() => {
     t('alta.resumen_cantidades', { dosis: form.dosis_g, agua: form.agua_g }),
     receta?.nombre ?? '',
     /*
-     * El dripper y el molinillo van aquí aunque abulten: son las dos variables
-     * que **no se eligen en ninguna otra pantalla** —ni preparar ni el reloj
-     * las tienen— y llegan copiadas de la taza anterior sin decirlo. Y el
-     * dripper es justo el que más contamina: uno con masa térmica baja la
-     * temperatura real del lecho. Escondido y sin resumir, colar en plástico
-     * una taza que la bitácora apunta como cerámica no dejaba ni un rastro.
+     * Los accesorios van aquí aunque abulten: son las variables que **no se
+     * eligen en ninguna otra pantalla** —ni preparar ni el reloj las tienen— y
+     * llegan copiadas de la taza anterior sin decirlo. Y el dripper es justo el
+     * que más contamina: uno con masa térmica baja la temperatura real del
+     * lecho. Escondido y sin resumir, colar en plástico una taza que la
+     * bitácora apunta como cerámica no dejaba ni un rastro.
+     *
+     * Pero solo los tipos de los que tienes más de uno en uso: con uno solo no
+     * hay cuál haya venido mal, y seis nombres más no caben en una línea.
      */
-    nombreAccesorio(form.dripper),
-    nombreAccesorio(form.molinillo),
+    ...TIPOS_ACCESORIO
+      .filter((tipo) => (equipo.value ?? []).filter((a) => a.tipo === tipo && a.en_uso).length > 1)
+      .map((tipo) => nombreAccesorio(form[tipo])),
   ].filter(Boolean).join(' · ')
 })
 
@@ -497,8 +517,9 @@ async function enviar() {
     }
     // Sin ninguno en el catálogo no hay nada que mandar: el servidor hereda el
     // de la madre, o deja el hueco.
-    if (form.dripper) datos.dripper = String(form.dripper)
-    if (form.molinillo) datos.molinillo = String(form.molinillo)
+    for (const tipo of TIPOS_ACCESORIO) {
+      if (form[tipo]) datos[tipo] = String(form[tipo])
+    }
     /*
      * Qué cambió solo viaja si lo cuentas: con la tabla puesta, lo que ella
      * compone; sin ella, lo tecleado. Si no hay ni una cosa ni la otra no se
@@ -653,12 +674,11 @@ async function enviar() {
       </select>
     </label>
 
-    <!-- Del catálogo de accesorios. Sin ninguno de un tipo, el desplegable no
-         tiene nada que ofrecer y en su sitio va el camino para darlo de alta. -->
+    <!-- Del catálogo de accesorios: ver `tiposVisibles`. -->
     <div class="pareja">
-      <label v-for="tipo in TIPOS_ACCESORIO" :key="tipo">
+      <label v-for="tipo in tiposVisibles" :key="tipo">
         {{ $t(`alta.${tipo}`) }}
-        <select v-if="opciones[tipo].length" v-model="form[tipo]">
+        <select v-if="opciones[tipo]!.length" v-model="form[tipo]">
           <option v-for="o in opciones[tipo]" :key="o.valor" :value="o.valor">{{ o.etiqueta }}</option>
         </select>
         <NuxtLinkLocale

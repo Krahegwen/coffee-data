@@ -84,15 +84,16 @@ const cronologico = (a, b) => {
 function conDerivados(extraccion, cafes, recetas, accesorios = []) {
   const cafe = cafes.find((c) => c.id === extraccion.cafe_id) ?? null;
   const receta = recetas.find((x) => x.id === extraccion.receta_id) ?? null;
-  const dripper = accesorios.find((a) => a.id === extraccion.dripper) ?? null;
-  const molinillo = accesorios.find((a) => a.id === extraccion.molinillo) ?? null;
+  const suyo = (tipo) => accesorios.find((a) => a.id === extraccion[tipo]) ?? null;
+  const slugs = Object.fromEntries(
+    TIPOS_ACCESORIO.map((tipo) => [`${tipo}_slug`, suyo(tipo)?.slug ?? null]),
+  );
   return {
     ...derivar(extraccion, cafe),
     cafe_slug: cafe?.slug ?? null,
     receta_slug: receta?.slug ?? null,
-    dripper_slug: dripper?.slug ?? null,
-    molinillo_slug: molinillo?.slug ?? null,
-    dripper_masa_termica: Boolean(dripper?.masa_termica),
+    ...slugs,
+    dripper_masa_termica: Boolean(suyo("dripper")?.masa_termica),
   };
 }
 
@@ -286,11 +287,15 @@ function accesorioDesconocido(accesorios, tipo, valor, t) {
   });
 }
 
-/** Por tipo, lo que sigue en casa delante, y por nombre dentro de eso. */
+/**
+ * Por tipo, en el orden de `TIPOS_ACCESORIO` —el de las pantallas, no el
+ * alfabético—, lo que sigue en casa delante, y por nombre dentro de eso.
+ */
 export async function listaAccesorios(almacen) {
   const filas = await almacen.accesorios.listar();
+  const orden = (a) => TIPOS_ACCESORIO.indexOf(a.tipo);
   filas.sort((a, b) => {
-    if (a.tipo !== b.tipo) return a.tipo < b.tipo ? -1 : 1;
+    if (a.tipo !== b.tipo) return orden(a) - orden(b);
     if (Boolean(a.en_uso) !== Boolean(b.en_uso)) return a.en_uso ? -1 : 1;
     return a.nombre.localeCompare(b.nombre);
   });

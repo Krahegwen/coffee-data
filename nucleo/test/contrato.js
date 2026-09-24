@@ -287,7 +287,7 @@ export function contratoDelAlmacen(titulo, fabrica) {
       });
 
       it("un tipo que no existe es 422, y no escribe nada", async () => {
-        const { estado } = await crearAccesorio(almacen, { tipo: "hervidor", nombre: "Fellow" });
+        const { estado } = await crearAccesorio(almacen, { tipo: "jarra", nombre: "Hario" });
         assert.equal(estado, 422);
         assert.equal((await listaAccesorios(almacen)).datos.length, 3);
       });
@@ -467,6 +467,48 @@ export function contratoDelAlmacen(titulo, fabrica) {
 
         const quitado = await editarExtraccion(almacen, id, { molinillo: "" });
         assert.equal(quitado.datos.extraccion.molinillo, null);
+      });
+
+      describe("los tipos de la 0015", () => {
+        const { variable_cambiada, ...sinTexto } = EXTRACCION;
+
+        beforeEach(async () => {
+          await crearAccesorio(almacen, { tipo: "filtro", nombre: "Hario con pestaña" });
+          await crearAccesorio(almacen, { tipo: "filtro", nombre: "Cafec Abaca" });
+          await crearAccesorio(almacen, { tipo: "agua", nombre: "Grifo filtrada" });
+        });
+
+        it("se apuntan como el dripper, y sin mandarlos se heredan de la madre", async () => {
+          const { datos: madre } = await crearExtraccion(almacen, { ...sinTexto, filtro: "cafec_abaca" });
+          assert.equal(madre.extraccion.filtro_slug, "cafec_abaca");
+          const { datos } = await crearExtraccion(almacen, sinTexto);
+          assert.equal(datos.extraccion.filtro_slug, "cafec_abaca");
+          // Sin mandarla y sin madre que la tenga, la primera que diste de alta.
+          assert.equal(datos.extraccion.agua_slug, "grifo_filtrada");
+        });
+
+        it("cada uno en su columna: un filtro no vale de agua", async () => {
+          const { estado } = await crearExtraccion(almacen, { ...sinTexto, agua: "cafec_abaca" });
+          assert.equal(estado, 422);
+        });
+
+        it("cambiar de filtro es la variable de esa taza", async () => {
+          await crearExtraccion(almacen, { ...sinTexto, filtro: "hario_con_pestana" });
+          const { datos } = await crearExtraccion(almacen, { ...sinTexto, filtro: "cafec_abaca" });
+          assert.equal(datos.extraccion.variable_cambiada, "filtro hario_con_pestana → cafec_abaca");
+        });
+
+        it("pero apuntarlo por primera vez no es cambiarlo: antes no constaba", async () => {
+          // La madre, de antes de tener filtros en el catálogo: sin filtro.
+          const { datos: madre } = await crearExtraccion(almacen, sinTexto);
+          await almacen.extracciones.actualizar(madre.extraccion.id, { filtro: null });
+          const { datos } = await crearExtraccion(almacen, {
+            ...sinTexto, filtro: "cafec_abaca", temp_c: 94,
+          });
+          // Una sola variable movida, y el aviso de dos a la vez no sale.
+          assert.equal(datos.extraccion.variable_cambiada, "temp_c 91 → 94");
+          assert.ok(!datos.sugerencias.avisos.some((a) => a.includes("has movido")));
+        });
       });
 
       it("la lista trae los slugs de los accesorios, como los de café y receta", async () => {

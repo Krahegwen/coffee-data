@@ -49,6 +49,9 @@ COLUMNAS_EXTRACCIONES = [
     "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
     "receta_id", "receta_slug", "drawdown_s", "dripper", "dripper_slug",
     "borrada_en", "desde_id",
+    # Los accesorios de la 0015, al final para que el diff del CSV no se mueva.
+    "filtro", "filtro_slug", "bascula", "bascula_slug", "hervidor", "hervidor_slug",
+    "agua", "agua_slug",
 ]
 
 

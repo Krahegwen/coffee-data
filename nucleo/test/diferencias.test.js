@@ -39,6 +39,17 @@ describe("el diff entre dos extracciones", () => {
     assert.deepEqual(diferencias(FILA(), FILA({ temp_c: "91" })), []);
   });
 
+  it("un accesorio que no consta a un lado no es otro accesorio", () => {
+    // Las tazas de antes de la 0015 no dicen con qué filtro se hicieron.
+    assert.deepEqual(diferencias(FILA({ filtro: null }), FILA({ filtro: "abaca" })), []);
+    assert.deepEqual(diferencias(FILA({ agua: "grifo" }), FILA({ agua: "" })), []);
+    // Con los dos lados puestos, sí es un cambio.
+    assert.deepEqual(
+      diferencias(FILA({ filtro: "hario" }), FILA({ filtro: "abaca" })).map((d) => d.variable),
+      ["filtro"],
+    );
+  });
+
   it("sin madre no hay diff, que no es lo mismo que no haber cambiado", () => {
     assert.deepEqual(diferencias(null, FILA()), []);
   });
