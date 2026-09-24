@@ -9,7 +9,10 @@
     "idioma": "Idioma",
     "sincronizando": "Sincronizando…",
     "por_subir": "{n} por subir",
-    "al_dia": "Al día"
+    "al_dia": "Al día",
+    "version_nueva": "Hay una versión nueva de la app.",
+    "actualizar": "Actualizar",
+    "actualizando": "Actualizando…"
   },
   "sesion": {
     "abrir": "Abrir sesión",

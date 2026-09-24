@@ -105,6 +105,21 @@ Instalable como PWA, con la API cacheada en modo *network first*: unos datos
 viejos en la bitácora confunden más que un error, pero sin cobertura responde
 la caché.
 
+### Las versiones nuevas
+
+**La app nunca se recarga sola.** Con el `autoUpdate` del módulo de PWA, en
+cuanto el service worker nuevo se activaba la página se recargaba donde
+estuvieras: navegando, a medio escribir una nota o con el reloj corriendo. Y
+llegaba tarde, porque el navegador solo busca versión al cargar la página, y
+la app instalada en Android casi nunca se carga: vuelve del fondo como estaba.
+
+Ahora va en modo `prompt`. Se pregunta al abrir, **al volver a la app** y cada
+media hora mientras está a la vista (`plugins/actualizar.client.ts`). La
+versión nueva se baja por detrás y espera: arriba sale «Hay una versión nueva
+· Actualizar», y se pone al tocarlo o sola la próxima vez que la app arranque
+de cero. El aviso no sale con una medición en marcha, que recargar se lleva el
+reloj y ese café ya está colado.
+
 ### La tarjeta de enlace
 
 Lo que sale al pegar `brew.krahegwen.com` en un chat. Las etiquetas están en

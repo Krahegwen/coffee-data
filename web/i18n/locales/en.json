@@ -9,7 +9,10 @@
     "idioma": "Language",
     "sincronizando": "Syncing…",
     "por_subir": "{n} to upload",
-    "al_dia": "Up to date"
+    "al_dia": "Up to date",
+    "version_nueva": "A new version of the app is ready.",
+    "actualizar": "Update",
+    "actualizando": "Updating…"
   },
   "sesion": {
     "abrir": "Sign in",

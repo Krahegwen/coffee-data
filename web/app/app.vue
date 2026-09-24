@@ -166,6 +166,9 @@ useHead({
         </svg>
       </NuxtLinkLocale>
     </header>
+    <!-- Arriba y no en el pie: el pie no se ve sin bajar, y quien espera una
+         versión quiere enterarse de que ya está. -->
+    <VersionNueva />
     <main>
       <p v-if="!comprobada || !lista" class="meta-sesion">{{ $t('app.cargando') }}</p>
       <NuxtPage v-else />
