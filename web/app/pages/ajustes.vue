@@ -55,6 +55,44 @@ const temasVisibles = computed(() =>
 const claveDelTema = computed(() =>
   modo.value === 'oscuro' ? 'tema_oscuro' : 'tema_claro',
 )
+
+/**
+ * Buscar versión a mano. La app ya lo hace sola —al abrir, al volver y al
+ * cambiar de página, ver `useVersion`—, pero quien acaba de desplegar quiere
+ * verla ya. Si la hay, se baja y se pone aquí mismo, salvo que haya algo a
+ * medias que una recarga se llevaría.
+ */
+const { version } = useRuntimeConfig().public
+const { buscar, lista, aplicar, hayAlgoQuePerder } = useVersion()
+const estadoVersion = ref<'' | 'buscando' | 'bajando' | 'al_dia' | 'sin_red' | 'pendiente' | 'a_medias'>('')
+
+const avisoVersion = computed(() => {
+  const clave = {
+    al_dia: 'ajustes.version_al_dia',
+    sin_red: 'ajustes.version_sin_red',
+    pendiente: 'ajustes.version_pendiente',
+    a_medias: 'ajustes.version_a_medias',
+  }[estadoVersion.value as string]
+  return clave ? t(clave) : ''
+})
+
+async function buscarVersion() {
+  estadoVersion.value = 'buscando'
+  if (!(await buscar())) {
+    estadoVersion.value = navigator.onLine ? 'al_dia' : 'sin_red'
+    return
+  }
+  estadoVersion.value = 'bajando'
+  if (!(await lista())) {
+    estadoVersion.value = 'pendiente'
+    return
+  }
+  if (hayAlgoQuePerder.value) {
+    estadoVersion.value = 'a_medias'
+    return
+  }
+  await aplicar()
+}
 </script>
 
 <template>
@@ -109,6 +147,18 @@ const claveDelTema = computed(() =>
     <!-- Dónde vive esto, dicho una vez: es la diferencia entre «se me ha
          desconfigurado el móvil» y «esto es lo que hace». -->
     <p class="meta nota">{{ $t('ajustes.donde_viven') }}</p>
+
+    <h2 class="aparte">{{ $t('ajustes.version_titulo') }}</h2>
+    <p class="meta">{{ $t('ajustes.version_intro', { version }) }}</p>
+    <button
+      type="button" class="opcion buscar"
+      :disabled="estadoVersion === 'buscando' || estadoVersion === 'bajando'" @click="buscarVersion"
+    >
+      {{ estadoVersion === 'buscando' ? $t('ajustes.version_buscando')
+        : estadoVersion === 'bajando' ? $t('ajustes.version_bajando')
+        : $t('ajustes.version_buscar') }}
+    </button>
+    <p v-if="avisoVersion" class="meta">{{ avisoVersion }}</p>
   </section>
 </template>
 
@@ -187,6 +237,10 @@ input[type="checkbox"]:focus-visible { outline: 2px solid var(--acento); outline
 .fallo { color: var(--peligro); font-size: 0.85rem; margin: 0.75rem 0 0; }
 
 .aparte { margin-top: 2rem; }
+
+/* El botón de buscar versión, con la misma pinta que los modos del tema. */
+.buscar { margin: 0.6rem 0 0; }
+.buscar:disabled { opacity: 0.6; cursor: default; }
 
 /* Los tres modos en fila, como un selector segmentado: son excluyentes y
    caben, así que un desplegable escondería la mitad de la decisión. */

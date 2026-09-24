@@ -10,9 +10,7 @@
     "sincronizando": "Syncing…",
     "por_subir": "{n} to upload",
     "al_dia": "Up to date",
-    "version_nueva": "A new version of the app is ready.",
-    "actualizar": "Update",
-    "actualizando": "Updating…"
+    "actualizando": "Installing the new version…"
   },
   "sesion": {
     "abrir": "Sign in",
@@ -398,7 +396,16 @@
     "tema_pizarra": "Slate",
     "tema_tostado": "Roast",
     "tema_carbon": "Charcoal",
-    "donde_viven": "Settings are kept in this browser. With a session open they travel to the server and come down to your other devices."
+    "donde_viven": "Settings are kept in this browser. With a session open they travel to the server and come down to your other devices.",
+    "version_titulo": "Version",
+    "version_intro": "You have v{version}. The app looks for new versions when you open it, when you come back to it and when you change screens, and installs them on its own when nothing is half-done.",
+    "version_buscar": "Check now",
+    "version_buscando": "Checking…",
+    "version_bajando": "Downloading the new version…",
+    "version_al_dia": "You already have the latest.",
+    "version_sin_red": "It cannot be checked without a connection.",
+    "version_pendiente": "There is a new version, but it is slow to download: it will install itself when you change screens.",
+    "version_a_medias": "There is a new version, but you have a measurement or a draft half-done: it will install when you finish it."
   },
   "respaldo": {
     "titulo": "Backup",

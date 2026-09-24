@@ -46,6 +46,7 @@ const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const { releer: releerAjustes, cargar: cargarAjustes } = usePreferencias()
 const { seguir: seguirTema, barra } = useTema()
+const { actualizando, alAbrir } = useVersion()
 const tokenVisible = ref('')
 const errorSesion = ref('')
 const abriendo = ref(false)
@@ -83,7 +84,15 @@ onMounted(async () => {
   seguirTema()
   void cargarAjustes()
 
-  await comprobar()
+  /*
+   * La versión nueva se busca a la par que la sesión, así que sin novedades
+   * el arranque no tarda más que antes. Si la hay, se baja y se pone aquí,
+   * detrás del splash, y la página se carga otra vez: no hace falta seguir, y
+   * bajar lo del servidor ya lo hará la versión nueva.
+   */
+  const [poniendo] = await Promise.all([alAbrir(), comprobar()])
+  if (poniendo) return
+
   if (activa.value) await refrescar()
   await recontar()
   lista.value = true
@@ -166,12 +175,10 @@ useHead({
         </svg>
       </NuxtLinkLocale>
     </header>
-    <!-- Arriba y no en el pie: el pie no se ve sin bajar, y quien espera una
-         versión quiere enterarse de que ya está. -->
-    <VersionNueva />
+    <!-- Mientras arranca, y mientras se pone una versión nueva: ver `Arranque`. -->
+    <Arranque v-if="!comprobada || !lista || actualizando" :actualizando="actualizando" />
     <main>
-      <p v-if="!comprobada || !lista" class="meta-sesion">{{ $t('app.cargando') }}</p>
-      <NuxtPage v-else />
+      <NuxtPage v-if="comprobada && lista" />
 
       <!-- Dentro de `main` y el último: se pega al fondo de la ventana
            mientras haya contenido y se suelta justo donde empieza el pie.
@@ -558,5 +565,4 @@ footer p { margin: 0.15rem 0; }
 .portero button:disabled { opacity: 0.5; cursor: default; }
 .portero .fallo-sesion { color: var(--peligro); }
 
-.meta-sesion { color: var(--suave); font-size: 0.85rem; }
 </style>

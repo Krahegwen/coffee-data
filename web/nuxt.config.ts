@@ -153,12 +153,17 @@ export default defineNuxtConfig({
     /*
      * `prompt` y no `autoUpdate`: con éste, en cuanto el service worker nuevo
      * se activaba el módulo recargaba la página, estuvieras donde estuvieras
-     * —navegando, a medio formulario o con el reloj corriendo—. Ahora la
-     * versión nueva espera: se pone al tocar el aviso (`VersionNueva.vue`) o
-     * sola la próxima vez que la app arranque de cero. Cuándo se busca, en
+     * —navegando, a medio formulario o con el reloj corriendo—. Con `prompt`
+     * la versión nueva espera a que se la pida.
+     *
+     * Y sin el plugin del módulo (`registerPlugin: false`): el suyo también
+     * recargaba la página de ahora al cambiar de versión, y aquí la versión
+     * nueva se pone al cambiar de página llegando a la que ibas. El registro,
+     * cuándo se pregunta y cuándo se pone viven en `useVersion` y en
      * `plugins/actualizar.client.ts`.
      */
     registerType: 'prompt',
+    client: { registerPlugin: false },
     manifest: {
       name: 'Bitácora de café',
       short_name: 'Café',
