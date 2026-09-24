@@ -153,7 +153,13 @@ async function quitarFoto() {
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: $t('bolsas.titulo'), a: '/cafes' }, { texto: original?.nombre ?? id }]" />
+  <Migas
+    :ruta="[
+      { texto: $t('menu.titulo'), a: '/menu' },
+      { texto: $t('bolsas.titulo'), a: '/cafes' },
+      { texto: original?.nombre ?? id },
+    ]"
+  />
 
   <p v-if="!original" class="meta">{{ $t('bolsa.no_existe', { id }) }}</p>
 

@@ -141,6 +141,7 @@ async function enviar() {
 <template>
   <Migas
     :ruta="[
+      { texto: $t('menu.titulo'), a: '/menu' },
       { texto: $t('bolsas.titulo'), a: '/cafes' },
       { texto: copiaDe ? $t('bolsa.otra_de', { nombre: copiaDe.nombre }) : $t('comun.nueva') },
     ]"

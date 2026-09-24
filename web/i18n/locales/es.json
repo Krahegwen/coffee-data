@@ -2,9 +2,7 @@
   "app": {
     "nombre": "Bitácora de café",
     "cargando": "Un momento…",
-    "recetas": "Recetas",
     "respaldo": "Respaldo",
-    "ajustes": "Ajustes",
     "kofi": "Invítame a un café",
     "licencia": "© 2026 Krahegwen · MIT ·",
     "en_el_servidor": " · en el servidor",
@@ -83,6 +81,12 @@
     "abierto": "abierta",
     "terminado": "terminada",
     "pendiente": "pendiente"
+  },
+  "menu": {
+    "titulo": "Menú",
+    "ajustes_pista": "Cómo avisa el cronómetro y los colores de la app.",
+    "recetas_pista": "Los pasos que guía el cronómetro y cómo se reparte el agua.",
+    "bolsas_pista": "Cada café que entra en casa: tueste, frescura y lo que queda."
   },
   "bolsas": {
     "titulo": "Bolsas",

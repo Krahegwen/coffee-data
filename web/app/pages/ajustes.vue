@@ -58,7 +58,7 @@ const claveDelTema = computed(() =>
 </script>
 
 <template>
-  <Migas :ruta="[{ texto: $t('ajustes.titulo') }]" />
+  <Migas :ruta="[{ texto: $t('menu.titulo'), a: '/menu' }, { texto: $t('ajustes.titulo') }]" />
 
   <section>
     <h2>{{ $t('ajustes.crono_titulo') }}</h2>

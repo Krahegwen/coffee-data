@@ -43,18 +43,6 @@ const { version } = useRuntimeConfig().public
  * siendo el token.
  */
 const { activa, comprobada, comprobar, abrir, cerrar } = useSesion()
-const ruta = useRoute()
-
-/**
- * El atajo a las recetas, solo donde es atajo: en la portada y en el
- * formulario de preparar, que es donde uno cae con la receta en la cabeza.
- * En /recetas era un enlace a la página que ya estás viendo, y en el resto
- * compite con las migas, que ya llevan a todas partes.
- */
-const localePath = useLocalePath()
-const conAtajo = computed(
-  () => ruta.path === localePath('/') || ruta.path === localePath('/crono'),
-)
 const { pendientes, atasco, sincronizando, refrescar, recontar } = useSincro()
 const { releer: releerAjustes, cargar: cargarAjustes } = usePreferencias()
 const { seguir: seguirTema } = useTema()
@@ -162,16 +150,15 @@ useHead({
   <div class="marco">
     <header>
       <h1>{{ $t('app.nombre') }}</h1>
-      <!-- Las recetas se consultan a menudo y se editan poco, así que viven
-           arriba y siempre a la misma altura en vez de ocupar un botón en la
-           portada. -->
-      <NuxtLinkLocale v-if="conAtajo" to="/recetas" class="atajo">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
-          <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
-          <path d="M8 7.5h7M8 11h5" />
+      <!-- El menú, en todas las pantallas y siempre a la misma altura: de él
+           cuelga lo que se prepara antes de hacer café —bolsas, recetas,
+           accesorios— y los ajustes. Sustituye al atajo a las recetas, que
+           solo salía en dos pantallas y ahora es una de sus entradas. -->
+      <NuxtLinkLocale to="/menu" class="atajo" :aria-label="$t('menu.titulo')" :title="$t('menu.titulo')">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
-        {{ $t('app.recetas') }}
       </NuxtLinkLocale>
     </header>
     <main>
@@ -200,11 +187,10 @@ useHead({
             : pendientes ? $t('app.por_subir', { n: pendientes }) : $t('app.al_dia') }}
         </button>
       </p>
-      <!-- El respaldo y los ajustes viven en el pie: se usan poco, pero tienen
-           que poder encontrarse sin que nadie te lo cuente. -->
+      <!-- El respaldo vive en el pie: se usa poco, pero tiene que poder
+           encontrarse sin que nadie te lo cuente. Los ajustes, que estaban a
+           su lado, se fueron al menú del engranaje. -->
       <p>
-        <NuxtLinkLocale to="/ajustes" class="enlace-pie">{{ $t('app.ajustes') }}</NuxtLinkLocale>
-        <span class="separador">·</span>
         <NuxtLinkLocale to="/respaldo" class="enlace-pie">{{ $t('app.respaldo') }}</NuxtLinkLocale>
       </p>
 
@@ -421,24 +407,25 @@ header h1 {
 }
 
 /*
- * 44 px de alto para el dedo, y el margen negativo de la derecha cancela su
- * relleno: así el texto acaba a ras del borde del contenido y no medio
- * centímetro antes que todo lo demás.
+ * 44 px para el dedo, y el margen negativo de la derecha cancela el relleno:
+ * así el engranaje acaba a ras del borde del contenido y no medio centímetro
+ * antes que todo lo demás.
  */
 .atajo {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
   flex: none;
+  min-width: 44px;
   min-height: 44px;
-  padding: 0 0.7rem;
-  margin-right: -0.7rem;
+  margin-right: -11px;
   color: var(--suave);
-  font-size: 0.85rem;
   text-decoration: none;
 }
 
-.atajo:hover { color: var(--acento); }
+/* En el propio menú se queda encendido: dice dónde estás, como la última
+   miga. */
+.atajo:hover, .atajo.router-link-exact-active { color: var(--acento); }
 
 /*
  * Las parejas de campos son un grid de 1fr 1fr, y sus hijos —las etiquetas—
@@ -528,7 +515,6 @@ footer p { margin: 0.15rem 0; }
 }
 
 .enlace-pie:hover { color: var(--acento); }
-.separador { color: var(--linea); margin: 0 0.5rem; }
 
 .kofi { color: var(--suave); text-decoration: underline; }
 .kofi:hover { color: var(--acento); }
