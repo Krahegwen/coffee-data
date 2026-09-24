@@ -51,11 +51,8 @@
     "dosis_g": "Dosis (g)",
     "agua_g": "Agua (g)",
     "receta_id": "Receta",
-    "dripper": "Dripper"
-  },
-  "drippers": {
-    "v60-02-plastico": "V60 02 plástico",
-    "v60-02-ceramica": "V60 02 cerámica"
+    "dripper": "Dripper",
+    "molinillo": "Molinillo"
   },
   "comun": {
     "sin_bolsa": "Sin bolsa",
@@ -70,12 +67,14 @@
     "restablecer": "Restablecer",
     "no_guardado": "No se ha guardado nada",
     "nueva": "Nueva",
+    "nuevo": "Nuevo",
     "donde_estas": "Dónde estás",
     "arriba": "Volver arriba",
     "dias_tueste_corto": "{n} d de tueste"
   },
   "rutas": {
-    "nueva": "nueva"
+    "nueva": "nueva",
+    "nuevo": "nuevo"
   },
   "estados": {
     "abierto": "abierta",
@@ -86,7 +85,8 @@
     "titulo": "Menú",
     "ajustes_pista": "Cómo avisa el cronómetro y los colores de la app.",
     "recetas_pista": "Los pasos que guía el cronómetro y cómo se reparte el agua.",
-    "bolsas_pista": "Cada café que entra en casa: tueste, frescura y lo que queda."
+    "bolsas_pista": "Cada café que entra en casa: tueste, frescura y lo que queda.",
+    "accesorios_pista": "Drippers y molinillos: con qué se hace cada taza."
   },
   "bolsas": {
     "titulo": "Bolsas",
@@ -102,6 +102,42 @@
     "titulo": "Recetas",
     "vacio": "No queda ninguna receta, y sin al menos una el cronómetro no tiene qué guiar. Crea una con «Nueva».",
     "resumen": "{reparto} sobre {referencia} g · {pasos} pasos"
+  },
+  "accesorios": {
+    "titulo": "Accesorios",
+    "vacio": "Aún no tienes accesorios. El dripper y el molinillo de cada taza salen de aquí: da de alta los tuyos con «Nuevo».",
+    "tipos": {
+      "dripper": "Drippers",
+      "molinillo": "Molinillos"
+    },
+    "tipo": {
+      "dripper": "Dripper",
+      "molinillo": "Molinillo"
+    },
+    "usos": "{n} extracción | {n} extracciones",
+    "sin_usos": "Sin usar todavía",
+    "masa_corto": "masa térmica",
+    "fuera_de_uso": "fuera de uso"
+  },
+  "accesorio": {
+    "no_existe": "No hay ningún accesorio «{id}».",
+    "tipo": "Tipo",
+    "tipo_fijo": "El tipo no se cambia: las tazas que lo usan lo apuntaron así.",
+    "nombre": "Nombre",
+    "nombre_ejemplo": "Hario V60 02 cerámica",
+    "masa_termica": "Masa térmica",
+    "masa_termica_pista": "Cerámica, vidrio o metal grueso: roba calor al lecho si no lo precalientas, y cada taza te lo recordará.",
+    "en_uso": "En uso",
+    "en_uso_pista": "Fuera de uso deja de ofrecerse al registrar, pero las tazas que lo usaron lo siguen nombrando.",
+    "notas": "Notas",
+    "crear": "Dar de alta",
+    "guardar": "Guardar cambios",
+    "guardado": "Guardado",
+    "borrar": "Borrar",
+    "borrar_titulo": "¿Borrar «{nombre}»?",
+    "borrar_ojo": "Se va del todo, sin papelera. Solo se puede con lo que no ha usado ninguna taza.",
+    "no_se_borra": "Hay {usos} con él, así que no se puede borrar: las tazas tienen que seguir diciendo con qué se hicieron. Si ya no lo tienes, sácalo de uso.",
+    "borrando": "Borrando…"
   },
   "portada": {
     "sin_api": "No se pudo hablar con la API. Si estás sin cobertura, esto se verá con los últimos datos guardados en cuanto la app esté instalada.",
@@ -345,7 +381,7 @@
   "respaldo": {
     "titulo": "Respaldo",
     "descargar_titulo": "Descargar respaldo",
-    "que_es": "Un ZIP con la bitácora entera: bolsas, recetas, extracciones y fotos, en los mismos CSV que guarda el repo. Sirve de copia y de mudanza a otro navegador.",
+    "que_es": "Un ZIP con la bitácora entera: bolsas, recetas, accesorios, extracciones y fotos, en los mismos CSV que guarda el repo. Sirve de copia y de mudanza a otro navegador.",
     "ahora_mismo": "Ahora mismo: {cafes}, {recetas} y {extracciones}.",
     "ultimo": "Último respaldo: {fecha}.",
     "ninguno": "Todavía no has descargado ninguno.",
@@ -426,7 +462,9 @@
     "cambia_una_enfasis": "una sola",
     "conforme": "Equilibrado y con buena nota: no toques nada, repite para confirmar.",
     "otra": "Registrar otra",
-    "al_inicio": "Volver al inicio"
+    "al_inicio": "Volver al inicio",
+    "molinillo": "Molinillo",
+    "sin_accesorio": "Aún no tienes ninguno: dalo de alta en Accesorios"
   },
   "extraccion": {
     "titulo": "Extracción",

@@ -42,6 +42,14 @@ export function almacenD1(db) {
 
   return {
     cafes: tablaSimple("cafes"),
+    accesorios: {
+      ...tablaSimple("accesorios"),
+      // Solo lo que no usa nadie llega aquí: el manejador lo ha mirado antes,
+      // y si no, la clave foránea de `extracciones` dice que no.
+      async borrar(id) {
+        await db.prepare("DELETE FROM accesorios WHERE id = ?").bind(id).run();
+      },
+    },
     extracciones: tablaSimple("extracciones"),
     /**
      * Los ajustes. Upsert y no INSERT: no hay primer día que valga, la fila

@@ -51,11 +51,8 @@
     "dosis_g": "Dose (g)",
     "agua_g": "Water (g)",
     "receta_id": "Recipe",
-    "dripper": "Dripper"
-  },
-  "drippers": {
-    "v60-02-plastico": "V60 02 plastic",
-    "v60-02-ceramica": "V60 02 ceramic"
+    "dripper": "Dripper",
+    "molinillo": "Grinder"
   },
   "comun": {
     "sin_bolsa": "No bag",
@@ -70,12 +67,14 @@
     "restablecer": "Reset",
     "no_guardado": "Nothing was saved",
     "nueva": "New",
+    "nuevo": "New",
     "donde_estas": "Where you are",
     "arriba": "Back to top",
     "dias_tueste_corto": "{n} d past roast"
   },
   "rutas": {
-    "nueva": "new"
+    "nueva": "new",
+    "nuevo": "new"
   },
   "estados": {
     "abierto": "open",
@@ -86,7 +85,8 @@
     "titulo": "Menu",
     "ajustes_pista": "How the timer cues you, and the app colours.",
     "recetas_pista": "The steps the timer walks you through and how the water is split.",
-    "bolsas_pista": "Every coffee that comes into the house: roast, freshness and what is left."
+    "bolsas_pista": "Every coffee that comes into the house: roast, freshness and what is left.",
+    "accesorios_pista": "Drippers and grinders: what each cup is made with."
   },
   "bolsas": {
     "titulo": "Bags",
@@ -102,6 +102,42 @@
     "titulo": "Recipes",
     "vacio": "There are no recipes left, and without at least one the timer has nothing to guide. Create one with “New”.",
     "resumen": "{reparto} over {referencia} g · {pasos} steps"
+  },
+  "accesorios": {
+    "titulo": "Gear",
+    "vacio": "No gear yet. Each brew's dripper and grinder come from here: add yours with “New”.",
+    "tipos": {
+      "dripper": "Drippers",
+      "molinillo": "Grinders"
+    },
+    "tipo": {
+      "dripper": "Dripper",
+      "molinillo": "Grinder"
+    },
+    "usos": "{n} brew | {n} brews",
+    "sin_usos": "Not used yet",
+    "masa_corto": "thermal mass",
+    "fuera_de_uso": "out of use"
+  },
+  "accesorio": {
+    "no_existe": "There is no piece of gear “{id}”.",
+    "tipo": "Type",
+    "tipo_fijo": "The type does not change: the brews that use it were logged that way.",
+    "nombre": "Name",
+    "nombre_ejemplo": "Hario V60 02 ceramic",
+    "masa_termica": "Thermal mass",
+    "masa_termica_pista": "Ceramic, glass or thick metal: it steals heat from the bed unless you preheat it, and every brew will remind you.",
+    "en_uso": "In use",
+    "en_uso_pista": "Out of use it stops being offered when you log, but the brews that used it still name it.",
+    "notas": "Notes",
+    "crear": "Add",
+    "guardar": "Save changes",
+    "guardado": "Saved",
+    "borrar": "Delete",
+    "borrar_titulo": "Delete “{nombre}”?",
+    "borrar_ojo": "It goes for good, with no bin. Only possible with what no brew has used.",
+    "no_se_borra": "Used by {usos}, so it cannot be deleted: the brews have to keep saying what they were made with. If you no longer have it, take it out of use.",
+    "borrando": "Deleting…"
   },
   "portada": {
     "sin_api": "Could not reach the API. If you are offline, this will show the last saved data once the app is installed.",
@@ -345,7 +381,7 @@
   "respaldo": {
     "titulo": "Backup",
     "descargar_titulo": "Download backup",
-    "que_es": "A ZIP with the whole log: bags, recipes, brews and photos, in the same CSVs the repo keeps. It works as a copy and as a move to another browser.",
+    "que_es": "A ZIP with the whole log: bags, recipes, gear, brews and photos, in the same CSVs the repo keeps. It works as a copy and as a move to another browser.",
     "ahora_mismo": "Right now: {cafes}, {recetas} and {extracciones}.",
     "ultimo": "Last backup: {fecha}.",
     "ninguno": "You have not downloaded one yet.",
@@ -426,7 +462,9 @@
     "cambia_una_enfasis": "one single",
     "conforme": "Balanced and well scored: touch nothing, repeat to confirm.",
     "otra": "Log another",
-    "al_inicio": "Back to home"
+    "al_inicio": "Back to home",
+    "molinillo": "Grinder",
+    "sin_accesorio": "None yet: add one in Gear"
   },
   "extraccion": {
     "titulo": "Brew",

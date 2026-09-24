@@ -19,7 +19,10 @@
 const NOMBRE = "coffee";
 // La 2 añade `cola`: la salida hacia la red del modo con sesión.
 // La 3, `preferencias`: los ajustes, con su clave por llave.
-const VERSION = 3;
+// La 4, `accesorios`: el catálogo de drippers y molinillos. Las extracciones
+// viejas siguen con su texto dentro hasta que `pasarAlCatalogo` las convierte
+// —ver `legado.js`—, que eso necesita los manejadores y aquí no los hay.
+const VERSION = 4;
 
 /** Un IDBRequest como promesa. */
 function pedir(peticion) {
@@ -42,7 +45,7 @@ function abrir(fabrica, nombre) {
   const peticion = fabrica.open(nombre, VERSION);
   peticion.onupgradeneeded = () => {
     const db = peticion.result;
-    for (const tabla of ["cafes", "recetas", "extracciones"]) {
+    for (const tabla of ["cafes", "recetas", "extracciones", "accesorios"]) {
       if (!db.objectStoreNames.contains(tabla)) db.createObjectStore(tabla, { keyPath: "id" });
     }
     if (!db.objectStoreNames.contains("fotos")) db.createObjectStore("fotos", { keyPath: "clave" });
@@ -116,6 +119,15 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
 
   return {
     cafes: tablaSimple("cafes"),
+    accesorios: {
+      ...tablaSimple("accesorios"),
+      async borrar(id) {
+        const d = await db();
+        const transaccion = d.transaction("accesorios", "readwrite");
+        transaccion.objectStore("accesorios").delete(id);
+        await completa(transaccion);
+      },
+    },
     extracciones: tablaSimple("extracciones"),
     recetas: {
       async listar() {
@@ -236,7 +248,7 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
       },
     },
     /**
-     * Reemplaza las tres tablas con lo que diga el servidor, en una sola
+     * Reemplaza las cuatro tablas con lo que diga el servidor, en una sola
      * transacción: o el cajón entero pasa a la versión nueva, o se queda como
      * estaba. Solo lo llama el refresco, y solo con la cola vacía.
      *
@@ -244,10 +256,12 @@ export function almacenIDB(fabrica = globalThis.indexedDB, nombre = NOMBRE) {
      * ajuste no es una fila del historial y borrarlo para volver a bajarlo
      * tiene consecuencias distintas. Ver `preferencias.fusionar`.
      */
-    async reemplazar({ cafes, recetas, extracciones }) {
+    async reemplazar({ cafes, recetas, accesorios, extracciones }) {
       const d = await db();
-      const transaccion = d.transaction(["cafes", "recetas", "extracciones"], "readwrite");
-      const tablas = { cafes, recetas, extracciones };
+      const transaccion = d.transaction(
+        ["cafes", "recetas", "accesorios", "extracciones"], "readwrite",
+      );
+      const tablas = { cafes, recetas, accesorios, extracciones };
       try {
         for (const [tabla, filas] of Object.entries(tablas)) {
           const almacen = transaccion.objectStore(tabla);

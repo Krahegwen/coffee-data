@@ -512,9 +512,18 @@ describe("avisos", () => {
     assert.deepEqual(avisosDe(extraccion({ dias_abierta: null })), []);
   });
 
-  it("avisa de la masa térmica de la cerámica", () => {
-    const avisos = avisosDe(extraccion({ dripper: "v60-02-ceramica" }));
+  it("avisa de la masa térmica del dripper", () => {
+    const avisos = avisosDe(extraccion({ dripper: "v60-02-ceramica", dripper_masa_termica: true }));
     assert.ok(avisos.some((a) => a.includes("masa térmica")));
+  });
+
+  it("y la masa térmica la dice el accesorio, no su nombre", () => {
+    // Era una lista de claves escrita en el motor: un Origami de cerámica no
+    // avisaba, y la cerámica avisaba por llamarse así.
+    const deNombre = avisosDe(extraccion({ dripper: "v60-02-ceramica", dripper_masa_termica: false }));
+    assert.ok(!deNombre.some((a) => a.includes("masa térmica")));
+    const origami = avisosDe(extraccion({ dripper: "origami", dripper_masa_termica: true }));
+    assert.ok(origami.some((a) => a.includes("masa térmica")));
   });
 
   const cambioDeDripper = (historico) =>
@@ -699,9 +708,11 @@ describe("validación de extracciones", () => {
     assert.deepEqual(errores, []);
     assert.equal(valores.dosis_g, 20);
     assert.equal(valores.agua_g, 300);
-    assert.equal(valores.molinillo, "Comandante C40");
     assert.equal(valores.receta_id, "kasuya-46-base");
-    assert.equal(valores.dripper, "v60-02-plastico");
+    // Los accesorios no tienen valor de fábrica: sin decirlo, el manejador
+    // hereda el de la madre o pone el que usaste la última vez.
+    assert.equal(valores.molinillo, null);
+    assert.equal(valores.dripper, null);
   });
 
   it("pone la fecha de hoy si falta", () => {
@@ -726,16 +737,21 @@ describe("validación de extracciones", () => {
     }
   });
 
-  it("rechaza defecto y dripper inventados", () => {
+  it("rechaza defectos inventados", () => {
     assert.ok(validarExtraccion(cuerpo({ defecto: "quemado" })).errores.length);
-    assert.ok(validarExtraccion(cuerpo({ dripper: "chemex" })).errores.length);
+  });
+
+  it("el dripper ya no es una lista: pasa tal cual y lo resuelve el manejador", () => {
+    // Contra el catálogo, que la validación no tiene delante: ver el contrato.
+    const { valores, errores } = validarExtraccion(cuerpo({ dripper: " Origami " }));
+    assert.deepEqual(errores, []);
+    assert.equal(valores.dripper, "Origami");
   });
 
   it("normaliza mayúsculas", () => {
-    const { valores, errores } = validarExtraccion(cuerpo({ defecto: "AMARGOR", dripper: "V60-02-CERAMICA" }));
+    const { valores, errores } = validarExtraccion(cuerpo({ defecto: "AMARGOR" }));
     assert.deepEqual(errores, []);
     assert.equal(valores.defecto, "amargor");
-    assert.equal(valores.dripper, "v60-02-ceramica");
   });
 
   it("guarda varios defectos en su forma canónica, venga array o texto", () => {
@@ -936,7 +952,6 @@ describe("corrección de extracciones", () => {
   it("valida igual que el alta", () => {
     assert.ok(validarCambiosExtraccion({ nota: 12 }).errores.length);
     assert.ok(validarCambiosExtraccion({ defecto: "quemado" }).errores.length);
-    assert.ok(validarCambiosExtraccion({ dripper: "chemex" }).errores.length);
     assert.ok(validarCambiosExtraccion({ fecha: "2026-02-30" }).errores.length);
     assert.ok(validarCambiosExtraccion({ dosis_g: 0 }).errores.length);
     assert.ok(validarCambiosExtraccion({ temp_c: 150 }).errores.length);

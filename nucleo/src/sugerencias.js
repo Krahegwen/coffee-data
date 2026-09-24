@@ -77,11 +77,18 @@ export function diferencias(antes, despues, variables = VARIABLES_DECLARADAS) {
 }
 
 /**
- * Lo que se lee de una variable. La receta se nombra por su slug: el uuid es
- * la clave, no algo que nadie quiera leer en su bitácora.
+ * Lo que se lee de una variable. La receta y los accesorios se nombran por su
+ * slug: el uuid es la clave, no algo que nadie quiera leer en su bitácora.
  */
+const SLUG_DE = {
+  receta_id: "receta_slug",
+  dripper: "dripper_slug",
+  molinillo: "molinillo_slug",
+};
+
 function valorLegible(fila, variable) {
-  if (variable === "receta_id") return fila?.receta_slug ?? fila?.receta_id ?? null;
+  const slug = SLUG_DE[variable];
+  if (slug) return fila?.[slug] ?? fila?.[variable] ?? null;
   return fila?.[variable] ?? null;
 }
 
@@ -128,9 +135,6 @@ export function textoDeVariables(variables, antes, despues) {
     .map((v) => `${v} ${valorLegible(antes, v) ?? "—"} → ${valorLegible(despues, v) ?? "—"}`)
     .join(" · ");
 }
-
-// Drippers con masa térmica: sin precalentar roban calor al lecho.
-export const DRIPPERS_CON_INERCIA = ["v60-02-ceramica"];
 
 // defecto -> palancas, la primera es la principal. En un Comandante los clics
 // se cuentan desde cerrado: más clics es moler más grueso.
@@ -245,7 +249,9 @@ export function avisosDe(extraccion, historico = [], receta = null, t = CASTELLA
   const desviado = vertidoDesviado(extraccion, receta, t);
   if (desviado) avisos.push(desviado);
 
-  if (DRIPPERS_CON_INERCIA.includes(extraccion.dripper)) {
+  // Masa térmica: sin precalentar, el dripper roba calor al lecho. Es un dato
+  // del accesorio y llega derivado en la fila; antes era una lista escrita aquí.
+  if (extraccion.dripper_masa_termica) {
     avisos.push(t("aviso_dripper_inercia"));
   }
 
@@ -254,7 +260,7 @@ export function avisosDe(extraccion, historico = [], receta = null, t = CASTELLA
   const previa = madreDe(extraccion, historico);
   if (previa && previa.dripper !== extraccion.dripper) {
     avisos.push(t("aviso_cambio_de_dripper", {
-      antes: previa.dripper, ahora: extraccion.dripper,
+      antes: valorLegible(previa, "dripper"), ahora: valorLegible(extraccion, "dripper"),
     }));
   }
 

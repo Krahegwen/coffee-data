@@ -10,16 +10,26 @@
  * contenido pasa por los manejadores del núcleo contra un almacén en
  * memoria: la misma validación que un alta, el mismo tipado — un CSV solo
  * sabe de textos—. Si una sola fila no pasa, no se restaura nada.
+ *
+ * El formato 2 trae además `accesorios.csv`. Un respaldo del 1 se sigue
+ * abriendo: sus extracciones guardan el dripper y el molinillo como texto, y
+ * el catálogo se rehace desde ellas igual que lo hizo la migración 0014.
  */
+import { accesoriosDelLegado, TIPOS_ACCESORIO } from "@coffee/nucleo/accesorios";
 import { almacenEnMemoria } from "@coffee/nucleo/almacen-memoria";
-import { crearCafe, crearExtraccion, guardarReceta, porRef } from "@coffee/nucleo/api";
+import {
+  crearAccesorio, crearCafe, crearExtraccion, guardarReceta, porRef,
+} from "@coffee/nucleo/api";
 import { derivar } from "@coffee/nucleo/derivar";
 import { CAMPOS, SLUG, TIPOS_FOTO } from "@coffee/nucleo/validacion";
 
 import { aCsv, deCsv } from "./csv.js";
 import { escribirZip, leerZip } from "./zip.js";
 
-export const FORMATO = 1;
+export const FORMATO = 2;
+
+/** Los que esta versión sabe abrir: el suyo y los de antes. */
+const FORMATOS_LEGIBLES = [1, 2];
 
 /** A partir de cuántos días sin respaldo se avisa en la portada. */
 export const DIAS_RESPALDO_VIEJO = 14;
@@ -66,13 +76,16 @@ const COLUMNAS_CAFES = [
 const COLUMNAS_EXTRACCIONES = [
   "id", "fecha", "creado_en", "cafe_id", "cafe_slug", "dias_tueste",
   "dias_abierta", "dosis_g", "agua_g", "ratio", "temp_c", "molinillo",
-  "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
+  "molinillo_slug", "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
   "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
-  "receta_id", "receta_slug", "drawdown_s", "dripper", "borrada_en",
-  "desde_id",
+  "receta_id", "receta_slug", "drawdown_s", "dripper", "dripper_slug",
+  "borrada_en", "desde_id",
 ];
 
 const COLUMNAS_RECETAS = ["id", "slug", "nombre", "ratio", "notas", "creado_en"];
+const COLUMNAS_ACCESORIOS = [
+  "id", "slug", "tipo", "nombre", "masa_termica", "en_uso", "notas", "creado_en",
+];
 const COLUMNAS_PASOS = ["receta_id", "orden", "t_inicio_s", "accion", "estilo", "agua_g", "notas"];
 
 /* JSON no distingue 15 de 15.0: el ratio va con un decimal, como en el repo. */
@@ -90,25 +103,30 @@ const cronologico = (a, b) => {
  */
 export async function crearRespaldo(almacen, { version = "", ahora = new Date() } = {}) {
   const utf8 = new TextEncoder();
-  const [cafes, recetas, extracciones] = await Promise.all([
+  const [cafes, recetas, accesorios, extracciones] = await Promise.all([
     almacen.cafes.listar(),
     almacen.recetas.listar(),
+    almacen.accesorios.listar(),
     almacen.extracciones.listar(),
   ]);
 
   cafes.sort((a, b) => (a.slug < b.slug ? -1 : 1));
   recetas.sort((a, b) => (a.slug < b.slug ? -1 : 1));
+  accesorios.sort((a, b) => (a.slug < b.slug ? -1 : 1));
   extracciones.sort(cronologico);
   const pasos = recetas.flatMap((r) => [...r.pasos].sort((a, b) => a.orden - b.orden));
 
   // En el CSV van también los derivados y los slugs de al lado: lo lee un
   // humano, y un humano no resuelve uuids de cabeza. Al restaurar se ignoran.
+  const slugDe = (filas, id) => filas.find((f) => f.id === id)?.slug ?? null;
   const filasExtracciones = extracciones.map((e) => {
     const cafe = cafes.find((c) => c.id === e.cafe_id) ?? null;
     return {
       ...derivar(e, cafe),
       cafe_slug: cafe?.slug ?? null,
-      receta_slug: recetas.find((r) => r.id === e.receta_id)?.slug ?? null,
+      receta_slug: slugDe(recetas, e.receta_id),
+      dripper_slug: slugDe(accesorios, e.dripper),
+      molinillo_slug: slugDe(accesorios, e.molinillo),
     };
   });
 
@@ -125,6 +143,7 @@ export async function crearRespaldo(almacen, { version = "", ahora = new Date() 
       cafes: cafes.length,
       recetas: recetas.length,
       pasos: pasos.length,
+      accesorios: accesorios.length,
       extracciones: extracciones.length,
       fotos: fotos.length,
     },
@@ -135,6 +154,10 @@ export async function crearRespaldo(almacen, { version = "", ahora = new Date() 
     { nombre: "cafes.csv", datos: utf8.encode(aCsv(cafes, COLUMNAS_CAFES, FORMATOS)) },
     { nombre: "recetas.csv", datos: utf8.encode(aCsv(recetas, COLUMNAS_RECETAS, FORMATOS)) },
     { nombre: "pasos.csv", datos: utf8.encode(aCsv(pasos, COLUMNAS_PASOS, FORMATOS)) },
+    {
+      nombre: "accesorios.csv",
+      datos: utf8.encode(aCsv(accesorios, COLUMNAS_ACCESORIOS, FORMATOS)),
+    },
     {
       nombre: "extracciones.csv",
       datos: utf8.encode(aCsv(filasExtracciones, COLUMNAS_EXTRACCIONES, FORMATOS)),
@@ -164,9 +187,9 @@ export async function leerRespaldo(bytes) {
   const cruda = porNombre.get("manifiesto.json");
   if (!cruda) throw new Error("el ZIP no trae manifiesto.json: no es un respaldo de la bitácora");
   const manifiesto = JSON.parse(utf8.decode(cruda));
-  if (manifiesto.formato !== FORMATO) {
+  if (!FORMATOS_LEGIBLES.includes(manifiesto.formato)) {
     throw new Error(
-      `el respaldo es del formato ${manifiesto.formato} y esta versión entiende el ${FORMATO}`,
+      `el respaldo es del formato ${manifiesto.formato} y esta versión entiende hasta el ${FORMATO}`,
     );
   }
 
@@ -181,6 +204,8 @@ export async function leerRespaldo(bytes) {
     cafes: csv("cafes.csv"),
     recetas: csv("recetas.csv"),
     pasos: csv("pasos.csv"),
+    // Del formato 1 no viene: el catálogo se rehace desde las extracciones.
+    accesorios: manifiesto.formato >= 2 ? csv("accesorios.csv") : [],
     extracciones: csv("extracciones.csv"),
     fotos: entradas.filter((e) => e.nombre.startsWith("fotos/")),
   };
@@ -204,10 +229,12 @@ const fallo = (donde, fila, r) =>
  * por su manejador: la misma validación y el mismo tipado que un alta. El
  * slug guardado pisa al regenerado — una bolsa renombrada conserva el suyo.
  *
- * Devuelve { cafes, recetas, extracciones, avisos } con las filas ya listas
- * para el cajón, o lanza con la lista de errores si algo no pasa.
+ * Devuelve { cafes, recetas, accesorios, extracciones, avisos } con las filas
+ * ya listas para el cajón, o lanza con la lista de errores si algo no pasa.
  */
-export async function prepararRestauracion({ cafes, recetas, pasos, extracciones, fotos }) {
+export async function prepararRestauracion({
+  cafes, recetas, pasos, accesorios = [], extracciones, fotos,
+}) {
   const staging = almacenEnMemoria();
   const errores = [];
   const avisos = [];
@@ -258,6 +285,31 @@ export async function prepararRestauracion({ cafes, recetas, pasos, extracciones
     }
   }
 
+  // Los accesorios antes que las extracciones, que los apuntan por su id.
+  const CUERPO_ACCESORIO = ["id", "tipo", "nombre", "masa_termica", "en_uso", "notas", "creado_en"];
+  const conSuSlug = async (r, slug) => {
+    if (slug && slug !== r.datos.accesorio.slug && SLUG.test(slug)) {
+      await staging.accesorios.actualizar(r.datos.accesorio.id, { slug });
+    }
+  };
+  for (const fila of [...accesorios].sort(cronologico)) {
+    const r = await crearAccesorio(staging, conValores(fila, CUERPO_ACCESORIO));
+    if (r.estado >= 400) {
+      errores.push(fallo("accesorio", fila.slug || fila.nombre, r));
+      continue;
+    }
+    await conSuSlug(r, fila.slug);
+  }
+  // Y lo que un respaldo de antes trae como texto, pasado al catálogo.
+  for (const { cuerpo, slug } of accesoriosDelLegado(extracciones, await staging.accesorios.listar())) {
+    const r = await crearAccesorio(staging, cuerpo);
+    if (r.estado >= 400) {
+      errores.push(fallo("accesorio", slug || cuerpo.nombre, r));
+      continue;
+    }
+    await conSuSlug(r, slug);
+  }
+
   const CUERPO_EXTRACCION = ["id", "creado_en", ...CAMPOS];
   for (const fila of [...extracciones].sort(cronologico)) {
     const r = await crearExtraccion(staging, conValores(fila, CUERPO_EXTRACCION));
@@ -266,11 +318,16 @@ export async function prepararRestauracion({ cafes, recetas, pasos, extracciones
       continue;
     }
     // Lo que el alta recalcula o sella por su cuenta vuelve a lo que diga el
-    // respaldo: restaurar es restaurar, no reinterpretar.
+    // respaldo: restaurar es restaurar, no reinterpretar. Un accesorio en
+    // blanco también: el alta le pondría el de la madre o el último usado.
+    const sinAccesorio = Object.fromEntries(
+      TIPOS_ACCESORIO.filter((tipo) => !fila[tipo]).map((tipo) => [tipo, null]),
+    );
     await staging.extracciones.actualizar(fila.id, {
       siguiente_ajuste: fila.siguiente_ajuste || null,
       variable_cambiada: fila.variable_cambiada || null,
       borrada_en: fila.borrada_en || null,
+      ...sinAccesorio,
     });
   }
 
@@ -283,6 +340,7 @@ export async function prepararRestauracion({ cafes, recetas, pasos, extracciones
   return {
     cafes: await staging.cafes.listar(),
     recetas: await staging.recetas.listar(),
+    accesorios: await staging.accesorios.listar(),
     extracciones: await staging.extracciones.listar(),
     avisos,
   };
@@ -298,13 +356,14 @@ const TIPO_POR_EXTENSION = Object.fromEntries(
 );
 
 /**
- * El reemplazo de verdad: las tres tablas en una transacción, y después las
+ * El reemplazo de verdad: las cuatro tablas en una transacción, y después las
  * fotos y la cola. Solo se llama con una restauración ya preparada.
  */
 export async function aplicarRestauracion(cajon, preparado, fotos) {
   await cajon.reemplazar({
     cafes: preparado.cafes,
     recetas: preparado.recetas,
+    accesorios: preparado.accesorios,
     extracciones: preparado.extracciones,
   });
 

@@ -77,9 +77,12 @@ nombre de columna y slug, sin traducir, como ya hacía `siguiente_ajuste` con
 —«Temperatura», el nombre de la receta— son de la pantalla que lo enseña y no
 de la columna. Si añades otro sitio que escriba ahí, sale de esa función.
 
-`molinillo` **se hereda de la madre** cuando no se manda, en vez de volver al
-valor de fábrica. Es el único campo de `VARIABLES` que la app no tiene en su
-formulario, y con el defecto cada taza «cambiaba de molinillo» sola.
+`dripper` y `molinillo` son **accesorios del catálogo** (ver «Accesorios») y
+se mandan por uuid, slug o nombre: `"origami"`, `"Comandante C40"`. Sin
+mandarlos **se heredan de la madre**, y sin madre se pone el último que usó;
+no hay valor de fábrica, que con él cada taza «cambiaba de molinillo» sola.
+Así que no los mandes salvo que el usuario diga que cambió de aparato — y
+entonces es la variable de esa extracción.
 
 `desde_id` **tampoco**: dice de qué extracción es variación ésta —contra ella
 mide el motor los deltas— y sin él el servidor cuelga la nueva de la última de
@@ -220,6 +223,36 @@ curl -X DELETE https://brew.krahegwen.com/api/recetas/kasuya-46-claridad \
   -H "Authorization: Bearer $COFFEE_TOKEN"
 ```
 
+## Accesorios
+
+El dripper y el molinillo son filas de `accesorios`, con pantallas en
+`/accesorios`, `/accesorios/nuevo` y `/accesorios/<slug>` (en inglés, `/gear`).
+Se llega desde el menú del engranaje, arriba a la derecha.
+
+```bash
+curl -X POST https://brew.krahegwen.com/api/accesorios -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"tipo":"dripper","nombre":"Origami","masa_termica":true}'
+
+curl -X PATCH https://brew.krahegwen.com/api/accesorios/comandante_c40 -H "Authorization: Bearer $COFFEE_TOKEN" \
+  -H 'content-type: application/json' -d '{"en_uso":false}'
+```
+
+Como en las bolsas: **sin `id` ni `slug`**, que salen solos, y los endpoints
+aceptan uuid o slug. `tipo` es `dripper` o `molinillo` y **no se cambia** —las
+tazas que lo usan lo apuntaron en su columna—. `masa_termica` solo la lleva un
+dripper, y es de donde saca el motor el aviso de precalentar: ya no hay una
+lista de drippers escrita en el código.
+
+**Borrar es solo para lo que ninguna taza usa** (409 si no, retiradas
+incluidas). Si el usuario vendió o rompió algo, se saca de uso con
+`{"en_uso":false}`: deja de ofrecerse y las tazas lo siguen nombrando.
+
+Las columnas `dripper` y `molinillo` de `extracciones` **conservan el nombre y
+guardan la id**, a propósito: la cola vieja y los respaldos de antes mandan
+texto y tienen que seguir entrando. No las renombres a `_id` sin pensar en
+eso. Lo que había lo convirtió la migración 0014, y lo mismo hacen el modo local
+(`web/app/almacen/legado.js`) y restaurar un respaldo del formato 1.
+
 ## Ramas y despliegue
 
 **Una rama por tarea**: `feature/<lo-que-sea>` sale de `main` y vuelve a `main`
@@ -350,12 +383,14 @@ herramientas de Python. `datos/` son los CSV exportados.
 ## Si tocas el código
 
 - `nucleo/` es la lógica de la bitácora sin saber dónde corre. `api.js` son
-  **los manejadores enteros de la API**: reciben un almacén (el puerto: once
-  métodos sobre cafés, recetas, extracciones y preferencias) y devuelven
-  `{estado, datos}`. `almacen-memoria.js` es el puerto
+  **los manejadores enteros de la API**: reciben un almacén (el puerto: quince
+  métodos sobre cafés, recetas, accesorios, extracciones y preferencias) y
+  devuelven `{estado, datos}`. `almacen-memoria.js` es el puerto
   sobre Maps —con él se prueba la API sin base, y es la forma de referencia
   del futuro adaptador de IndexedDB—. El resto: `recetas.js`,
-  `sugerencias.js`, `validacion.js`, `derivar.js`, `ids.js`. Cero
+  `sugerencias.js`, `validacion.js`, `derivar.js`, `ids.js` y `accesorios.js`,
+  que resuelve un accesorio por uuid, slug o nombre y sabe convertir el texto
+  de antes del catálogo. Cero
   dependencias; si una función no puede correr en un navegador, no va aquí.
 - `api/src/` es solo lo que es del servidor: `index.js` enruta y envuelve en
   Response, `auth.js` decide quién escribe, `almacen-d1.js` enchufa el puerto
@@ -391,7 +426,8 @@ herramientas de Python. `datos/` son los CSV exportados.
   drenar contra un almacén en memoria deja «el servidor» idéntico al local.
 - El respaldo (`/respaldo`, `web/app/almacen/respaldo.js`) es un ZIP *stored*
   con los CSV en el **mismo formato que `datos/`** —si tocas columnas en
-  `exportar_csv.py`, tócalas también ahí— y restaurar valida todo por los
+  `exportar_csv.py`, tócalas también ahí; `test_columnas.py` lo vigila— y
+  restaurar valida todo por los
   manejadores contra memoria antes de reemplazar el cajón. Ojo al pasar filas
   a IndexedDB desde Vue: un proxy reactivo no se deja clonar — `shallowRef`.
 - La app **no reimplementa reglas del servidor**. El escalado de recetas lo da

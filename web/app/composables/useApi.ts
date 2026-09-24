@@ -14,7 +14,9 @@ import * as nucleo from '@coffee/nucleo/api'
 import { textos } from '@coffee/nucleo/textos'
 import { claveDeFoto, validarFoto } from '@coffee/nucleo/validacion'
 
-import { cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta } from '~/almacen/cola'
+import {
+  cuerpoDeAccesorio, cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta,
+} from '~/almacen/cola'
 import { almacenLocal } from '~/almacen/local'
 
 import type { EntradaCola } from './useSincro'
@@ -51,6 +53,24 @@ export interface Cafe {
   conservacion: string | null
 }
 
+/** Lo que guarda una extracción de cada uno: una columna por tipo. */
+export const TIPOS_ACCESORIO = ['dripper', 'molinillo'] as const
+export type TipoAccesorio = (typeof TIPOS_ACCESORIO)[number]
+
+export interface Accesorio {
+  /** UUID opaco. El slug es lo legible y lo que va en la URL. */
+  id: string
+  slug: string
+  tipo: TipoAccesorio
+  nombre: string
+  /** 0 o 1, como en la base. Solo un dripper puede tenerla. */
+  masa_termica: number
+  /** Fuera de uso deja de ofrecerse, pero las tazas que lo usaron lo siguen nombrando. */
+  en_uso: number
+  notas: string | null
+  creado_en: string
+}
+
 export interface Extraccion {
   /** UUID opaco: dejó de haber «extracción #7». */
   id: string
@@ -79,7 +99,13 @@ export interface Extraccion {
   nota: number | null
   siguiente_ajuste: string | null
   receta_id: string | null
+  /** La id del accesorio, como `receta_id`; el slug viene al lado para leerlo. */
   dripper: string | null
+  dripper_slug: string | null
+  /** Si ese dripper roba calor al lecho: sale del catálogo, no del nombre. */
+  dripper_masa_termica: boolean
+  molinillo: string | null
+  molinillo_slug: string | null
   /** Lo que acabó en la taza. Con el agua y la dosis da la retención. */
   extraido_g: number | null
   /**
@@ -191,7 +217,12 @@ export interface NuevaExtraccion {
   drawdown_s?: number
   extraido_g?: number
   receta_id?: string
+  /**
+   * El accesorio por su id, slug o nombre. Sin mandarlo se hereda de la madre,
+   * o se pone el último que usaste.
+   */
   dripper?: string
+  molinillo?: string
   notas_cata?: string
   siguiente_ajuste?: string
   fecha?: string
@@ -252,6 +283,9 @@ export function useApi() {
     })
 
   const recetas = () => local<Receta[]>((a) => nucleo.listaRecetas(a))
+
+  /** Por tipo, lo que sigue en uso delante. */
+  const accesorios = () => local<Accesorio[]>((a) => nucleo.listaAccesorios(a))
 
   /** Los ajustes, completos y tipados: nunca faltan claves. */
   const preferencias = () =>
@@ -367,6 +401,31 @@ export function useApi() {
     return r
   }
 
+  /** Da de alta un dripper o un molinillo. */
+  const crearAccesorio = async (datos: Record<string, unknown>) => {
+    const r = await local<{ accesorio: Accesorio }>((a) => nucleo.crearAccesorio(a, datos, idioma()))
+    await subir({ metodo: 'POST', camino: '/api/accesorios', cuerpo: cuerpoDeAccesorio(r.accesorio) })
+    return r
+  }
+
+  /** Corrige un accesorio. Solo se manda lo que cambia; el tipo no se toca. */
+  const editarAccesorio = async (id: string, cambios: Record<string, unknown>) => {
+    const r = await local<{ accesorio: Accesorio; cambiado: string[] }>(
+      (a) => nucleo.editarAccesorio(a, id, cambios, idioma()),
+    )
+    await subir({ metodo: 'PATCH', camino: `/api/accesorios/${r.accesorio.id}`, cuerpo: cambios })
+    return r
+  }
+
+  /** Borra un accesorio. Da 409 si alguna extracción lo usa: ésos se sacan de uso. */
+  const borrarAccesorio = async (id: string) => {
+    const r = await local<{ borrado: boolean; id: string; slug: string }>(
+      (a) => nucleo.borrarAccesorio(a, id, idioma()),
+    )
+    await subir({ metodo: 'DELETE', camino: `/api/accesorios/${r.id}` })
+    return r
+  }
+
   /** Borra una receta y sus pasos. Da 409 si alguna extracción la usa. */
   const borrarReceta = async (id: string) => {
     const r = await local<{ borrada: boolean; id: string; slug: string }>(
@@ -471,6 +530,7 @@ export function useApi() {
     editarExtraccion, retirarExtraccion, restaurarExtraccion, retiradas,
     crearReceta, guardarReceta, borrarReceta, subirFotoCafe, quitarFotoCafe, urlFoto,
     preferencias, guardarPreferencias,
+    accesorios, crearAccesorio, editarAccesorio, borrarAccesorio,
   }
 }
 

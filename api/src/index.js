@@ -12,8 +12,9 @@
  * IndexedDB con el mismo contrato.
  */
 import {
-  ahoraSQL, borrarReceta, crearCafe, crearExtraccion, editarCafe,
-  editarExtraccion, guardarPreferencias, guardarReceta, guionDe, leerPreferencias,
+  ahoraSQL, borrarAccesorio, borrarReceta, crearAccesorio, crearCafe,
+  crearExtraccion, editarAccesorio, editarCafe, editarExtraccion,
+  guardarPreferencias, guardarReceta, guionDe, leerPreferencias, listaAccesorios,
   listaCafes, listaExtracciones, listaRecetas, porRef, restaurarExtraccion,
   retirarExtraccion,
 } from "@coffee/nucleo/api";
@@ -182,6 +183,22 @@ async function enrutar(request, env, url, ruta) {
     return respuesta(await borrarReceta(almacen, decodeURIComponent(ruta.slice("/api/recetas/".length)), { t }));
   }
 
+  if (ruta === "/api/accesorios" && request.method === "POST") {
+    const cuerpo = await cuerpoDe(request);
+    if (cuerpo === null) return sinJson();
+    return respuesta(await crearAccesorio(almacen, cuerpo, { t }));
+  }
+
+  if (ruta.startsWith("/api/accesorios/")) {
+    const ref = decodeURIComponent(ruta.slice("/api/accesorios/".length));
+    if (request.method === "PATCH") {
+      const cuerpo = await cuerpoDe(request);
+      if (cuerpo === null) return sinJson();
+      return respuesta(await editarAccesorio(almacen, ref, cuerpo, { t }));
+    }
+    if (request.method === "DELETE") return respuesta(await borrarAccesorio(almacen, ref, { t }));
+  }
+
   if (ruta.startsWith("/api/extracciones/")) {
     const resto = ruta.slice("/api/extracciones/".length);
     const [crudo, accion] = resto.split("/");
@@ -233,6 +250,7 @@ async function enrutar(request, env, url, ruta) {
     }
     if (ruta === "/api/cafes") return respuesta(await listaCafes(almacen));
     if (ruta === "/api/recetas") return respuesta(await listaRecetas(almacen));
+    if (ruta === "/api/accesorios") return respuesta(await listaAccesorios(almacen));
     if (ruta === "/api/preferencias") return respuesta(await leerPreferencias(almacen));
     if (ruta === "/api/extracciones") {
       return respuesta(await listaExtracciones(almacen, {

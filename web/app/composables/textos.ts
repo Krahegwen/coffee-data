@@ -18,11 +18,14 @@ export const CLAVES_ESTILO = ['espiral', 'centro'] as const
 export const CLAVES_DEFECTO = [
   'equilibrado', 'amargor', 'astringente', 'plano', 'agrio', 'salado', 'carton', 'aguado',
 ] as const
-/** Lo que se puede tocar de una extracción a la siguiente. */
+/**
+ * Lo que se puede tocar de una extracción a la siguiente. El dripper y el
+ * molinillo son filas del catálogo de accesorios, así que sus etiquetas son
+ * nombres que puso el usuario y no salen de aquí: ver `useOpcionesAccesorio`.
+ */
 export const CLAVES_VARIABLE = [
-  'temp_c', 'clics', 'dosis_g', 'agua_g', 'receta_id', 'dripper',
+  'temp_c', 'clics', 'dosis_g', 'agua_g', 'receta_id', 'dripper', 'molinillo',
 ] as const
-export const CLAVES_DRIPPER = ['v60-02-plastico', 'v60-02-ceramica'] as const
 
 export type Accion = (typeof CLAVES_ACCION)[number]
 export type Estilo = (typeof CLAVES_ESTILO)[number]
@@ -43,7 +46,6 @@ export function useTextos() {
   const ESTILOS = mapa('estilos', CLAVES_ESTILO)
   const DEFECTOS = mapa('defectos', CLAVES_DEFECTO)
   const VARIABLES = mapa('variables', CLAVES_VARIABLE)
-  const DRIPPERS = mapa('drippers', CLAVES_DRIPPER)
 
   /**
    * «2026-08-06» → «6 ago». Desde que la id es un uuid opaco, lo que identifica
@@ -120,7 +122,7 @@ export function useTextos() {
   }
 
   return {
-    ACCIONES, ESTILOS, DEFECTOS, VARIABLES, DRIPPERS,
+    ACCIONES, ESTILOS, DEFECTOS, VARIABLES,
     fechaCorta, nombreCafe, nombreDeVariable, valorDeVariable, textoDeCambios,
     etiquetaPaso,
   }
