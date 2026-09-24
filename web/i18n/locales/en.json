@@ -183,6 +183,17 @@
     "todavia_ninguna": "None yet.",
     "resumen_extraccion": "{temp} °C · {clics} clicks · 1:{ratio}"
   },
+  "bloqueo": {
+    "probar": "Try the timer on the lock screen",
+    "explicacion": "Starts a {duracion} test brew with beeps, without logging anything. Lock your phone or switch apps: the step should show on the lock screen and in the notifications, and on an iPhone with a Dynamic Island, at the top.",
+    "fallo": "The browser wouldn't start the sound. Tap the button again.",
+    "pausar": "Pause",
+    "reanudar": "Resume",
+    "parar": "Stop",
+    "siguiente": "Next: {paso} at {a}",
+    "ultimo": "Last step",
+    "album": "Test · {receta}"
+  },
   "defectos_info": {
     "equilibrado": "Nothing to fix. Not that the cup is excellent —that is what the score is for— but that there is no flaw to correct.",
     "amargor": "Bitter and drying at the end, like tonic water. Usually overextraction: the water has pulled out too much.",

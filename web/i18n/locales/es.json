@@ -183,6 +183,17 @@
     "todavia_ninguna": "Todavía ninguna.",
     "resumen_extraccion": "{temp} °C · {clics} clics · 1:{ratio}"
   },
+  "bloqueo": {
+    "probar": "Probar el crono en la pantalla de bloqueo",
+    "explicacion": "Arranca una extracción de prueba de {duracion} con pitidos, sin registrar nada. Bloquea el móvil o cambia de app: el paso tendría que salir en la pantalla de bloqueo y en las notificaciones, y en un iPhone con Dynamic Island, arriba.",
+    "fallo": "El navegador no dejó arrancar el sonido. Vuelve a tocar el botón.",
+    "pausar": "Pausar",
+    "reanudar": "Reanudar",
+    "parar": "Parar",
+    "siguiente": "Luego: {paso} a las {a}",
+    "ultimo": "Último paso",
+    "album": "Prueba · {receta}"
+  },
   "defectos_info": {
     "equilibrado": "No le sobra nada. No es que la taza sea excelente —para eso está la nota—, sino que no hay un defecto que corregir.",
     "amargor": "Amarga y seca al final, como una tónica. Suele ser sobreextracción: el agua ha sacado de más.",
