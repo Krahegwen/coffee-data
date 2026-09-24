@@ -198,6 +198,7 @@ export interface Preferencias {
   latido: boolean
   cuenta_atras: boolean
   cuenta_atras_saltos: boolean
+  pantalla_bloqueo: boolean
   /** Si seguir al teléfono o mandar tú, y qué juego usar en cada modo. */
   tema_modo: 'auto' | 'claro' | 'oscuro'
   tema_claro: string

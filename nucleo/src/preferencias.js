@@ -44,6 +44,13 @@ export const CATALOGO = {
    */
   cuenta_atras_saltos: { tipo: "booleano", defecto: false },
   /*
+   * El paso en la pantalla de bloqueo, por el reproductor del sistema. Nace
+   * encendido porque es la mitad de avisar con el móvil bloqueado, pero se
+   * puede apagar: para el sistema es una canción, y quien escucha música
+   * mientras prepara pierde los mandos de la suya.
+   */
+  pantalla_bloqueo: { tipo: "booleano", defecto: true },
+  /*
    * El tema son tres claves y no una, porque son tres decisiones distintas:
    * si seguir al teléfono o mandar tú, y qué juego usar en cada modo. Quien
    * pone el móvil en oscuro por la noche quiere que la app le siga, pero eso

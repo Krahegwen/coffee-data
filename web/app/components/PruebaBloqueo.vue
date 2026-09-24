@@ -2,9 +2,9 @@
 /**
  * La prueba del cronómetro en la pantalla de bloqueo, a un toque desde la
  * portada: quien la prueba en su móvil no tiene que saber usar el crono.
- * Todo lo que hace está en `usePantallaBloqueo`.
+ * Todo lo que hace está en `usePruebaPantallaBloqueo`.
  */
-const { disponible, estado, texto, duracion, empezar, pausar, reanudar, parar } = usePantallaBloqueo()
+const { disponible, estado, texto, duracion, empezar, pausar, reanudar, parar } = usePruebaPantallaBloqueo()
 const fallo = ref(false)
 
 async function probar() {

@@ -26,6 +26,11 @@ const INTERRUPTORES = [
     pista: 'ajustes.cuenta_atras_saltos_pista',
   },
   { clave: 'latido', titulo: 'ajustes.latido', pista: 'ajustes.latido_pista' },
+  {
+    clave: 'pantalla_bloqueo',
+    titulo: 'ajustes.pantalla_bloqueo',
+    pista: 'ajustes.pantalla_bloqueo_pista',
+  },
 ] as const
 
 async function cambiar(clave: string, valor: boolean | string) {
