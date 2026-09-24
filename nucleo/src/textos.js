@@ -45,7 +45,10 @@ const es = {
   nota_fuera_de_rango: "la nota debe ser un entero de 1 a 10: {valor}",
   drawdown_entero: "drawdown_s debe ser un entero de segundos, cero o más",
   extraido_mayor_que_cero: "extraido_g debe ser un número mayor que 0",
-  dripper_no_permitido: "dripper no permitido: {valor}. Válidos: {validos}",
+  tipo_no_permitido: "tipo no permitido: {valor}. Válidos: {validos}",
+  accesorio_interruptor: "{campo} es un interruptor: true o false",
+  masa_termica_solo_dripper:
+    "la masa térmica es cosa del dripper: en un molinillo no significa nada",
   estado_no_permitido: "estado no permitido: {valor}. Válidos: {validos}",
   nombre_vacio: "el nombre no puede estar vacío",
   ratio_mayor_que_cero: "ratio debe ser un número mayor que 0",
@@ -113,15 +116,26 @@ const es = {
     "edítala o déjala ahí sin usarla",
   una_extraccion: "1 extracción",
   n_extracciones: "{n} extracciones",
+  accesorio_no_existe: "no existe el accesorio '{ref}'",
+  accesorio_desconocido: "{campo} desconocido: {valor}. Los que hay: {validos}",
+  ninguno_todavia: "ninguno todavía",
+  accesorio_en_uso:
+    "hay {cuantas} con el accesorio '{slug}', retiradas incluidas: no se puede borrar. " +
+    "Si ya no lo tienes, márcalo como fuera de uso y dejará de ofrecerse",
+  tipo_no_se_cambia:
+    "un accesorio no cambia de tipo: '{slug}' es un {tipo}, y las extracciones que lo " +
+    "usan lo apuntaron así",
 
   // --- manejadores: la base dice que no
   base_rechaza_bolsa: "la base rechazó la bolsa: {error}",
   base_rechaza_cambio: "la base rechazó el cambio: {error}",
   base_rechaza_receta: "la base rechazó la receta: {error}",
+  base_rechaza_accesorio: "la base rechazó el accesorio: {error}",
   base_rechaza_fila: "la base rechazó la fila: {error}",
   base_rechaza_foto: "la base rechazó la foto: {error}",
   ya_existe_cafe: "ya existe un café con la id {id}",
   ya_existe_receta: "ya existe una receta con la id {id}",
+  ya_existe_accesorio: "ya existe un accesorio con la id {id}",
   ya_existe_extraccion: "ya existe una extracción con la id {id}",
 
   // --- motor: avisos
@@ -206,7 +220,10 @@ const en = {
   nota_fuera_de_rango: "the score must be a whole number from 1 to 10: {valor}",
   drawdown_entero: "drawdown_s must be a whole number of seconds, zero or more",
   extraido_mayor_que_cero: "extraido_g must be a number greater than 0",
-  dripper_no_permitido: "dripper not allowed: {valor}. Valid ones: {validos}",
+  tipo_no_permitido: "type not allowed: {valor}. Valid ones: {validos}",
+  accesorio_interruptor: "{campo} is a switch: true or false",
+  masa_termica_solo_dripper:
+    "thermal mass belongs to the dripper: on a grinder it means nothing",
   estado_no_permitido: "state not allowed: {valor}. Valid ones: {validos}",
   nombre_vacio: "the name cannot be empty",
   ratio_mayor_que_cero: "ratio must be a number greater than 0",
@@ -260,14 +277,25 @@ const en = {
     "deleted, edit it or leave it there unused",
   una_extraccion: "1 brew",
   n_extracciones: "{n} brews",
+  accesorio_no_existe: "there is no piece of gear '{ref}'",
+  accesorio_desconocido: "unknown {campo}: {valor}. The ones there are: {validos}",
+  ninguno_todavia: "none yet",
+  accesorio_en_uso:
+    "'{slug}' is used by {cuantas}, withdrawn ones included: it cannot be deleted. " +
+    "If you no longer have it, mark it as out of use and it will stop being offered",
+  tipo_no_se_cambia:
+    "a piece of gear does not change type: '{slug}' is a {tipo}, and the brews that use " +
+    "it were logged that way",
 
   base_rechaza_bolsa: "the database rejected the bag: {error}",
   base_rechaza_cambio: "the database rejected the change: {error}",
   base_rechaza_receta: "the database rejected the recipe: {error}",
+  base_rechaza_accesorio: "the database rejected the piece of gear: {error}",
   base_rechaza_fila: "the database rejected the row: {error}",
   base_rechaza_foto: "the database rejected the photo: {error}",
   ya_existe_cafe: "a coffee with id {id} already exists",
   ya_existe_receta: "a recipe with id {id} already exists",
+  ya_existe_accesorio: "a piece of gear with id {id} already exists",
   ya_existe_extraccion: "a brew with id {id} already exists",
 
   aviso_dripper_inercia:

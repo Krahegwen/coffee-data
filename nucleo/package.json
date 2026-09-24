@@ -1,11 +1,12 @@
 {
   "name": "@coffee/nucleo",
-  "version": "0.1.98",
+  "version": "0.1.99",
   "private": true,
   "type": "module",
   "description": "La lógica de la bitácora, sin saber dónde corre: recetas, sugerencias, validación y derivados",
   "exports": {
     "./api": "./src/api.js",
+    "./accesorios": "./src/accesorios.js",
     "./almacen-memoria": "./src/almacen-memoria.js",
     "./crono": "./src/crono.js",
     "./ids": "./src/ids.js",

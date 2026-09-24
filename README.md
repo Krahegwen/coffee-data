@@ -29,12 +29,16 @@ pnpm run dev:web      # la app en :3000, con /api proxeado a :8787
 |---|---|
 | `GET /api/cafes` | Las bolsas |
 | `GET /api/recetas` | Recetas con sus pasos |
+| `GET /api/accesorios` | El catálogo de drippers y molinillos |
 | `GET /api/extracciones` | Historial, con `ratio` y `dias_tueste` derivados. `?cafe=gary` filtra, `?retiradas=1` es la papelera |
 | `GET /api/guion` | Los pasos de una receta escalados. `?receta=kasuya-46-base&agua=270` |
 | `POST /api/cafes` | Da de alta una bolsa. Sin `id`, se deriva del nombre |
 | `POST /api/recetas` | Crea una receta con sus pasos |
 | `PUT /api/recetas/:id` | Guarda una receta. Los pasos **reemplazan** a los que había |
 | `DELETE /api/recetas/:id` | La borra con sus pasos. **Sin papelera**, y da 409 si alguna extracción la usa |
+| `POST /api/accesorios` | Da de alta un dripper o un molinillo |
+| `PATCH /api/accesorios/:id` | Lo corrige. Solo toca lo que mandes, y el tipo no se cambia |
+| `DELETE /api/accesorios/:id` | Lo borra. **Sin papelera**, y da 409 si alguna extracción lo usa: ésos se sacan de uso |
 | `PATCH /api/cafes/:id` | Corrige una ficha. Solo toca los campos que mandes |
 | `PATCH /api/extracciones/:id` | Corrige una extracción |
 | `DELETE /api/extracciones/:id` | La retira. **Borrado lógico**: la fila se queda |
@@ -170,10 +174,13 @@ pie dice el modo — con sesión añade «en el servidor».
 ### El respaldo
 
 En `/respaldo` (enlazado desde el pie) la bitácora entera se descarga como un
-ZIP: `cafes.csv`, `recetas.csv`, `pasos.csv` y `extracciones.csv` con **las
-mismas columnas y el mismo dialecto** que `datos/` en este repo, las fotos
-tal cual y un `manifiesto.json` con la versión del formato. Un respaldo ajeno
-se abre con las herramientas de siempre. El ZIP va en modo *stored* —las
+ZIP: `cafes.csv`, `recetas.csv`, `pasos.csv`, `accesorios.csv` y
+`extracciones.csv` con **las mismas columnas y el mismo dialecto** que `datos/`
+en este repo —`test_columnas.py` lo vigila—, las fotos tal cual y un
+`manifiesto.json` con la versión del formato. Un respaldo ajeno se abre con
+las herramientas de siempre. El formato va por el 2, que estrenó los
+accesorios; uno del 1 se sigue restaurando y su catálogo se rehace desde el
+texto de las extracciones, como hizo la migración 0014 con la base. El ZIP va en modo *stored* —las
 fotos ya son webp comprimido— y lo escribe y lee la propia app, sin
 dependencias; el CRC se comprueba al restaurar.
 
@@ -313,13 +320,14 @@ mismos CSV y una fila sin su fecha de creación volvería con una inventada.
 
 `id` (uuid) · `fecha` · `creado_en` · `cafe_id` · `cafe_slug` ·
 `dias_tueste` · `dias_abierta` · `dosis_g` · `agua_g` · `ratio` · `temp_c` ·
-`molinillo` · `clics` · `metodo` · `reparto` · `tiempo_total` · `extraido_g` ·
-`variable_cambiada` · `defecto` · `notas_cata` · `nota` (1-10) ·
-`siguiente_ajuste` · `receta_id` · `receta_slug` · `drawdown_s` · `dripper` ·
-`borrada_en` · `desde_id`
+`molinillo` · `molinillo_slug` · `clics` · `metodo` · `reparto` ·
+`tiempo_total` · `extraido_g` · `variable_cambiada` · `defecto` ·
+`notas_cata` · `nota` (1-10) · `siguiente_ajuste` · `receta_id` ·
+`receta_slug` · `drawdown_s` · `dripper` · `dripper_slug` · `borrada_en` ·
+`desde_id`
 
-`cafe_slug` y `receta_slug` van además de los uuid porque el CSV lo lee un
-humano, y un humano no resuelve uuids de cabeza. `ratio`, `dias_tueste` y
+Los slugs de café, receta y accesorios van además de los uuid porque el CSV lo
+lee un humano, y un humano no resuelve uuids de cabeza. `ratio`, `dias_tueste` y
 `dias_abierta` **no se guardan**: los deriva la vista y se exportan ya
 calculados. El **orden** de las filas lo manda `creado_en`.
 
@@ -329,10 +337,11 @@ ronda 2. Fuera de la horquilla no dice que la taza esté mala: dice que algo se
 midió mal, y una medida torcida invalida la comparación con las demás. Nunca
 puede pasar del agua; el servidor lo rechaza con 422.
 
-`dripper`: `v60-02-plastico` | `v60-02-ceramica`. Lista cerrada porque entra en
-la detección de pares, y una errata parecería un cambio de variable. La
-cerámica tiene masa térmica: sin precalentar, el mismo `temp_c` de hervidor da
-una temperatura de extracción más baja.
+`dripper` y `molinillo`: la id de un accesorio del catálogo —ver «Los
+accesorios», más abajo—. Entran en la detección de pares, así que cambiar de
+uno a otro es la variable de esa extracción. Un dripper con masa térmica,
+sin precalentar, da una temperatura de extracción más baja con el mismo
+`temp_c` de hervidor, y el motor lo avisa en cada taza.
 
 `desde_id`: **de qué extracción es variación ésta**. La exploración no es una
 línea: tras un callejón sin salida se vuelve a una anterior y se mueve otra
@@ -435,14 +444,23 @@ se rompería:
 `guion(pasos, agua)` en `nucleo/src/recetas.js` devuelve todo eso ya resuelto: agua
 escalada, acumulado y si la lectura es fiable en cada paso.
 
+## Esquema · `accesorios.csv`
+
+`id` (uuid) · `slug` · `tipo` (`dripper` | `molinillo`) · `nombre` ·
+`masa_termica` (0 o 1, solo un dripper) · `en_uso` (0 o 1) · `notas` ·
+`creado_en`
+
 ## Qué garantiza la base
 
 Las reglas ya no dependen de que un script se acuerde: están en los `CHECK` del
 esquema y las aplica D1 aunque el que escriba sea otro.
 
-- `nota` de 1 a 10, y listas cerradas para `defecto`, `dripper`, `estado` y `accion`
+- `nota` de 1 a 10, y listas cerradas para `defecto`, `estado` y `accion`
 - **Solo `verter` lleva gramos**; el resto de acciones van a 0
-- Claves foráneas: no hay extracción sin café, ni paso sin receta
+- Claves foráneas: no hay extracción sin café, ni paso sin receta, ni taza que
+  apunte a un accesorio que no existe
+- Y por trigger, que un `CHECK` no mira otras tablas: cada columna apunta a un
+  accesorio **de su tipo**, el tipo es `dripper` o `molinillo`, y no cambia
 - Fechas en AAAA-MM-DD **que existan de verdad**: el 30 de febrero se rechaza
 - `ratio` y `dias_tueste` no se guardan, los deriva la vista `v_extracciones`
 
@@ -459,7 +477,8 @@ vertidos de fase 1 y dos de fase 2.
 ## Equipo
 
 Hario V60 02 de plástico (el de diario) y V60 02 de cerámica. Comandante C40.
-Báscula con temporizador y tara.
+Báscula con temporizador y tara. Los dos drippers y el molinillo están en el
+catálogo de accesorios de la app: los dio de alta la migración 0014.
 
 ## Método base
 
@@ -539,9 +558,9 @@ Obligatorios: `temp_c`, `clics`, `tiempo_total`, `defecto` y `nota`.
 madre —`temp_c 91 → 94`, o «Sin cambios» si repetiste a propósito—, y lo que
 mandes manda. `defecto` admite un array (`["amargor","astringente"]`) o el texto ya
 separado por comas; se guarda siempre en su forma canónica. Lo que no mandes
-toma la receta base: `dosis_g` 20, `agua_g` 300,
-molinillo Comandante C40, receta `kasuya-46-base`, dripper de plástico y la
-fecha de hoy. La fila entra entera o no entra: si algo no valida, **422** con la
+toma la receta base: `dosis_g` 20, `agua_g` 300, receta `kasuya-46-base` y la
+fecha de hoy. El `dripper` y el `molinillo` se heredan de la madre, y sin
+madre se pone el último que usaste; se mandan por uuid, slug o nombre. La fila entra entera o no entra: si algo no valida, **422** con la
 lista de errores y no se escribe nada.
 
 `cafe_id` es opcional desde que las tazas sin ficha —el café de un amigo, una
@@ -744,10 +763,54 @@ pista y no una verdad: un café llamado «Finca 2» caería en la familia de
 literalmente el mismo y partirlo en dos fichas rompe las comparaciones sin
 ganar nada. Una ficha y, como mucho, súbele el peso.
 
+## Los accesorios
+
+El dripper y el molinillo de cada taza son filas de un **catálogo propio**,
+`accesorios`, con su pantalla en el menú del engranaje. Hasta la 0014 eran dos
+columnas de texto: el dripper, una lista cerrada con su `CHECK`, y el
+molinillo, texto libre que el formulario ni enseñaba. Comprar un Origami pedía
+una migración, y qué dripper tiene masa térmica lo decía una constante del
+motor. Ahora es un interruptor del propio dripper.
+
+**Las columnas de `extracciones` no cambiaron de nombre**: siguen siendo
+`dripper` y `molinillo`, y guardan la id del accesorio. Es a propósito. La cola
+de salida de un móvil con la app vieja, un curl de siempre y los respaldos de
+antes mandan `"dripper": "v60-02-plastico"` y `"molinillo": "Comandante C40"`,
+y eso tiene que seguir entrando. Por eso se resuelven **por uuid, por slug o
+por nombre** (este último solo si hay uno que se llame así), y la conversión
+conservó las claves de los drippers como slug. Con otro nombre de columna,
+esas colas se habrían atascado en un 422.
+
+Lo que había se convirtió en tres sitios, con la misma tabla: la base con la
+**migración 0014**, el cajón del modo local al abrir la app
+(`web/app/almacen/legado.js`) y los respaldos del formato 1 al restaurarlos.
+Los dos drippers de la lista cerrada, con la cerámica marcando masa térmica;
+un molinillo por cada texto distinto; y cada accesorio nace con la fecha de la
+primera taza que lo usó.
+
+Sin mandarlos, el dripper y el molinillo **se heredan de la madre**, y si no la
+hay, el último que usaste. Nunca vuelven a uno de fábrica: con un valor por
+defecto, una bolsa molida con otro aparato veía cómo cada taza «cambiaba de
+molinillo» ella sola.
+
+**Borrar es solo para lo que no ha usado nadie** —409 si alguna taza lo
+nombra, retiradas incluidas, como las recetas—. Lo que se vende o se rompe se
+**saca de uso**: deja de ofrecerse al registrar y sigue nombrado en las tazas
+que se hicieron con él. Un desplegable nunca pierde el valor que ya tiene, así
+que el de una ficha vieja se enseña aunque esté fuera de uso, y marcado.
+
+**El tipo va en un trigger, no en un `CHECK`.** La tabla cuelga de cada
+extracción, igual que `cafes`, y eso la deja sin reconstrucción posible en D1
+—ver «Los dos relojes de la frescura»—: un `CHECK (tipo IN ...)` quedaría
+congelado. El trigger se tira y se rehace en tres líneas el día que haya
+filtros o hervidores, que además pedirán su columna en `extracciones`. El tipo
+de un accesorio no cambia: las tazas que lo usan lo apuntaron en su columna.
+
 ## La identidad: UUID de clave, slug de etiqueta
 
 Camino del modo local y de escribir sin cobertura (está en
-`PLAN-abrir-la-app.md`), las claves de las cuatro tablas son **UUID versión 7**
+`PLAN-abrir-la-app.md`), las claves de las tablas con filas propias —bolsas,
+recetas, extracciones y, desde la 0014, accesorios— son **UUID versión 7**
 —el tiempo delante, así que ordenar por id no desordena— y las pone quien crea
 la fila. Un texto derivado de un nombre no puede ser la clave: dos dispositivos
 sin cobertura inventarían el mismo `gary_2`, y con la id puesta por el cliente

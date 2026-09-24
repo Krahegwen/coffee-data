@@ -12,7 +12,8 @@ import { describe, it } from "node:test";
 import { IDBFactory } from "fake-indexeddb";
 
 import {
-  crearCafe, crearExtraccion, editarCafe, guardarReceta, retirarExtraccion,
+  crearAccesorio, crearCafe, crearExtraccion, editarAccesorio, editarCafe,
+  guardarReceta, retirarExtraccion,
 } from "@coffee/nucleo/api";
 
 import { aCsv, deCsv } from "../app/almacen/csv.js";
@@ -105,11 +106,20 @@ async function bitacoraDePrueba(almacen) {
     ],
   });
 
+  // El catálogo: uno renombrado —su slug no sale ya del nombre—, uno con
+  // masa térmica y uno que ya no está en casa.
+  const v60 = await crearAccesorio(almacen, { tipo: "dripper", nombre: "V60 02" });
+  await editarAccesorio(almacen, v60.datos.accesorio.id, { nombre: "V60 02 blanco" });
+  await crearAccesorio(almacen, { tipo: "dripper", nombre: "Origami", masa_termica: true });
+  await crearAccesorio(almacen, { tipo: "molinillo", nombre: "Comandante C40", notas: "el de diario" });
+  const viejo = await crearAccesorio(almacen, { tipo: "molinillo", nombre: "Hario Skerton" });
+  await editarAccesorio(almacen, viejo.datos.accesorio.id, { en_uso: false });
+
   const primera = await crearExtraccion(almacen, {
     cafe_id: "etiopia_guji", receta_id: receta.datos.receta.id,
     temp_c: 91, clics: 28, tiempo_total: "3:30", drawdown_s: 45,
     variable_cambiada: "basal", defecto: "equilibrado", nota: 7,
-    notas_cata: "cítrico, algo corto",
+    notas_cata: "cítrico, algo corto", dripper: "origami", molinillo: "hario_skerton",
   });
   // Con dos defectos: desde que son una lista, `defecto` lleva dentro la
   // propia coma del CSV y tiene que salir entrecomillado y volver entero. Es
@@ -138,8 +148,11 @@ async function bitacoraDePrueba(almacen) {
     cafe_id: "etiopia_guji", receta_id: receta.datos.receta.id,
     temp_c: 90, clics: 27, tiempo_total: "3:05", defecto: "amargor", nota: 6,
   });
+  // Y sin molinillo: el alta le pondría el de la madre, y tiene que volver
+  // en blanco como se fue.
   await almacen.extracciones.actualizar(vacia.datos.extraccion.id, {
     variable_cambiada: null,
+    molinillo: null,
   });
   return { primera };
 }
@@ -150,7 +163,9 @@ describe("el respaldo entero, de ida y vuelta", () => {
     await bitacoraDePrueba(origen);
 
     const { bytes, manifiesto } = await crearRespaldo(origen, { version: "0.0.0-test" });
+    assert.equal(manifiesto.formato, 2);
     assert.equal(manifiesto.filas.cafes, 2);
+    assert.equal(manifiesto.filas.accesorios, 4);
     assert.equal(manifiesto.filas.extracciones, 4);
 
     const contenido = await leerRespaldo(bytes);
@@ -173,6 +188,12 @@ describe("el respaldo entero, de ida y vuelta", () => {
     const recetasAntes = porId(await origen.recetas.listar()).map(sinSellos);
     const recetasDespues = porId(await destino.recetas.listar()).map(sinSellos);
     assert.deepEqual(recetasDespues, recetasAntes);
+
+    // Los accesorios, con su id, su slug de nacimiento y sus interruptores.
+    const accesoriosAntes = porId(await origen.accesorios.listar()).map(sinSellos);
+    const accesoriosDespues = porId(await destino.accesorios.listar()).map(sinSellos);
+    assert.deepEqual(accesoriosDespues, accesoriosAntes);
+    assert.ok(accesoriosDespues.some((a) => a.nombre === "V60 02 blanco" && a.slug === "v60_02"));
 
     const antes = porId(await origen.extracciones.listar());
     const despues = porId(await destino.extracciones.listar());
@@ -202,6 +223,7 @@ describe("el respaldo entero, de ida y vuelta", () => {
       almacen.reemplazar({
         cafes: [{ id: "x", rota: () => {} }],
         recetas: [],
+        accesorios: [],
         extracciones: [],
       }),
     );
@@ -233,6 +255,75 @@ describe("el respaldo entero, de ida y vuelta", () => {
       { nombre: "manifiesto.json", datos: utf8.encode('{"formato": 99}') },
     ]);
     await assert.rejects(() => leerRespaldo(futuro), /formato 99/);
+  });
+
+  it("el csv de extracciones lleva los slugs de los accesorios al lado de su id", async () => {
+    const origen = cajon();
+    await bitacoraDePrueba(origen);
+    const contenido = await leerRespaldo((await crearRespaldo(origen)).bytes);
+    const basal = contenido.extracciones.find((e) => e.variable_cambiada === "basal");
+    assert.equal(basal.dripper_slug, "origami");
+    assert.equal(basal.molinillo_slug, "hario_skerton");
+    assert.equal(contenido.accesorios.length, 4);
+  });
+
+  it("un respaldo del formato 1 se abre, y su texto pasa al catálogo", async () => {
+    /*
+     * Lo que descargaba la app antes del catálogo: sin accesorios.csv, y el
+     * dripper y el molinillo como texto dentro de cada extracción. Tiene que
+     * restaurar igual que la 0014 convierte la base: las claves de los
+     * drippers de slug, la cerámica con masa térmica y el molinillo por nombre.
+     */
+    const cafe = "01980000-0000-7000-8000-000000000c0f";
+    const receta = "01980000-0000-7000-8000-0000000000e1";
+    const zip = escribirZip([
+      { nombre: "manifiesto.json", datos: utf8.encode('{"formato": 1, "creado": "2026-08-10T10:00:00Z"}') },
+      {
+        nombre: "cafes.csv",
+        datos: utf8.encode(aCsv(
+          [{ id: cafe, slug: "gary", nombre: "Gary", estado: "abierto", creado_en: "2026-08-01 08:00:00" }],
+          ["id", "slug", "nombre", "estado", "creado_en"],
+        )),
+      },
+      {
+        nombre: "recetas.csv",
+        datos: utf8.encode(aCsv(
+          [{ id: receta, slug: "base", nombre: "Base", creado_en: "2026-08-01 08:00:00" }],
+          ["id", "slug", "nombre", "creado_en"],
+        )),
+      },
+      {
+        nombre: "pasos.csv",
+        datos: utf8.encode(aCsv(
+          [{ receta_id: receta, orden: 1, accion: "verter", agua_g: 300, t_inicio_s: 0 }],
+          ["receta_id", "orden", "accion", "agua_g", "t_inicio_s"],
+        )),
+      },
+      {
+        nombre: "extracciones.csv",
+        datos: utf8.encode(aCsv(
+          [{
+            id: "01980000-0000-7000-8000-00000000e001", fecha: "2026-08-02",
+            creado_en: "2026-08-02 08:00:00", cafe_id: cafe, receta_id: receta,
+            temp_c: 91, clics: 28, tiempo_total: "3:30", defecto: "equilibrado", nota: 7,
+            dripper: "v60-02-ceramica", molinillo: "Comandante C40",
+          }],
+          ["id", "fecha", "creado_en", "cafe_id", "receta_id", "temp_c", "clics",
+            "tiempo_total", "defecto", "nota", "dripper", "molinillo"],
+        )),
+      },
+    ]);
+
+    const contenido = await leerRespaldo(zip);
+    assert.deepEqual(contenido.accesorios, []);
+    const preparado = await prepararRestauracion(contenido);
+
+    const porSlug = Object.fromEntries(preparado.accesorios.map((a) => [a.slug, a]));
+    assert.deepEqual(Object.keys(porSlug).sort(), ["comandante_c40", "v60-02-ceramica"]);
+    assert.equal(porSlug["v60-02-ceramica"].masa_termica, 1);
+    const [taza] = preparado.extracciones;
+    assert.equal(taza.dripper, porSlug["v60-02-ceramica"].id);
+    assert.equal(taza.molinillo, porSlug.comandante_c40.id);
   });
 
   it("la foto de la bolsa viaja y vuelve a su clave", async () => {

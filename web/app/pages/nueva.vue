@@ -1,15 +1,18 @@
 <script setup lang="ts">
+import { TIPOS_ACCESORIO } from '~/composables/useApi'
 import type { Creada, NuevaExtraccion } from '~/composables/useApi'
 
 const { t, locale } = useI18n()
 useHead({ title: () => t('alta.titulo') })
 
+import { accesorioPorDefecto } from '@coffee/nucleo/accesorios'
 import { diferencias, textoDeVariables, variableCambiadaDe } from '@coffee/nucleo/sugerencias'
 import { textos } from '@coffee/nucleo/textos'
 import { defectosDe } from '@coffee/nucleo/validacion'
-const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe } = useTextos()
+const { VARIABLES, fechaCorta, nombreCafe } = useTextos()
+const opcionesAccesorio = useOpcionesAccesorio()
 
-const { cafes, recetas, extracciones, crear } = useApi()
+const { cafes, recetas, extracciones, crear, accesorios } = useApi()
 const route = useRoute()
 const router = useRouter()
 // Guardar la extracción es lo que cierra esa taza, así que es aquí donde
@@ -18,6 +21,7 @@ const { soltarReloj } = useCrono()
 
 const { data: bolsas } = await useAsyncData('cafes-form', cafes)
 const { data: catalogo } = await useAsyncData('recetas-form', recetas)
+const { data: equipo } = await useAsyncData('accesorios-form', accesorios)
 const { data: historial, refresh: releerHistorial } = await useAsyncData('ext-form', () => extracciones())
 
 const abiertas = computed(() => (bolsas.value ?? []).filter((c) => c.estado === 'abierto'))
@@ -34,7 +38,10 @@ const EN_BLANCO = (): Record<string, unknown> => ({
   temp_c: 92,
   clics: 28,
   receta_id: '',
-  dripper: 'v60-02-plastico',
+  // Del catálogo de accesorios: sin arranque que los traiga, los pone el
+  // watchEffect de más abajo.
+  dripper: '',
+  molinillo: '',
   tiempo_total: '',
   drawdown_s: '' as number | '',
   extraido_g: '' as number | '',
@@ -77,6 +84,22 @@ watchEffect(() => {
   if (form.receta_id || !catalogo.value?.length) return
   const base = catalogo.value.find((r) => r.slug === 'kasuya-46-base')
   form.receta_id = (base ?? catalogo.value[0]!).id
+})
+
+/*
+ * Y lo mismo con el dripper y el molinillo, cuando no hay taza de la que
+ * copiarlos: los que pondría el servidor —el último que usaste, o el primero
+ * que diste de alta—, con la misma función del núcleo. Solo si el campo está
+ * vacío, como la receta; el desplegable no ofrece el hueco, así que esto no
+ * puede pisar una elección.
+ */
+watchEffect(() => {
+  if (!equipo.value) return
+  for (const tipo of TIPOS_ACCESORIO) {
+    if (form[tipo]) continue
+    const porDefecto = accesorioPorDefecto(tipo, equipo.value, historial.value ?? [])
+    if (porDefecto) form[tipo] = porDefecto.id
+  }
 })
 
 /**
@@ -155,10 +178,14 @@ const sueltaPrevia = computed(() =>
 // Parte del borrador: las filas de variables también vuelven al volver.
 const cambiadas = useState<string[]>('borrador-extraccion-variables', () => [])
 
-/** Las variables que son de elegir, no de teclear. */
+/**
+ * Las variables que son de elegir, no de teclear. Los accesorios, los que
+ * están en uso más el puesto y el de la madre: ver `useOpcionesAccesorio`.
+ */
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: Object.entries(DRIPPERS.value).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  dripper: opcionesAccesorio(equipo.value, 'dripper', form.dripper, anterior.value?.dripper),
+  molinillo: opcionesAccesorio(equipo.value, 'molinillo', form.molinillo, anterior.value?.molinillo),
 }))
 
 /*
@@ -236,14 +263,21 @@ watch(() => form.cafe_id, () => { cambiadas.value = []; form.desde_id = '' })
  * allí. No se escribe en el campo —un valor que aparece solo se acaba
  * registrando sin mirarlo—, se enseña debajo.
  *
- * Se le pasan solo las variables que este formulario declara: el molinillo no
- * está aquí y lo pone el servidor por defecto, así que compararlo diría que
- * cambió algo que nadie tocó.
+ * Se le pasan solo las variables que este formulario declara, que desde el
+ * catálogo de accesorios son ya todas las del servidor: el molinillo se elige
+ * aquí como el dripper.
  */
-/** El formulario con el slug de la receta puesto, que es como se nombra. */
+/**
+ * El formulario con los slugs puestos —receta y accesorios—, que es como se
+ * nombran en `variable_cambiada`. Los de la madre ya los trae el histórico.
+ */
+const slugDeAccesorio = (id: unknown) =>
+  (equipo.value ?? []).find((a) => a.id === id)?.slug ?? null
 const conSlug = computed(() => ({
   ...form,
   receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
+  dripper_slug: slugDeAccesorio(form.dripper),
+  molinillo_slug: slugDeAccesorio(form.molinillo),
 }))
 
 const seRegistrara = computed(() =>
@@ -415,10 +449,14 @@ function alPlegar(evento: Event) {
   cabeceraAbierta.value = (evento.target as HTMLDetailsElement).open
 }
 
+/** El nombre de un accesorio del catálogo, o nada si no está. */
+const nombreAccesorio = (id: unknown) =>
+  (equipo.value ?? []).find((a) => a.id === id)?.nombre ?? ''
+
 /**
  * Lo plegado, en una línea. Plegar a ciegas escondería justo el campo que ese
- * día vino mal prerrellenado, así que el resumen enseña los cinco valores que
- * de verdad hacen la taza —y si alguno no cuadra, se abre y se corrige.
+ * día vino mal prerrellenado, así que el resumen enseña los valores que de
+ * verdad hacen la taza —y si alguno no cuadra, se abre y se corrige.
  */
 const resumen = computed(() => {
   const receta = (catalogo.value ?? []).find((r) => r.id === form.receta_id)
@@ -430,14 +468,15 @@ const resumen = computed(() => {
     t('alta.resumen_cantidades', { dosis: form.dosis_g, agua: form.agua_g }),
     receta?.nombre ?? '',
     /*
-     * El dripper va aquí aunque abulte: es la única de las variables que **no
-     * se elige en ninguna otra pantalla** —ni preparar ni el reloj lo tienen—
-     * y llega copiado de la taza anterior sin decirlo. Y es justo el que más
-     * contamina: el de cerámica tiene masa térmica y baja la temperatura real
-     * del lecho. Escondido y sin resumir, colar en plástico una taza que la
-     * bitácora apunta como cerámica no dejaba ni un rastro en pantalla.
+     * El dripper y el molinillo van aquí aunque abulten: son las dos variables
+     * que **no se eligen en ninguna otra pantalla** —ni preparar ni el reloj
+     * las tienen— y llegan copiadas de la taza anterior sin decirlo. Y el
+     * dripper es justo el que más contamina: uno con masa térmica baja la
+     * temperatura real del lecho. Escondido y sin resumir, colar en plástico
+     * una taza que la bitácora apunta como cerámica no dejaba ni un rastro.
      */
-    DRIPPERS.value[String(form.dripper)] ?? '',
+    nombreAccesorio(form.dripper),
+    nombreAccesorio(form.molinillo),
   ].filter(Boolean).join(' · ')
 })
 
@@ -455,8 +494,11 @@ async function enviar() {
       dosis_g: Number(form.dosis_g),
       agua_g: Number(form.agua_g),
       receta_id: String(form.receta_id),
-      dripper: String(form.dripper),
     }
+    // Sin ninguno en el catálogo no hay nada que mandar: el servidor hereda el
+    // de la madre, o deja el hueco.
+    if (form.dripper) datos.dripper = String(form.dripper)
+    if (form.molinillo) datos.molinillo = String(form.molinillo)
     /*
      * Qué cambió solo viaja si lo cuentas: con la tabla puesta, lo que ella
      * compone; sin ella, lo tecleado. Si no hay ni una cosa ni la otra no se
@@ -611,14 +653,21 @@ async function enviar() {
       </select>
     </label>
 
-    <label>
-      {{ $t('alta.dripper') }}
-      <select v-model="form.dripper">
-        <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
-          {{ etiqueta }}
-        </option>
-      </select>
-    </label>
+    <!-- Del catálogo de accesorios. Sin ninguno de un tipo, el desplegable no
+         tiene nada que ofrecer y en su sitio va el camino para darlo de alta. -->
+    <div class="pareja">
+      <label v-for="tipo in TIPOS_ACCESORIO" :key="tipo">
+        {{ $t(`alta.${tipo}`) }}
+        <select v-if="opciones[tipo].length" v-model="form[tipo]">
+          <option v-for="o in opciones[tipo]" :key="o.valor" :value="o.valor">{{ o.etiqueta }}</option>
+        </select>
+        <NuxtLinkLocale
+          v-else :to="{ path: `/accesorios/${$t('rutas.nuevo')}`, query: { tipo } }" class="sin-accesorio"
+        >
+          {{ $t('alta.sin_accesorio') }}
+        </NuxtLinkLocale>
+      </label>
+    </div>
       </div>
     </details>
 
@@ -920,6 +969,15 @@ label {
 }
 
 .pareja { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+/* En el hueco del desplegable, del mismo alto, para que la fila no salte. */
+.sin-accesorio {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.85rem;
+  color: var(--acento);
+}
 
 input, select, textarea {
   font: inherit;

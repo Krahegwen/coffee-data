@@ -31,17 +31,24 @@ EXPORTS = [
         "fecha_apertura", "peso_g", "restante_g", "restante_en", "precio_eur",
         "notas_tostador", "estado", "foto", "url", "conservacion", "creado_en",
     ], lambda f: f["slug"]),
+    # El catálogo del dripper y el molinillo, desde la 0014. Las extracciones
+    # lo apuntan por id, así que sin él el respaldo no se entiende solo.
+    ("accesorios.csv", "/api/accesorios", [
+        "id", "slug", "tipo", "nombre", "masa_termica", "en_uso", "notas",
+        "creado_en",
+    ], lambda f: f["slug"]),
 ]
 
-# cafe_slug y receta_slug van además de los uuid: el CSV lo lee un humano, y
-# un humano no resuelve uuids de cabeza.
+# Los slugs de café, receta y accesorios van además de los uuid: el CSV lo lee
+# un humano, y un humano no resuelve uuids de cabeza. Las mismas columnas que
+# escribe el respaldo de la app (`web/app/almacen/respaldo.js`).
 COLUMNAS_EXTRACCIONES = [
     "id", "fecha", "creado_en", "cafe_id", "cafe_slug", "dias_tueste",
     "dias_abierta", "dosis_g", "agua_g", "ratio", "temp_c", "molinillo",
-    "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
+    "molinillo_slug", "clics", "metodo", "reparto", "tiempo_total", "extraido_g",
     "variable_cambiada", "defecto", "notas_cata", "nota", "siguiente_ajuste",
-    "receta_id", "receta_slug", "drawdown_s", "dripper", "borrada_en",
-    "desde_id",
+    "receta_id", "receta_slug", "drawdown_s", "dripper", "dripper_slug",
+    "borrada_en", "desde_id",
 ]
 
 

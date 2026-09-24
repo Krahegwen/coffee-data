@@ -122,9 +122,10 @@ export function useSincro() {
 
   /** La bajada: todo, de una vez, y el cajón local pasa a ser esa copia. */
   async function traerTodo() {
-    const [cafes, recetas, vivas, retiradas, ajustes] = await Promise.all([
+    const [cafes, recetas, accesorios, vivas, retiradas, ajustes] = await Promise.all([
       $fetch<any[]>(`${base}/api/cafes`),
       $fetch<any[]>(`${base}/api/recetas`),
+      $fetch<any[]>(`${base}/api/accesorios`),
       $fetch<any[]>(`${base}/api/extracciones`),
       $fetch<any[]>(`${base}/api/extracciones`, { query: { retiradas: 1 } }),
       // Con su propio catch: el recurso menos importante de la app no puede
@@ -133,7 +134,9 @@ export function useSincro() {
       // de bajar cafés y extracciones con el pie diciendo «al día».
       $fetch<{ filas?: any[] }>(`${base}/api/preferencias`).catch(() => null),
     ])
-    await cajonLocal().reemplazar({ cafes, recetas, extracciones: [...vivas, ...retiradas] })
+    await cajonLocal().reemplazar({
+      cafes, recetas, accesorios, extracciones: [...vivas, ...retiradas],
+    })
     /*
      * Las preferencias van aparte y **se fusionan por sello**, no se
      * reemplazan con las demás.

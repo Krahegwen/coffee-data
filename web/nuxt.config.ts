@@ -59,6 +59,8 @@ export default defineNuxtConfig({
       'crono/reloj': { es: '/crono/reloj', en: '/brew/timer' },
       'recetas/index': { es: '/recetas', en: '/recipes' },
       'recetas/[id]': { es: '/recetas/[id]', en: '/recipes/[id]' },
+      'accesorios/index': { es: '/accesorios', en: '/gear' },
+      'accesorios/[id]': { es: '/accesorios/[id]', en: '/gear/[id]' },
       'extracciones/[id]': { es: '/extracciones/[id]', en: '/brews/[id]' },
     },
   },

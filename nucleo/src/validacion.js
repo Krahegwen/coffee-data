@@ -6,6 +6,7 @@
  * vez de un mensaje de SQLite, y para poner los valores por defecto.
  */
 
+import { TIPOS_ACCESORIO } from "./accesorios.js";
 import { esUuid } from "./ids.js";
 import { textos } from "./textos.js";
 
@@ -26,8 +27,6 @@ export const DEFECTOS = [
  * acompaña a otros — una taza no puede estar equilibrada y amarga a la vez.
  */
 export const SIN_DEFECTO = "equilibrado";
-
-export const DRIPPERS = ["v60-02-plastico", "v60-02-ceramica"];
 
 /**
  * Los defectos de una taza, **en orden de relevancia**: el que más molesta
@@ -86,14 +85,14 @@ function validarDefectos(valor, errores, t) {
   return lista.join(",");
 }
 
-// Receta base del README.
+// Receta base del README. El dripper y el molinillo ya no están: son filas
+// del catálogo de accesorios, y cuál se pone cuando no llega lo decide el
+// manejador — el de la madre, o el que usaste la última vez.
 export const POR_DEFECTO = {
   dosis_g: 20,
   agua_g: 300,
-  molinillo: "Comandante C40",
   metodo: "V60 4:6 Kasuya",
   receta_id: "kasuya-46-base",
-  dripper: "v60-02-plastico",
 };
 
 // cafe_id no está: una taza sin ficha —el café de un amigo, una muestra— se
@@ -331,17 +330,14 @@ export function validarExtraccion(cuerpo, { ahora, t = CASTELLANO } = {}) {
 
   valores.defecto = validarDefectos(entrada.defecto, errores, t);
 
-  const dripper = vacio(entrada.dripper)
-    ? POR_DEFECTO.dripper
-    : String(entrada.dripper).trim().toLowerCase();
-  if (!DRIPPERS.includes(dripper)) {
-    errores.push(t("dripper_no_permitido", {
-      valor: JSON.stringify(entrada.dripper), validos: DRIPPERS.join(", "),
-    }));
+  // Los accesorios llegan como uuid, slug o nombre, y a qué fila apuntan lo
+  // resuelve el manejador, que es quien tiene el catálogo delante. Vacío es
+  // «no lo digo»: se hereda de la madre.
+  for (const campo of TIPOS_ACCESORIO) {
+    valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
   }
-  valores.dripper = dripper;
 
-  for (const campo of ["molinillo", "metodo", "receta_id"]) {
+  for (const campo of ["metodo", "receta_id"]) {
     valores[campo] = vacio(entrada[campo]) ? POR_DEFECTO[campo] : String(entrada[campo]).trim();
   }
   for (const campo of ["reparto", "tiempo_total", "variable_cambiada", "notas_cata", "siguiente_ajuste"]) {
@@ -558,17 +554,7 @@ export function validarCambiosExtraccion(cuerpo, { t = CASTELLANO } = {}) {
     valores.defecto = validarDefectos(entrada.defecto, errores, t);
   }
 
-  if (dado("dripper")) {
-    const dripper = String(entrada.dripper ?? "").trim().toLowerCase();
-    if (!DRIPPERS.includes(dripper)) {
-      errores.push(t("dripper_no_permitido", {
-        valor: JSON.stringify(entrada.dripper), validos: DRIPPERS.join(", "),
-      }));
-    }
-    valores.dripper = dripper;
-  }
-
-  for (const campo of ["molinillo", "metodo", "receta_id", "reparto", "tiempo_total",
+  for (const campo of [...TIPOS_ACCESORIO, "metodo", "receta_id", "reparto", "tiempo_total",
                        "variable_cambiada", "notas_cata", "siguiente_ajuste"]) {
     if (!dado(campo)) continue;
     valores[campo] = vacio(entrada[campo]) ? null : String(entrada[campo]).trim();
@@ -851,4 +837,98 @@ export function validarReceta(cuerpo, { nuevo, t = CASTELLANO }) {
   }
 
   return { receta, pasos, errores };
+}
+
+// Las columnas de un accesorio que se pueden mandar. Ni id ni slug, como en
+// las bolsas: la id la pone quien crea y el slug sale del nombre.
+export const CAMPOS_ACCESORIO = ["nombre", "tipo", "masa_termica", "en_uso", "notas"];
+
+/**
+ * Un interruptor tal y como puede llegar: true/false de la app, 0/1 de la
+ * base y "true"/"0" de un CSV del respaldo, que solo sabe de textos. Undefined
+ * si no se deja leer, para que quien pregunte lo cante.
+ */
+function booleano(valor) {
+  if (typeof valor === "boolean") return valor;
+  const texto = String(valor ?? "").trim().toLowerCase();
+  if (texto === "1" || texto === "true") return true;
+  if (texto === "0" || texto === "false") return false;
+  return undefined;
+}
+
+/**
+ * Valida un accesorio. Con `nuevo`, exige nombre y tipo y devuelve la fila
+ * entera; sin él es una corrección y solo entra lo que venga.
+ *
+ * Los interruptores se devuelven como 0 y 1, que es como los guarda la base:
+ * así los tres almacenes devuelven lo mismo y la paridad de la cola no depende
+ * de cómo cada uno entienda un booleano.
+ *
+ * El tipo se acepta en una corrección solo para que el manejador compruebe
+ * que es el mismo: un molinillo no pasa a ser dripper, que las extracciones
+ * que lo usan dirían entonces otra cosa de sí mismas.
+ */
+export function validarAccesorio(cuerpo, { nuevo, t = CASTELLANO }) {
+  const errores = [];
+  const entrada = cuerpo && typeof cuerpo === "object" ? cuerpo : {};
+  const valores = {};
+
+  const desconocidos = Object.keys(entrada)
+    .filter((c) => !CAMPOS_ACCESORIO.includes(c) && !(nuevo && IDENTIDAD.includes(c)));
+  if (desconocidos.length) {
+    errores.push(t("campos_desconocidos", { lista: desconocidos.join(", ") }));
+  }
+
+  if (nuevo) {
+    const slug = slugDe(entrada.nombre);
+    if (!SLUG.test(slug)) {
+      errores.push(t("slug_imposible", { valor: JSON.stringify(entrada.nombre) }));
+    }
+    valores.slug = slug;
+    validarIdentidad(entrada, valores, errores, t);
+  }
+
+  if (nuevo || entrada.nombre !== undefined) {
+    const nombre = String(entrada.nombre ?? "").trim();
+    if (!nombre) errores.push(t("nombre_vacio"));
+    valores.nombre = nombre;
+  }
+
+  if (nuevo || entrada.tipo !== undefined) {
+    const tipo = String(entrada.tipo ?? "").trim().toLowerCase();
+    if (!TIPOS_ACCESORIO.includes(tipo)) {
+      errores.push(t("tipo_no_permitido", {
+        valor: JSON.stringify(entrada.tipo), validos: TIPOS_ACCESORIO.join(", "),
+      }));
+    }
+    valores.tipo = tipo;
+  }
+
+  // Sin decir nada, el dripper es de plástico y el aparato está en casa: lo
+  // normal al darlo de alta.
+  for (const [campo, porDefecto] of [["masa_termica", false], ["en_uso", true]]) {
+    if (!nuevo && entrada[campo] === undefined) continue;
+    const valor = nuevo && vacio(entrada[campo]) ? porDefecto : booleano(entrada[campo]);
+    if (valor === undefined) {
+      errores.push(t("accesorio_interruptor", { campo }));
+      continue;
+    }
+    valores[campo] = valor ? 1 : 0;
+  }
+
+  // La masa térmica es del dripper: es lo que baja la temperatura del lecho.
+  // En un molinillo no significa nada, y guardarla invitaría a pensar que sí.
+  if (valores.masa_termica && valores.tipo && valores.tipo !== "dripper") {
+    errores.push(t("masa_termica_solo_dripper"));
+  }
+
+  if (nuevo || entrada.notas !== undefined) {
+    valores.notas = vacio(entrada.notas) ? null : String(entrada.notas).trim();
+  }
+
+  if (!nuevo && !Object.keys(valores).length) {
+    errores.push(t("nada_que_corregir"));
+  }
+
+  return { valores, errores };
 }

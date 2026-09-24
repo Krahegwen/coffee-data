@@ -29,10 +29,15 @@ RECETA_BASE = "(SELECT id FROM recetas WHERE slug = 'kasuya-46-base')"
 # equivocada 17 veces.
 SEMILLA = "(SELECT id FROM extracciones WHERE variable_cambiada = 'basal')"
 
+# Los accesorios, igual: los convierte la 0014 y el slug es lo que se conoce.
+PLASTICO = "(SELECT id FROM accesorios WHERE slug = 'v60-02-plastico')"
+CERAMICA = "(SELECT id FROM accesorios WHERE slug = 'v60-02-ceramica')"
+COMANDANTE = "(SELECT id FROM accesorios WHERE slug = 'comandante_c40')"
+
 EXTRACCION = {
     "fecha": "'2026-08-06'", "cafe_id": GARY, "dosis_g": "20", "agua_g": "300",
     "temp_c": "91", "nota": "8", "defecto": "'equilibrado'",
-    "dripper": "'v60-02-plastico'", "receta_id": RECETA_BASE,
+    "dripper": PLASTICO, "molinillo": COMANDANTE, "receta_id": RECETA_BASE,
 }
 
 
@@ -107,7 +112,7 @@ def test_semilla_sigue_apuntando_a_la_semilla_con_otra_extraccion_delante(db):
 
 
 def test_las_tablas_son_strict(db):
-    for tabla in ("cafes", "recetas", "pasos", "extracciones", "preferencias"):
+    for tabla in ("cafes", "recetas", "pasos", "extracciones", "preferencias", "accesorios"):
         sql = db.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (tabla,)
         ).fetchone()[0]
@@ -309,9 +314,174 @@ def test_la_vista_saca_lo_extraido(db):
     assert fila[0] == 260
 
 
-def test_el_dripper_es_una_lista_cerrada(db):
+# --- los accesorios -----------------------------------------------------------
+
+def insertar_accesorio(db, **cambios):
+    """Un accesorio nuevo; devuelve su id. Por defecto, un molinillo."""
+    clave = str(uuid.uuid4())
+    campos = {
+        "id": f"'{clave}'", "slug": f"'a{clave[:8]}'", "tipo": "'molinillo'",
+        "nombre": "'Timemore C3'", **cambios,
+    }
+    columnas = ", ".join(campos)
+    valores = ", ".join(str(v) for v in campos.values())
+    db.execute(f"INSERT INTO accesorios ({columnas}) VALUES ({valores})")
+    return clave
+
+
+def test_el_dripper_ya_no_es_una_lista_sino_un_accesorio(db):
+    """El texto de la lista cerrada ya no entra: la columna guarda una id."""
     with pytest.raises(sqlite3.IntegrityError):
-        insertar_extraccion(db, dripper="'chemex'")
+        insertar_extraccion(db, dripper="'v60-02-plastico'")
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, dripper=f"'{uuid.uuid4()}'")
+
+
+def test_un_dripper_nuevo_se_da_de_alta_sin_migracion(db):
+    origami = insertar_accesorio(db, tipo="'dripper'", nombre="'Origami'", slug="'origami'")
+    clave = insertar_extraccion(db, dripper=f"'{origami}'")
+    assert db.execute(
+        "SELECT dripper_slug FROM v_extracciones WHERE id = ?", (clave,)
+    ).fetchone()[0] == "origami"
+
+
+def test_cada_columna_apunta_a_un_accesorio_de_su_tipo(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, dripper=COMANDANTE)
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_extraccion(db, molinillo=PLASTICO)
+
+
+def test_y_al_corregir_tampoco_se_cruzan(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute(f"UPDATE extracciones SET dripper = {COMANDANTE} WHERE id = {SEMILLA}")
+    db.execute(f"UPDATE extracciones SET dripper = {CERAMICA} WHERE id = {SEMILLA}")
+
+
+def test_sin_accesorios_tambien_entra(db):
+    """Una taza apuntada sin saber con qué: el hueco es legal."""
+    clave = insertar_extraccion(db, dripper="NULL", molinillo="NULL")
+    assert db.execute(
+        "SELECT dripper, molinillo FROM extracciones WHERE id = ?", (clave,)
+    ).fetchone() == (None, None)
+
+
+def test_el_tipo_de_accesorio_es_una_lista_cerrada(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_accesorio(db, tipo="'hervidor'")
+
+
+def test_un_accesorio_no_cambia_de_tipo(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("UPDATE accesorios SET tipo = 'dripper' WHERE slug = 'comandante_c40'")
+
+
+def test_la_masa_termica_es_cosa_del_dripper(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_accesorio(db, masa_termica="1")
+    insertar_accesorio(db, tipo="'dripper'", masa_termica="1")
+
+
+def test_los_interruptores_son_cero_o_uno(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_accesorio(db, en_uso="2")
+
+
+def test_el_slug_de_accesorio_no_se_repite(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        insertar_accesorio(db, slug="'comandante_c40'")
+
+
+def test_un_accesorio_usado_no_se_puede_borrar(db):
+    with pytest.raises(sqlite3.IntegrityError):
+        db.execute("DELETE FROM accesorios WHERE slug = 'v60-02-plastico'")
+    # El de cerámica no lo usa nadie: ese sí.
+    db.execute("DELETE FROM accesorios WHERE slug = 'v60-02-ceramica'")
+
+
+def test_la_semilla_queda_con_su_dripper_y_su_molinillo(db):
+    fila = db.execute(
+        f"SELECT dripper_slug, molinillo_slug FROM v_extracciones WHERE id = {SEMILLA}"
+    ).fetchone()
+    assert fila == ("v60-02-plastico", "comandante_c40")
+
+
+def test_la_ceramica_nace_con_masa_termica(db):
+    masas = dict(db.execute(
+        "SELECT slug, masa_termica FROM accesorios WHERE tipo = 'dripper'"
+    ).fetchall())
+    assert masas == {"v60-02-plastico": 0, "v60-02-ceramica": 1}
+
+
+def test_la_conversion_de_los_accesorios(tmp_path):
+    """
+    La 0014 tiene que dejar cada taza apuntando a lo mismo que decía su texto.
+    Como con el árbol de exploración: el esquema **hasta la anterior**, un
+    histórico escrito a mano con lo que había en la calle, y entonces ella.
+    """
+    catalogo = next(m for m in MIGRACIONES if m.name.startswith("0014_"))
+    db = sqlite3.connect(":memory:")
+    db.execute("PRAGMA foreign_keys = ON")
+    for migracion in MIGRACIONES:
+        if migracion.name >= catalogo.name:
+            break
+        db.executescript(migracion.read_text(encoding="utf-8"))
+
+    # La segunda es hija de la primera: la conversión no puede perder el árbol.
+    claves = {}
+    for nombre, sello, dripper, molinillo, madre in [
+        ("primera", "2026-08-01 08:00:00", "v60-02-plastico", "Comandante C40", None),
+        ("ceramica", "2026-08-02 08:00:00", "v60-02-ceramica", "Comandante C40", "primera"),
+        ("otro", "2026-08-03 08:00:00", "v60-02-plastico", "1Zpresso J-Ultra", None),
+        ("raro", "2026-08-04 08:00:00", None, "Molino «de la abuela»", None),
+        ("vacia", "2026-08-05 08:00:00", None, "", None),
+    ]:
+        claves[nombre] = str(uuid.uuid4())
+        db.execute(
+            "INSERT INTO extracciones (id, fecha, cafe_id, dosis_g, agua_g, creado_en, "
+            "dripper, molinillo, desde_id) VALUES (?, '2026-08-01', NULL, 20, 300, ?, ?, ?, ?)",
+            (claves[nombre], sello, dripper, molinillo, claves.get(madre)),
+        )
+
+    db.executescript(catalogo.read_text(encoding="utf-8"))
+
+    filas = {
+        fila[0]: fila[1:]
+        for fila in db.execute(
+            "SELECT e.id, d.slug, m.slug, m.nombre, e.desde_id FROM extracciones e "
+            "LEFT JOIN accesorios d ON d.id = e.dripper "
+            "LEFT JOIN accesorios m ON m.id = e.molinillo"
+        )
+    }
+    assert filas[claves["primera"]] == ("v60-02-plastico", "comandante_c40", "Comandante C40", None)
+    assert filas[claves["ceramica"]][:2] == ("v60-02-ceramica", "comandante_c40")
+    assert filas[claves["ceramica"]][3] == claves["primera"]
+    assert filas[claves["otro"]][:3] == ("v60-02-plastico", "1zpresso_j_ultra", "1Zpresso J-Ultra")
+    # Del nombre no sale un slug válido: cae al número, y el nombre se queda.
+    assert filas[claves["raro"]][0] is None
+    assert filas[claves["raro"]][1] == "molinillo_3"
+    assert filas[claves["raro"]][2] == "Molino «de la abuela»"
+    # El texto vacío no era un molinillo.
+    assert filas[claves["vacia"]][:2] == (None, None)
+
+    # Tres molinillos, uno por texto, y cada uno nace con su primera taza.
+    nacidos = dict(db.execute(
+        "SELECT nombre, creado_en FROM accesorios WHERE tipo = 'molinillo'"
+    ).fetchall())
+    assert nacidos == {
+        "Comandante C40": "2026-08-01 08:00:00",
+        "1Zpresso J-Ultra": "2026-08-03 08:00:00",
+        "Molino «de la abuela»": "2026-08-04 08:00:00",
+    }
+    # Ni la tabla de paso se queda, ni nadie ha «corregido» nada.
+    assert not db.execute(
+        "SELECT 1 FROM sqlite_master WHERE name = 'molinillos_viejos'"
+    ).fetchone()
+    assert db.execute(
+        "SELECT COUNT(*) FROM extracciones WHERE actualizado_en IS NOT NULL"
+    ).fetchone()[0] == 0
+    assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+    db.close()
 
 
 @pytest.mark.parametrize(

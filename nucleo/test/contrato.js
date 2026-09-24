@@ -13,8 +13,9 @@ import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
 
 import {
-  borrarReceta, crearCafe, crearExtraccion, editarCafe, editarExtraccion,
-  guardarPreferencias, guardarReceta, guionDe, leerPreferencias, listaCafes,
+  borrarAccesorio, borrarReceta, crearAccesorio, crearCafe, crearExtraccion,
+  editarAccesorio, editarCafe, editarExtraccion, guardarPreferencias,
+  guardarReceta, guionDe, leerPreferencias, listaAccesorios, listaCafes,
   listaExtracciones, listaRecetas, restaurarExtraccion, retirarExtraccion,
 } from "../src/api.js";
 import { esUuid } from "../src/ids.js";
@@ -45,6 +46,10 @@ export function contratoDelAlmacen(titulo, fabrica) {
       almacen = await fabrica();
       await crearCafe(almacen, { nombre: "Gary", peso_g: 340, fecha_tueste: "2026-05-20" });
       await guardarReceta(almacen, { nuevo: true }, RECETA);
+      // El de plástico primero: mientras nadie diga otro, es el de casa.
+      await crearAccesorio(almacen, { tipo: "dripper", nombre: "V60 02" });
+      await crearAccesorio(almacen, { tipo: "dripper", nombre: "Origami", masa_termica: true });
+      await crearAccesorio(almacen, { tipo: "molinillo", nombre: "Comandante C40" });
     });
 
     describe("cafés por el puerto", () => {
@@ -261,6 +266,218 @@ export function contratoDelAlmacen(titulo, fabrica) {
       });
     });
 
+    describe("accesorios por el puerto", () => {
+      it("el alta pone uuid, slug y sellos, y los interruptores de serie", async () => {
+        const { estado, datos } = await crearAccesorio(almacen, {
+          tipo: "molinillo", nombre: "Timemore C3",
+        });
+        assert.equal(estado, 201);
+        assert.ok(esUuid(datos.accesorio.id));
+        assert.equal(datos.accesorio.slug, "timemore_c3");
+        assert.equal(datos.accesorio.tipo, "molinillo");
+        // Como los guarda la base: 0 y 1, en los tres almacenes.
+        assert.equal(datos.accesorio.en_uso, 1);
+        assert.equal(datos.accesorio.masa_termica, 0);
+        assert.ok(datos.accesorio.creado_en);
+      });
+
+      it("el slug repetido sale con sufijo, que dos V60 iguales pasan", async () => {
+        const { datos } = await crearAccesorio(almacen, { tipo: "dripper", nombre: "V60 02" });
+        assert.equal(datos.accesorio.slug, "v60_02_2");
+      });
+
+      it("un tipo que no existe es 422, y no escribe nada", async () => {
+        const { estado } = await crearAccesorio(almacen, { tipo: "hervidor", nombre: "Fellow" });
+        assert.equal(estado, 422);
+        assert.equal((await listaAccesorios(almacen)).datos.length, 3);
+      });
+
+      it("la masa térmica es del dripper: en un molinillo es 422", async () => {
+        const alta = await crearAccesorio(almacen, {
+          tipo: "molinillo", nombre: "Pesado", masa_termica: true,
+        });
+        assert.equal(alta.estado, 422);
+        const cambio = await editarAccesorio(almacen, "comandante_c40", { masa_termica: true });
+        assert.equal(cambio.estado, 422);
+      });
+
+      it("los interruptores llegan como vengan: true, 1 o el texto de un CSV", async () => {
+        for (const [valor, esperado] of [[false, 0], ["1", 1], ["false", 0], [1, 1]]) {
+          const { datos } = await editarAccesorio(almacen, "origami", { masa_termica: valor });
+          assert.equal(datos.accesorio.masa_termica, esperado, JSON.stringify(valor));
+        }
+        const { estado } = await editarAccesorio(almacen, "origami", { en_uso: "a veces" });
+        assert.equal(estado, 422);
+      });
+
+      it("editar acepta el slug, devuelve qué cambió y no toca el tipo", async () => {
+        const { estado, datos } = await editarAccesorio(almacen, "v60_02", {
+          nombre: "V60 02 blanco", notas: "el de diario",
+        });
+        assert.equal(estado, 200);
+        assert.deepEqual(datos.cambiado, ["nombre", "notas"]);
+        assert.equal(datos.accesorio.nombre, "V60 02 blanco");
+        // El slug no sigue al nombre: es lo que ya apuntan URLs y textos.
+        assert.equal(datos.accesorio.slug, "v60_02");
+      });
+
+      it("un accesorio no cambia de tipo; decir el mismo sí vale", async () => {
+        const cambio = await editarAccesorio(almacen, "comandante_c40", { tipo: "dripper" });
+        assert.equal(cambio.estado, 422);
+        assert.match(cambio.datos.errores[0], /no cambia de tipo/);
+        const igual = await editarAccesorio(almacen, "comandante_c40", {
+          tipo: "molinillo", notas: "bien",
+        });
+        assert.equal(igual.estado, 200);
+      });
+
+      it("editar o borrar uno que no existe es 404", async () => {
+        assert.equal((await editarAccesorio(almacen, "chemex", { notas: "x" })).estado, 404);
+        assert.equal((await borrarAccesorio(almacen, "chemex")).estado, 404);
+      });
+
+      it("la lista va por tipo, con lo que sigue en uso delante", async () => {
+        await editarAccesorio(almacen, "v60_02", { en_uso: false });
+        const { datos } = await listaAccesorios(almacen);
+        assert.deepEqual(datos.map((a) => a.slug), ["origami", "v60_02", "comandante_c40"]);
+      });
+
+      it("libre de usos, se borra de verdad", async () => {
+        const { estado, datos } = await borrarAccesorio(almacen, "origami");
+        assert.equal(estado, 200);
+        assert.equal(datos.slug, "origami");
+        assert.equal((await listaAccesorios(almacen)).datos.length, 2);
+      });
+
+      it("usado, se niega con el slug en el error, retiradas incluidas", async () => {
+        const { datos: taza } = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "origami" });
+        await retirarExtraccion(almacen, taza.extraccion.id);
+        const { estado, datos } = await borrarAccesorio(almacen, "origami");
+        assert.equal(estado, 409);
+        assert.match(datos.errores[0], /'origami'/);
+        assert.match(datos.errores[0], /1 extracción/);
+      });
+
+      it("la id del cliente se respeta, y repetirla es 409 repetida", async () => {
+        const id = "01980000-0000-7000-8000-00000000a0a0";
+        const alta = await crearAccesorio(almacen, { id, tipo: "dripper", nombre: "Kalita" });
+        assert.equal(alta.datos.accesorio.id, id);
+        const otra = await crearAccesorio(almacen, { id, tipo: "dripper", nombre: "Kalita" });
+        assert.equal(otra.estado, 409);
+        assert.equal(otra.datos.repetida, true);
+      });
+    });
+
+    describe("las extracciones y sus accesorios", () => {
+      it("sin decir nada y sin historia, los primeros que diste de alta", async () => {
+        const { datos } = await crearExtraccion(almacen, EXTRACCION);
+        assert.equal(datos.extraccion.dripper_slug, "v60_02");
+        assert.equal(datos.extraccion.molinillo_slug, "comandante_c40");
+        assert.ok(esUuid(datos.extraccion.dripper));
+      });
+
+      it("se nombran por slug, por nombre o por id, y a la fila va la id", async () => {
+        const origami = (await listaAccesorios(almacen)).datos.find((a) => a.slug === "origami");
+        for (const ref of ["origami", "ORIGAMI", origami.id]) {
+          const { estado, datos } = await crearExtraccion(almacen, { ...EXTRACCION, dripper: ref });
+          assert.equal(estado, 201, ref);
+          assert.equal(datos.extraccion.dripper, origami.id, ref);
+        }
+        const { datos } = await crearExtraccion(almacen, {
+          ...EXTRACCION, molinillo: "comandante c40",
+        });
+        assert.equal(datos.extraccion.molinillo_slug, "comandante_c40");
+      });
+
+      it("uno que no existe es 422 con los que hay, y no escribe nada", async () => {
+        const { estado, datos } = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "chemex" });
+        assert.equal(estado, 422);
+        assert.match(datos.errores[0], /origami/);
+        assert.equal((await listaExtracciones(almacen)).datos.length, 0);
+      });
+
+      it("y un molinillo en el hueco del dripper tampoco resuelve", async () => {
+        const { estado } = await crearExtraccion(almacen, {
+          ...EXTRACCION, dripper: "comandante_c40",
+        });
+        assert.equal(estado, 422);
+      });
+
+      it("la madre manda sobre el último que usaste", async () => {
+        const { datos: madre } = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "origami" });
+        const { cafe_id, ...suelta } = EXTRACCION;
+        await crearExtraccion(almacen, { ...suelta, dripper: "v60_02" });
+        const { datos } = await crearExtraccion(almacen, { ...EXTRACCION, desde_id: madre.extraccion.id });
+        assert.equal(datos.extraccion.dripper_slug, "origami");
+      });
+
+      it("sin madre, el último que usaste si sigue en uso", async () => {
+        const { cafe_id, ...suelta } = EXTRACCION;
+        await crearExtraccion(almacen, { ...suelta, dripper: "origami" });
+        const { datos } = await crearExtraccion(almacen, suelta);
+        assert.equal(datos.extraccion.dripper_slug, "origami");
+
+        await editarAccesorio(almacen, "origami", { en_uso: false });
+        const { datos: despues } = await crearExtraccion(almacen, suelta);
+        assert.equal(despues.extraccion.dripper_slug, "v60_02");
+      });
+
+      it("fuera de uso no se ofrece, pero se sigue resolviendo si se nombra", async () => {
+        await editarAccesorio(almacen, "origami", { en_uso: false });
+        const { estado, datos } = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "origami" });
+        assert.equal(estado, 201);
+        assert.equal(datos.extraccion.dripper_slug, "origami");
+      });
+
+      it("un catálogo sin molinillos deja el hueco, no se inventa uno", async () => {
+        await borrarAccesorio(almacen, "comandante_c40");
+        const { estado, datos } = await crearExtraccion(almacen, EXTRACCION);
+        assert.equal(estado, 201);
+        assert.equal(datos.extraccion.molinillo, null);
+        assert.equal(datos.extraccion.molinillo_slug, null);
+      });
+
+      it("la masa térmica sale del accesorio y el motor avisa", async () => {
+        const conMasa = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "origami" });
+        assert.equal(conMasa.datos.extraccion.dripper_masa_termica, true);
+        assert.ok(conMasa.datos.sugerencias.avisos.some((a) => a.includes("masa térmica")));
+        const sin = await crearExtraccion(almacen, { ...EXTRACCION, dripper: "v60_02" });
+        assert.ok(!sin.datos.sugerencias.avisos.some((a) => a.includes("masa térmica")));
+      });
+
+      it("cambiar de dripper se lee con slugs, no con ids", async () => {
+        // Sin el texto de la fija: lo que se mira es el que compone el servidor.
+        const { variable_cambiada, ...sinTexto } = EXTRACCION;
+        await crearExtraccion(almacen, sinTexto);
+        const { datos } = await crearExtraccion(almacen, { ...sinTexto, dripper: "origami" });
+        assert.equal(datos.extraccion.variable_cambiada, "dripper v60_02 → origami");
+        assert.ok(datos.sugerencias.avisos.some((a) => a.includes("(v60_02 -> origami)")));
+      });
+
+      it("corregir cambia el dripper por slug, y vaciarlo lo quita", async () => {
+        const { datos: taza } = await crearExtraccion(almacen, EXTRACCION);
+        const id = taza.extraccion.id;
+        const cambio = await editarExtraccion(almacen, id, { dripper: "origami" });
+        assert.equal(cambio.estado, 200);
+        assert.equal(cambio.datos.extraccion.dripper_slug, "origami");
+        assert.deepEqual(cambio.datos.cambiado, ["dripper"]);
+
+        const malo = await editarExtraccion(almacen, id, { molinillo: "origami" });
+        assert.equal(malo.estado, 422);
+
+        const quitado = await editarExtraccion(almacen, id, { molinillo: "" });
+        assert.equal(quitado.datos.extraccion.molinillo, null);
+      });
+
+      it("la lista trae los slugs de los accesorios, como los de café y receta", async () => {
+        await crearExtraccion(almacen, EXTRACCION);
+        const [fila] = (await listaExtracciones(almacen)).datos;
+        assert.equal(fila.dripper_slug, "v60_02");
+        assert.equal(fila.molinillo_slug, "comandante_c40");
+        assert.equal(fila.dripper_masa_termica, false);
+      });
+    });
+
     describe("extracciones por el puerto", () => {
       it("el alta resuelve slugs, calcula el reparto y guarda el ajuste del motor", async () => {
         const { estado, datos } = await crearExtraccion(almacen, EXTRACCION);
@@ -295,7 +512,7 @@ export function contratoDelAlmacen(titulo, fabrica) {
 
       it("dos sueltas no se comparan entre sí: no son el mismo café", async () => {
         const { cafe_id, ...suelta } = EXTRACCION;
-        await crearExtraccion(almacen, { ...suelta, dripper: "v60-02-ceramica", nota: 6 });
+        await crearExtraccion(almacen, { ...suelta, dripper: "origami", nota: 6 });
         const { datos } = await crearExtraccion(almacen, suelta);
         assert.ok(!datos.sugerencias.avisos.some((a) => a.includes("cambiado de dripper")));
         assert.deepEqual(datos.sugerencias.efectos, {});

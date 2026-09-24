@@ -6,7 +6,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  crearCafe, crearExtraccion, editarExtraccion, guardarReceta, retirarExtraccion,
+  crearAccesorio, crearCafe, crearExtraccion, editarExtraccion, guardarReceta,
+  retirarExtraccion,
 } from "../src/api.js";
 import { almacenEnMemoria } from "../src/almacen-memoria.js";
 import {
@@ -158,6 +159,9 @@ describe("el servidor rellena variable_cambiada por el puerto", () => {
     const almacen = almacenEnMemoria();
     await crearCafe(almacen, { nombre: "Gary", peso_g: 340 });
     await guardarReceta(almacen, { nuevo: true }, RECETA);
+    // El primero que se da de alta es el de casa mientras nadie diga otro.
+    await crearAccesorio(almacen, { tipo: "molinillo", nombre: "Comandante C40" });
+    await crearAccesorio(almacen, { tipo: "molinillo", nombre: "1Zpresso J-Ultra" });
     return almacen;
   };
 
@@ -204,13 +208,13 @@ describe("el servidor rellena variable_cambiada por el puerto", () => {
     assert.equal(guardada.variable_cambiada, "Primera extracción");
   });
 
-  it("el molinillo se hereda de la madre, que no está en el formulario", async () => {
+  it("el molinillo se hereda de la madre si no se manda", async () => {
     // Sin heredar, el valor por defecto volvía a poner el Comandante y cada
     // taza «cambiaba de molinillo» ella sola: un cambio que nadie hizo.
     const almacen = await monta();
     await crearExtraccion(almacen, { ...BASE, molinillo: "1Zpresso J-Ultra" });
     const { datos } = await crearExtraccion(almacen, { ...BASE, temp_c: 94 });
-    assert.equal(datos.extraccion.molinillo, "1Zpresso J-Ultra");
+    assert.equal(datos.extraccion.molinillo_slug, "1zpresso_j_ultra");
     assert.equal(datos.extraccion.variable_cambiada, "temp_c 91 → 94");
   });
 
@@ -220,9 +224,10 @@ describe("el servidor rellena variable_cambiada por el puerto", () => {
     const { datos } = await crearExtraccion(almacen, {
       ...BASE, molinillo: "1Zpresso J-Ultra",
     });
+    // Por su slug, como la receta: la id no la quiere leer nadie.
     assert.equal(
       datos.extraccion.variable_cambiada,
-      "molinillo Comandante C40 → 1Zpresso J-Ultra",
+      "molinillo comandante_c40 → 1zpresso_j_ultra",
     );
   });
 

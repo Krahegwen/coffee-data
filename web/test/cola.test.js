@@ -14,13 +14,14 @@ import { IDBFactory } from "fake-indexeddb";
 
 import { almacenEnMemoria } from "@coffee/nucleo/almacen-memoria";
 import {
-  borrarReceta, crearCafe, crearExtraccion, editarCafe, editarExtraccion,
-  guardarReceta, restaurarExtraccion, retirarExtraccion,
+  borrarAccesorio, borrarReceta, crearAccesorio, crearCafe, crearExtraccion,
+  editarAccesorio, editarCafe, editarExtraccion, guardarReceta,
+  restaurarExtraccion, retirarExtraccion,
 } from "@coffee/nucleo/api";
 import { uuidv7 } from "@coffee/nucleo/ids";
 
 import {
-  cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta, drenar,
+  cuerpoDeAccesorio, cuerpoDeCafe, cuerpoDeExtraccion, cuerpoDeReceta, drenar,
 } from "../app/almacen/cola.js";
 import { almacenIDB } from "../app/almacen/idb.js";
 
@@ -66,6 +67,11 @@ function enrutar(almacen, metodo, camino, cuerpo) {
   if ((m = camino.match(/^\/api\/recetas\/([^/]+)$/))) {
     if (metodo === "PUT") return guardarReceta(almacen, { ref: m[1], nuevo: false }, cuerpo);
     if (metodo === "DELETE") return borrarReceta(almacen, m[1]);
+  }
+  if (metodo === "POST" && camino === "/api/accesorios") return crearAccesorio(almacen, cuerpo);
+  if ((m = camino.match(/^\/api\/accesorios\/([^/]+)$/))) {
+    if (metodo === "PATCH") return editarAccesorio(almacen, m[1], cuerpo);
+    if (metodo === "DELETE") return borrarAccesorio(almacen, m[1]);
   }
   throw new Error(`ruta sin cubrir en el test: ${metodo} ${camino}`);
 }
@@ -209,6 +215,14 @@ describe("la paridad del reenvío", () => {
     });
     cola.push({ metodo: "POST", camino: "/api/recetas", cuerpo: cuerpoDeReceta(receta.datos.receta) });
 
+    // Los accesorios viajan con su id: la extracción los apunta por ella, y
+    // si el servidor les pusiera otra, la fila subida no resolvería.
+    const dripper = await crearAccesorio(local, { tipo: "dripper", nombre: "Origami", masa_termica: true });
+    const molinillo = await crearAccesorio(local, { tipo: "molinillo", nombre: "Comandante C40" });
+    for (const a of [dripper, molinillo]) {
+      cola.push({ metodo: "POST", camino: "/api/accesorios", cuerpo: cuerpoDeAccesorio(a.datos.accesorio) });
+    }
+
     const creada = await crearExtraccion(local, {
       cafe_id: bolsa.datos.cafe.id, receta_id: receta.datos.receta.id,
       temp_c: 91, clics: 28, tiempo_total: "3:30",
@@ -225,9 +239,22 @@ describe("la paridad del reenvío", () => {
       cuerpo: { estado: "terminado" },
     });
 
+    await editarAccesorio(local, molinillo.datos.accesorio.id, { en_uso: false });
+    cola.push({
+      metodo: "PATCH", camino: `/api/accesorios/${molinillo.datos.accesorio.id}`,
+      cuerpo: { en_uso: false },
+    });
+
     for (const e of cola) await local.cola.poner({ id: uuidv7(), error: null, ...e });
     const r = await drenar(local, servidorFalso(servidor));
-    assert.deepEqual(r, { subidas: 4, quedan: 0, red: false });
+    assert.deepEqual(r, { subidas: 7, quedan: 0, red: false });
+
+    // Los mismos accesorios, con sus ids y sus interruptores.
+    const porSlug = (filas) => filas.sort((a, b) => (a.slug < b.slug ? -1 : 1)).map(sinSellos);
+    assert.deepEqual(
+      porSlug(await servidor.accesorios.listar()),
+      porSlug(await local.accesorios.listar()),
+    );
 
     // Misma bolsa, con su id, su sello y su slug.
     const [cafeLocal] = await local.cafes.listar();
@@ -246,6 +273,39 @@ describe("la paridad del reenvío", () => {
     assert.deepEqual(sinSellos(extServidor), sinSellos(extLocal));
     assert.equal(extServidor.reparto, "150-150");
     assert.equal(extServidor.siguiente_ajuste, extLocal.siguiente_ajuste);
+    assert.equal(extServidor.dripper, dripper.datos.accesorio.id);
+  });
+
+  it("lo que encoló la app de antes del catálogo sigue entrando", async () => {
+    /*
+     * Un móvil con la versión vieja y una taza sin subir: su entrada lleva el
+     * dripper y el molinillo como texto. El servidor ya los tiene en el
+     * catálogo —la 0014 conserva las claves de los drippers como slug y el
+     * nombre del molinillo—, así que resuelve en vez de atascar la cola.
+     */
+    const local = cajon();
+    const servidor = almacenEnMemoria();
+    const bolsa = await crearCafe(servidor, { nombre: "Gary" });
+    await guardarReceta(servidor, { nuevo: true }, {
+      nombre: "4:6 base", pasos: [{ accion: "verter", agua_g: 300, t_inicio_s: 0 }],
+    });
+    const plastico = await crearAccesorio(servidor, { tipo: "dripper", nombre: "V60 02 plástico" });
+    await servidor.accesorios.actualizar(plastico.datos.accesorio.id, { slug: "v60-02-plastico" });
+    await crearAccesorio(servidor, { tipo: "molinillo", nombre: "Comandante C40" });
+
+    await local.cola.poner({
+      id: uuidv7(), error: null, metodo: "POST", camino: "/api/extracciones",
+      cuerpo: {
+        id: uuidv7(), creado_en: "2026-09-20 08:00:00",
+        cafe_id: bolsa.datos.cafe.id, receta_id: "4_6_base", temp_c: 91, clics: 28,
+        tiempo_total: "3:30", defecto: "equilibrado", nota: 7,
+        dripper: "v60-02-plastico", molinillo: "Comandante C40",
+      },
+    });
+    const r = await drenar(local, servidorFalso(servidor));
+    assert.deepEqual(r, { subidas: 1, quedan: 0, red: false });
+    const [fila] = await servidor.extracciones.listar();
+    assert.equal(fila.dripper, plastico.datos.accesorio.id);
   });
 
   it("el pesaje sube con su sello, y los dos lados descuentan desde el mismo instante", async () => {

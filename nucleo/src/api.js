@@ -1,9 +1,9 @@
 /**
  * La API de la bitácora, sin saber dónde corre.
  *
- * Cada manejador recibe un **almacén** —el puerto: once métodos sobre cafés,
- * recetas, extracciones y preferencias, contados de verdad— y devuelve
- * `{ estado, datos }`. El
+ * Cada manejador recibe un **almacén** —el puerto: quince métodos sobre cafés,
+ * recetas, accesorios, extracciones y preferencias, contados de verdad— y
+ * devuelve `{ estado, datos }`. El
  * Worker lo enchufa a D1 y envuelve el resultado en un Response; el modo local
  * lo enchufa a IndexedDB y lo consume tal cual. Una implementación, dos cajones.
  *
@@ -13,6 +13,7 @@
  *   recetas.listar()                      → cada receta con sus pasos
  *   recetas.escribir(receta, pasos, { nueva })   → atómico
  *   recetas.borrar(id)                            → receta y pasos, atómico
+ *   accesorios.listar / poner / actualizar / borrar(id)
  *   extracciones.listar() / poner / actualizar
  *   preferencias.leer() / preferencias.escribir(filas)   → upsert por clave
  *
@@ -20,6 +21,7 @@
  * en JS: la bitácora entera cabe en memoria de sobra, y así los adaptadores
  * quedan tontos — que es lo que los hace fáciles de escribir bien.
  */
+import { accesorioPorDefecto, resolverAccesorio, TIPOS_ACCESORIO } from "./accesorios.js";
 import { derivar } from "./derivar.js";
 import { uuidv7 } from "./ids.js";
 import { comoTexto, desdeFilas, validarPreferencias } from "./preferencias.js";
@@ -29,8 +31,9 @@ import {
 } from "./sugerencias.js";
 import { textos } from "./textos.js";
 import {
-  CAMPOS, CAMPOS_CAFE, extraidoImposible, goteoImposible, pesajeSobreLaBolsa,
-  validarCafe, validarCambiosExtraccion, validarExtraccion, validarReceta,
+  CAMPOS, CAMPOS_ACCESORIO, CAMPOS_CAFE, extraidoImposible, goteoImposible,
+  pesajeSobreLaBolsa, validarAccesorio, validarCafe, validarCambiosExtraccion,
+  validarExtraccion, validarReceta,
 } from "./validacion.js";
 
 /*
@@ -71,14 +74,25 @@ const cronologico = (a, b) => {
   return a.id < b.id ? -1 : 1;
 };
 
-/** Lo que en el servidor hacía la vista: derivados más los slugs de al lado. */
-function conDerivados(extraccion, cafes, recetas) {
+/**
+ * Lo que en el servidor hacía la vista: derivados más los slugs de al lado.
+ *
+ * Los accesorios aportan su slug —es como se nombran en `variable_cambiada`,
+ * igual que la receta— y el dripper, además, si tiene masa térmica: el motor
+ * avisa de eso y no tiene por qué saber leer el catálogo.
+ */
+function conDerivados(extraccion, cafes, recetas, accesorios = []) {
   const cafe = cafes.find((c) => c.id === extraccion.cafe_id) ?? null;
   const receta = recetas.find((x) => x.id === extraccion.receta_id) ?? null;
+  const dripper = accesorios.find((a) => a.id === extraccion.dripper) ?? null;
+  const molinillo = accesorios.find((a) => a.id === extraccion.molinillo) ?? null;
   return {
     ...derivar(extraccion, cafe),
     cafe_slug: cafe?.slug ?? null,
     receta_slug: receta?.slug ?? null,
+    dripper_slug: dripper?.slug ?? null,
+    molinillo_slug: molinillo?.slug ?? null,
+    dripper_masa_termica: Boolean(dripper?.masa_termica),
   };
 }
 
@@ -260,13 +274,122 @@ export async function borrarReceta(almacen, ref, { t = CASTELLANO } = {}) {
   return respuesta(200, { borrada: true, id: existe.id, slug: existe.slug });
 }
 
+// --- accesorios --------------------------------------------------------------
+
+/** El error de un accesorio que no resuelve, con los que sí hay a la vista. */
+function accesorioDesconocido(accesorios, tipo, valor, t) {
+  const validos = accesorios.filter((a) => a.tipo === tipo).map((a) => a.slug);
+  return t("accesorio_desconocido", {
+    campo: tipo,
+    valor: JSON.stringify(valor),
+    validos: validos.length ? validos.join(", ") : t("ninguno_todavia"),
+  });
+}
+
+/** Por tipo, lo que sigue en casa delante, y por nombre dentro de eso. */
+export async function listaAccesorios(almacen) {
+  const filas = await almacen.accesorios.listar();
+  filas.sort((a, b) => {
+    if (a.tipo !== b.tipo) return a.tipo < b.tipo ? -1 : 1;
+    if (Boolean(a.en_uso) !== Boolean(b.en_uso)) return a.en_uso ? -1 : 1;
+    return a.nombre.localeCompare(b.nombre);
+  });
+  return respuesta(200, filas);
+}
+
+export async function crearAccesorio(almacen, cuerpo, { t = CASTELLANO } = {}) {
+  const { valores, errores } = validarAccesorio(cuerpo, { nuevo: true, t });
+  if (errores.length) return respuesta(422, { errores });
+
+  // Como las bolsas: la id viene puesta cuando la reenvía la cola, y si ya
+  // está es el mismo envío otra vez.
+  const existentes = await almacen.accesorios.listar();
+  if (valores.id && existentes.some((a) => a.id === valores.id)) {
+    return respuesta(409, { repetida: true, errores: [t("ya_existe_accesorio", { id: valores.id })] });
+  }
+  valores.id = valores.id ?? uuidv7();
+  valores.slug = slugLibre(existentes, valores.slug);
+  valores.creado_en = valores.creado_en ?? ahoraSQL();
+  valores.actualizado_en = valores.creado_en;
+
+  const fila = {};
+  for (const campo of ["id", "slug", ...CAMPOS_ACCESORIO, "creado_en", "actualizado_en"]) {
+    fila[campo] = valores[campo] ?? null;
+  }
+
+  try {
+    await almacen.accesorios.poner(fila);
+  } catch (error) {
+    return respuesta(422, { errores: [t("base_rechaza_accesorio", { error: error.message })] });
+  }
+  return respuesta(201, { accesorio: porRef(await almacen.accesorios.listar(), fila.id) });
+}
+
+export async function editarAccesorio(almacen, ref, cuerpo, { t = CASTELLANO } = {}) {
+  const accesorio = porRef(await almacen.accesorios.listar(), ref);
+  if (!accesorio) return respuesta(404, { errores: [t("accesorio_no_existe", { ref })] });
+
+  const { valores, errores } = validarAccesorio(cuerpo, { nuevo: false, t });
+  if (errores.length) return respuesta(422, { errores });
+
+  /*
+   * El tipo se queda donde nació. Las extracciones que lo usan lo apuntaron
+   * en su columna —un molinillo en `molinillo`—, y cambiarlo aquí las dejaría
+   * diciendo que se molió con un dripper.
+   */
+  if (valores.tipo !== undefined && valores.tipo !== accesorio.tipo) {
+    return respuesta(422, {
+      errores: [t("tipo_no_se_cambia", { slug: accesorio.slug, tipo: accesorio.tipo })],
+    });
+  }
+  if (valores.masa_termica && accesorio.tipo !== "dripper") {
+    return respuesta(422, { errores: [t("masa_termica_solo_dripper")] });
+  }
+
+  const columnas = CAMPOS_ACCESORIO.filter((c) => c !== "tipo" && valores[c] !== undefined);
+  const cambios = {};
+  for (const campo of columnas) cambios[campo] = valores[campo];
+  cambios.actualizado_en = ahoraSQL();
+
+  try {
+    await almacen.accesorios.actualizar(accesorio.id, cambios);
+  } catch (error) {
+    return respuesta(422, { errores: [t("base_rechaza_cambio", { error: error.message })] });
+  }
+  return respuesta(200, {
+    accesorio: porRef(await almacen.accesorios.listar(), accesorio.id),
+    cambiado: columnas,
+  });
+}
+
+/**
+ * Borrar de verdad, y solo lo que nadie usa: como las recetas, retiradas
+ * incluidas. Lo que se vendió o se rompió **se saca de uso**, no se borra —
+ * las tazas que se hicieron con él tienen que seguir diciendo con qué.
+ */
+export async function borrarAccesorio(almacen, ref, { t = CASTELLANO } = {}) {
+  const existe = porRef(await almacen.accesorios.listar(), ref);
+  if (!existe) return respuesta(404, { errores: [t("accesorio_no_existe", { ref })] });
+
+  const usos = (await almacen.extracciones.listar())
+    .filter((e) => e[existe.tipo] === existe.id).length;
+  if (usos) {
+    const cuantas = usos === 1 ? t("una_extraccion") : t("n_extracciones", { n: usos });
+    return respuesta(409, { errores: [t("accesorio_en_uso", { slug: existe.slug, cuantas })] });
+  }
+
+  await almacen.accesorios.borrar(existe.id);
+  return respuesta(200, { borrado: true, id: existe.id, slug: existe.slug });
+}
+
 // --- extracciones ------------------------------------------------------------
 
 export async function listaExtracciones(almacen, { cafe, retiradas } = {}) {
-  const [todas, cafes, recetas] = await Promise.all([
+  const [todas, cafes, recetas, accesorios] = await Promise.all([
     almacen.extracciones.listar(),
     almacen.cafes.listar(),
     almacen.recetas.listar(),
+    almacen.accesorios.listar(),
   ]);
 
   let filas = todas.filter((e) => (retiradas ? e.borrada_en : !e.borrada_en));
@@ -275,7 +398,7 @@ export async function listaExtracciones(almacen, { cafe, retiradas } = {}) {
     filas = filas.filter((e) => e.cafe_id === (elegido?.id ?? ""));
   }
   filas.sort(cronologico).reverse();
-  return respuesta(200, filas.map((e) => conDerivados(e, cafes, recetas)));
+  return respuesta(200, filas.map((e) => conDerivados(e, cafes, recetas, accesorios)));
 }
 
 export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) {
@@ -321,18 +444,32 @@ export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) 
   }
 
   /*
-   * El molinillo, cuando no se manda, se hereda de la madre en vez de volver
-   * al de fábrica. Es el único campo que la app no tiene en su formulario, y
-   * con el valor por defecto una bolsa molida con otro aparato veía cómo cada
-   * taza nueva «cambiaba de molinillo» ella sola — un cambio que nadie hizo,
-   * anunciado por el servidor y contado como segunda variable.
+   * El dripper y el molinillo, cuando no se mandan, se heredan de la madre en
+   * vez de volver a uno de fábrica. Con un valor por defecto, una bolsa molida
+   * con otro aparato veía cómo cada taza nueva «cambiaba de molinillo» ella
+   * sola — un cambio que nadie hizo, anunciado por el servidor y contado como
+   * segunda variable.
+   *
+   * Sin madre, el último que usaste: ver `accesorioPorDefecto`. Lo que llega
+   * se resuelve por uuid, slug o nombre, y a la fila va siempre la id.
    */
   const madreInicial = valores.desde_id
     ? deLaBolsa.find((e) => e.id === valores.desde_id)
     : null;
-  const sinMolinillo = String(cuerpo?.molinillo ?? "").trim() === "";
-  if (madreInicial?.molinillo && sinMolinillo) {
-    valores.molinillo = madreInicial.molinillo;
+  const accesorios = await almacen.accesorios.listar();
+  for (const tipo of TIPOS_ACCESORIO) {
+    if (valores[tipo]) {
+      const elegido = resolverAccesorio(accesorios, valores[tipo], tipo);
+      if (!elegido) {
+        return respuesta(422, { errores: [accesorioDesconocido(accesorios, tipo, valores[tipo], t)] });
+      }
+      valores[tipo] = elegido.id;
+    } else if (madreInicial) {
+      valores[tipo] = madreInicial[tipo] ?? null;
+    } else {
+      const todas = await almacen.extracciones.listar();
+      valores[tipo] = accesorioPorDefecto(tipo, accesorios, todas)?.id ?? null;
+    }
   }
 
   const recetas = await almacen.recetas.listar();
@@ -376,8 +513,9 @@ export async function crearExtraccion(almacen, cuerpo, { t = CASTELLANO } = {}) 
   const historico = (await almacen.extracciones.listar())
     .filter((e) => !e.borrada_en && (cafe ? e.cafe_id === cafe.id : e.id === fila.id))
     .sort(cronologico)
-    .map((e) => conDerivados(e, cafes, recetas));
-  const mia = historico.find((e) => e.id === fila.id) ?? conDerivados(fila, cafes, recetas);
+    .map((e) => conDerivados(e, cafes, recetas, accesorios));
+  const mia = historico.find((e) => e.id === fila.id)
+    ?? conDerivados(fila, cafes, recetas, accesorios);
   const sugerencia = sugerir(mia, historico, receta, t);
   const resumen = textoCorto(sugerencia, t);
 
@@ -424,6 +562,18 @@ export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } =
     const cafe = porRef(await almacen.cafes.listar(), valores.cafe_id);
     if (!cafe) return respuesta(422, { errores: [t("cafe_desconocido", { valor: valores.cafe_id })] });
     valores.cafe_id = cafe.id;
+  }
+
+  // Cambiar de dripper o de molinillo acepta lo mismo que el alta. Vacío los
+  // quita, que la columna admite el hueco: una taza apuntada sin saber con qué.
+  const accesorios = await almacen.accesorios.listar();
+  for (const tipo of TIPOS_ACCESORIO) {
+    if (!valores[tipo]) continue;
+    const elegido = resolverAccesorio(accesorios, valores[tipo], tipo);
+    if (!elegido) {
+      return respuesta(422, { errores: [accesorioDesconocido(accesorios, tipo, valores[tipo], t)] });
+    }
+    valores[tipo] = elegido.id;
   }
 
   /*
@@ -488,7 +638,7 @@ export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } =
     const [susCafes, susRecetas, susFilas] = await Promise.all([
       almacen.cafes.listar(), almacen.recetas.listar(), almacen.extracciones.listar(),
     ]);
-    const conDerivadosDe = (e) => conDerivados(e, susCafes, susRecetas);
+    const conDerivadosDe = (e) => conDerivados(e, susCafes, susRecetas, accesorios);
     const previas = susFilas.filter((e) => !e.borrada_en).sort(cronologico).map(conDerivadosDe);
     const suya = conDerivadosDe({ ...guardada, ...cambios });
     cambios.variable_cambiada = variableCambiadaDe(suya, madreDe(suya, previas), t);
@@ -504,7 +654,7 @@ export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } =
     almacen.cafes.listar(), almacen.recetas.listar(), almacen.extracciones.listar(),
   ]);
   const fila = todas.find((e) => e.id === id);
-  const extraccion = conDerivados(fila, cafes, recetas);
+  const extraccion = conDerivados(fila, cafes, recetas, accesorios);
 
   /*
    * Los avisos también al corregir, y no solo al dar de alta: la fila que
@@ -516,7 +666,7 @@ export async function editarExtraccion(almacen, id, cuerpo, { t = CASTELLANO } =
   const historico = todas
     .filter((e) => !e.borrada_en && (fila.cafe_id ? e.cafe_id === fila.cafe_id : e.id === fila.id))
     .sort(cronologico)
-    .map((e) => conDerivados(e, cafes, recetas));
+    .map((e) => conDerivados(e, cafes, recetas, accesorios));
   const receta = recetas.find((r) => r.id === fila.receta_id) ?? null;
 
   return respuesta(200, {
@@ -555,11 +705,12 @@ export async function restaurarExtraccion(almacen, id, { t = CASTELLANO } = {}) 
   if (!fila) return respuesta(404, { errores: [t("extraccion_no_existe", { id })] });
 
   await almacen.extracciones.actualizar(id, { borrada_en: null, actualizado_en: ahoraSQL() });
-  const [cafes, recetas, todas] = await Promise.all([
-    almacen.cafes.listar(), almacen.recetas.listar(), almacen.extracciones.listar(),
+  const [cafes, recetas, accesorios, todas] = await Promise.all([
+    almacen.cafes.listar(), almacen.recetas.listar(), almacen.accesorios.listar(),
+    almacen.extracciones.listar(),
   ]);
   const devuelta = todas.find((e) => e.id === id);
-  return respuesta(200, { extraccion: conDerivados(devuelta, cafes, recetas) });
+  return respuesta(200, { extraccion: conDerivados(devuelta, cafes, recetas, accesorios) });
 }
 
 // --- preferencias ----------------------------------------------------------

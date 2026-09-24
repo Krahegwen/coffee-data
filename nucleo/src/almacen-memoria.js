@@ -12,9 +12,14 @@
 
 const copia = (x) => structuredClone(x);
 
-function tablaSimple(nombre) {
+/**
+ * Listar, poner y actualizar. Con `borrable`, también borrar: solo el catálogo
+ * de accesorios lo tiene, que las bolsas se terminan y las extracciones se
+ * retiran, pero ninguna de las dos desaparece.
+ */
+function tablaSimple(nombre, { borrable = false } = {}) {
   const filas = new Map();
-  return {
+  const tabla = {
     async listar() {
       return [...filas.values()].map(copia);
     },
@@ -30,6 +35,12 @@ function tablaSimple(nombre) {
       Object.assign(fila, copia(cambios));
     },
   };
+  if (borrable) {
+    tabla.borrar = async (id) => {
+      filas.delete(id);
+    };
+  }
+  return tabla;
 }
 
 /**
@@ -55,6 +66,7 @@ export function almacenEnMemoria() {
 
   return {
     cafes: tablaSimple("cafes"),
+    accesorios: tablaSimple("accesorios", { borrable: true }),
     extracciones: tablaSimple("extracciones"),
     preferencias: tablaClaveValor(),
     recetas: {

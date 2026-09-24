@@ -14,6 +14,7 @@ useHead({ title: () => t('menu.titulo') })
 const ENTRADAS = [
   { a: '/ajustes', titulo: 'ajustes.titulo', pista: 'menu.ajustes_pista', icono: 'ajustes' },
   { a: '/recetas', titulo: 'recetas.titulo', pista: 'menu.recetas_pista', icono: 'recetas' },
+  { a: '/accesorios', titulo: 'accesorios.titulo', pista: 'menu.accesorios_pista', icono: 'accesorios' },
   { a: '/cafes', titulo: 'bolsas.titulo', pista: 'menu.bolsas_pista', icono: 'bolsas' },
 ] as const
 </script>
@@ -31,6 +32,12 @@ const ENTRADAS = [
           <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v15H5.5A1.5 1.5 0 0 0 4 19.5z" />
           <path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H19v-3" />
           <path d="M8 7.5h7M8 11h5" />
+        </template>
+        <!-- Un dripper visto de lado: el cono, el aro y la taza debajo. -->
+        <template v-else-if="e.icono === 'accesorios'">
+          <path d="M4 5h16l-5 8H9z" />
+          <path d="M10 13v2h4v-2" />
+          <path d="M6 19h12" />
         </template>
         <template v-else>
           <path d="M7 3h10l1 4v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7z" />

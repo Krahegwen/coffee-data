@@ -3,13 +3,17 @@
 // castellano y se perdería el idioma a mitad de camino.
 const localePath = useLocalePath()
 
+import { TIPOS_ACCESORIO } from '~/composables/useApi'
 import type { Extraccion } from '~/composables/useApi'
 import { textoDeVariables } from '@coffee/nucleo/sugerencias'
 import { defectosDe } from '@coffee/nucleo/validacion'
 const { t } = useI18n()
-const { DRIPPERS, VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
+const { VARIABLES, fechaCorta, nombreCafe, textoDeCambios } = useTextos()
+const opcionesAccesorio = useOpcionesAccesorio()
 
-const { cafes, recetas, extracciones, retiradas, editarExtraccion, retirarExtraccion } = useApi()
+const {
+  cafes, recetas, extracciones, retiradas, editarExtraccion, retirarExtraccion, accesorios,
+} = useApi()
 const route = useRoute()
 const router = useRouter()
 const id = String(route.params.id)
@@ -17,6 +21,7 @@ const id = String(route.params.id)
 const { data: historial } = await useAsyncData(`ext-${id}`, () => extracciones())
 const { data: bolsas } = await useAsyncData('cafes-ext', cafes)
 const { data: catalogo } = await useAsyncData('recetas-ext', recetas)
+const { data: equipo } = await useAsyncData('accesorios-ext', accesorios)
 // La papelera hace falta para una sola cosa: que el desplegable de la madre
 // pueda representar su propio valor si la madre se retiró después de elegirla.
 const { data: papelera } = await useAsyncData(`ext-papelera-${id}`, retiradas)
@@ -57,14 +62,24 @@ const candidatas = computed(() => {
 
 const cambiadas = ref<string[]>([])
 
+/**
+ * Los accesorios, los que están en uso más el que ya tiene la ficha y el de su
+ * madre: corregir una taza de hace un año no puede cambiarle el molinillo solo
+ * porque aquél ya no esté en casa.
+ */
 const opciones = computed(() => ({
   receta_id: (catalogo.value ?? []).map((r) => ({ valor: r.id, etiqueta: r.nombre })),
-  dripper: Object.entries(DRIPPERS.value).map(([valor, etiqueta]) => ({ valor, etiqueta })),
+  dripper: opcionesAccesorio(
+    equipo.value, 'dripper', form.dripper, original.value?.dripper, anterior.value?.dripper,
+  ),
+  molinillo: opcionesAccesorio(
+    equipo.value, 'molinillo', form.molinillo, original.value?.molinillo, anterior.value?.molinillo,
+  ),
 }))
 
 const EDITABLES = [
   'fecha', 'cafe_id', 'desde_id', 'dosis_g', 'agua_g', 'temp_c', 'clics',
-  'receta_id', 'reparto', 'dripper', 'tiempo_total', 'drawdown_s', 'extraido_g',
+  'receta_id', 'reparto', 'dripper', 'molinillo', 'tiempo_total', 'drawdown_s', 'extraido_g',
   'variable_cambiada', 'defecto', 'notas_cata', 'nota', 'siguiente_ajuste',
 ] as const
 
@@ -164,6 +179,8 @@ const compuesta = computed(() =>
     ? textoDeVariables(cambiadas.value, anterior.value, {
       ...form,
       receta_slug: (catalogo.value ?? []).find((r) => r.id === form.receta_id)?.slug ?? null,
+      dripper_slug: (equipo.value ?? []).find((a) => a.id === form.dripper)?.slug ?? null,
+      molinillo_slug: (equipo.value ?? []).find((a) => a.id === form.molinillo)?.slug ?? null,
     })
     : null,
 )
@@ -348,18 +365,20 @@ async function retirar() {
         {{ movido === 'goteo' ? $t('alta.movido_goteo') : $t('alta.movido_tiempo') }}
       </p>
 
+      <!-- Una ficha vieja puede no tener alguno: el hueco se ofrece solo si ya
+           está vacía, que quitarle el dripper a una taza no es corregirla. -->
       <div class="pareja">
-        <label>
-          {{ $t('alta.dripper') }}
-          <select v-model="form.dripper">
-            <option v-for="(etiqueta, clave) in DRIPPERS" :key="clave" :value="clave">
-              {{ etiqueta }}
-            </option>
+        <label v-for="tipo in TIPOS_ACCESORIO" :key="tipo">
+          {{ $t(`alta.${tipo}`) }}
+          <select v-model="form[tipo]">
+            <option v-if="!original?.[tipo]" value="">—</option>
+            <option v-for="o in opciones[tipo]" :key="o.valor" :value="o.valor">{{ o.etiqueta }}</option>
           </select>
         </label>
-        <label>{{ $t('alta.en_la_taza') }}<input
-          v-model="form.extraido_g" type="number" step="1" min="1" inputmode="numeric"></label>
       </div>
+
+      <label>{{ $t('alta.en_la_taza') }}<input
+        v-model="form.extraido_g" type="number" step="1" min="1" inputmode="numeric"></label>
 
       <label>{{ $t('extraccion.reparto') }}<input
         v-model="form.reparto" placeholder="60-60-90-90"></label>

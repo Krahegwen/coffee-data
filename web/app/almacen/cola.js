@@ -13,7 +13,9 @@
  * En JS pelado y con el envío inyectado: el runner de Node lo prueba con un
  * almacén en memoria haciendo de servidor, sin red de por medio.
  */
-import { CAMPOS, CAMPOS_CAFE, SELLO_CAFE } from "@coffee/nucleo/validacion";
+import {
+  CAMPOS, CAMPOS_ACCESORIO, CAMPOS_CAFE, SELLO_CAFE,
+} from "@coffee/nucleo/validacion";
 
 /**
  * El cuerpo con el que la red repite un alta que ya pasó en local: los campos
@@ -37,6 +39,7 @@ export function cuerpoDeAlta(fila, campos) {
  */
 export const cuerpoDeCafe = (cafe) => cuerpoDeAlta(cafe, [...CAMPOS_CAFE, SELLO_CAFE]);
 export const cuerpoDeExtraccion = (extraccion) => cuerpoDeAlta(extraccion, CAMPOS);
+export const cuerpoDeAccesorio = (accesorio) => cuerpoDeAlta(accesorio, CAMPOS_ACCESORIO);
 
 /** Una receta como la espera el endpoint; sin identidad si es un PUT. */
 export function cuerpoDeReceta(receta, { conIdentidad = true } = {}) {
