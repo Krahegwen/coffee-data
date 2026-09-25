@@ -58,8 +58,8 @@ Merece la pena tenerlo por escrito, porque es lo que justifica todo lo demás.
   tiene que durar más de 5 s para que Media Session lo trate como canción, y
   cae de lleno en el primer caso. Un matiz nuevo: desde febrero de 2024 Chrome
   **aplaza** la petición de foco hasta que la pestaña suena de verdad (umbral
-  −72 dBFS); el silencio a −90 dB no lo dispara, **lo dispara el primer pip**.
-  Queda por probar en el OnePlus, pero apunta a que con los sonidos apagados
+  −72 dBFS); el silencio a −90 dB no lo dispara, **lo dispara el primer pip**,
+  y una vez concedido no se devuelve al callar. Queda por probar en el OnePlus, pero apunta a que con los sonidos apagados
   la tarjeta y la música podrían convivir. Con pips, no hay combinación web
   que dé tarjeta y música a la vez.
 - **La web no puede saber si otra app está sonando.** No hay API: solo se
@@ -152,14 +152,16 @@ Lo que cubre cada vía de lo que se pide:
 código, llega a la isla y al audio, y no exige aprender Rust ni reescribir la
 app. Lo que hay que escribir —la notificación viva y el foco de audio con
 ducking— **es Kotlin propio en todas las vías** (no existe hoy ningún plugin
-publicado de Capacitor ni de Tauri que exponga las Live Updates de Android 16;
-los «Live Update» de Capawesome y Capgo son otra cosa: actualizaciones OTA del
-bundle). La diferencia entre cáscaras es cuánto hay alrededor de ese Kotlin,
+publicado de Capacitor ni de Tauri que exponga las Live Updates de Android 16
+de verdad: hay uno que lo anuncia, `@ciabosoftwaresolutions/capacitor-live-activities`,
+y leído su Kotlin usa un flag que no existe; y los «Live Update» de Capawesome
+y Capgo son otra cosa, actualizaciones OTA del bundle). La diferencia entre cáscaras es cuánto hay alrededor de ese Kotlin,
 y en Capacitor es lo mínimo: una clase con `@CapacitorPlugin`, un
 `registerPlugin` en `MainActivity` y una definición en TypeScript con
 implementación web de reserva. Capacitor 8.5 pone `targetSdk 36` (lo que Play
-exige desde el 31-08-2026 y lo que hace falta para las Live Updates), no
-arrastra librerías nativas (el requisito de páginas de 16 KB no aplica) y
+exige desde el 31-08-2026) y `compileSdk 36` (lo que hace falta para compilar
+las Live Updates), no arrastra librerías nativas —el requisito de páginas de
+16 KB de Play se cumple de serie mientras ningún plugin traiga un `.so`— y
 tiene un precedente grande de lo mismo que queremos: `audiobookshelf-app`, un
 Nuxt con `ssr: false`, sin service worker en nativo, plugins locales
 registrados con `registerPlugin` y una implementación web de cada uno, y un
@@ -328,7 +330,12 @@ Una sola notificación construida con `NotificationCompat`, que en Android 16
 sale promocionada y en los anteriores como notificación *ongoing* de toda la
 vida (`ProgressStyle` cae al estilo por defecto por debajo de la API 36 y
 `setRequestPromotedOngoing` es un no-op: mismo código, `androidx.core` 1.17+,
-a fijar en `build.gradle` si la plantilla de Capacitor trae menos).
+a fijar en `build.gradle` si la plantilla de Capacitor trae menos). Un matiz
+que importa: la promoción de verdad —el chip y el sitio preferente en la
+pantalla de bloqueo— llegó con la **QPR1 de Android 16** (36.1, septiembre de
+2025); en el 16.0 el sistema trata `ProgressStyle` como una notificación más,
+y `SDK_INT` vale 36 en los dos. Lo que distingue es
+`canPostPromotedNotifications()` en tiempo de ejecución, y la sonda.
 
 - **Cuenta sola.** `setWhen(fin del tramo)` + `setUsesChronometer(true)` +
   `setChronometerCountDown(true)`: la cuenta atrás la pinta el sistema sin
@@ -379,8 +386,9 @@ a fijar en `build.gradle` si la plantilla de Capacitor trae menos).
 - **Los pips y la voz los da el servicio**, no el WebView: `SoundPool` con
   `USAGE_ASSISTANCE_SONIFICATION`, y justo antes de cada ráfaga
   `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, que desde Android 8 hace que el
-  sistema baje la música y la restaure solo (los podcasts y audiolibros se
-  pausan en vez de bajar: es cosa de ellos). La voz son los mismos `m4a` del
+  sistema baje la música y la restaure solo. A la voz —podcasts,
+  audiolibros— el sistema no la baja: le avisa y decide ella, y los bien
+  hechos se pausan; y a quien nunca pidió foco ni le baja ni le avisa. La voz son los mismos `m4a` del
   bundle; los pips se hornean una vez desde la tabla `TONOS` con un script de
   Node sin dependencias a `web/public/audio/tonos/*.wav`, para que web y
   nativo suenen igual desde la misma tabla. Un solo productor: con adaptador
