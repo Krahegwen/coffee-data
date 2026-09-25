@@ -20,8 +20,9 @@ la web no tiene ninguna otra forma de enseñar una notificación viva.
    móvil bloqueado, que es cuando se mira.
 3. **Que no pare la música.** Los pips y la voz suenan por encima; si acaso,
    la música baja un instante y vuelve.
-4. **Un APK** para el OnePlus, y la opción de Play. iOS si algún día hay con
-   qué.
+4. **Un APK** para el OnePlus 15, y la opción de Play. iOS después: no hay
+   iPhone propio, pero sí un Mac de empresa con el que compilar, y amigos con
+   iPhone que prueban lo que se les ponga a un toque.
 5. Que lo mantenga **una persona desde Windows**, sin GitHub Actions, con el
    repo público y con los hooks de siempre.
 
@@ -348,12 +349,14 @@ vida (`ProgressStyle` cae al estilo por defecto por debajo de la API 36 y
   `setRequestPromotedOngoing(true)`, sin `RemoteViews` ni `colorized`. La app
   consulta `canPostPromotedNotifications()` y, si el sistema no la
   promociona, ofrece llevar a `ACTION_MANAGE_APP_PROMOTED_NOTIFICATIONS`. Es
-  **esencial en el OnePlus**: OxygenOS 16 enseña las Live Updates de terceros
-  en sus *Live Alerts* (la cápsula), pero con un interruptor por app que nace
-  apagado —«Show Live Updates on Live Alerts»—. Sin Android 16, o con el
-  interruptor apagado, queda la notificación clásica en la pantalla de
-  bloqueo, que es lo que enseña la captura de Hevy. Google avisa además de que
-  los fabricantes pueden poner criterios propios. Y si el usuario descarta
+  **lo que abre la cápsula en el OnePlus 15**: lleva OxygenOS 16 (16.1 ya,
+  con «Live Space» en la pantalla de bloqueo), y ahí las Live Updates de
+  cualquier app salen en los *Live Alerts*, pero con un interruptor por app
+  que nace apagado —«Show Live Updates on Live Alerts»—. En los OnePlus
+  anteriores, según lleven OxygenOS 16; sin Android 16, o con el interruptor
+  apagado, queda la notificación clásica en la pantalla de bloqueo, que es lo
+  que enseña la captura de Hevy. Google avisa además de que los fabricantes
+  pueden poner criterios propios. Y si el usuario descarta
   una Live Update, Google pide no volver a publicarla: `setDeleteIntent` sube
   `cedida: 'descartada'` y esa taza se queda sin isla, como hoy con el audio.
 - **El proceso vive por un servicio en primer plano**, y desde Android 14 hay
@@ -415,10 +418,23 @@ motor de sugerencias lo aporta, pero hay que contarlo. Sin Mac se puede
 compilar y subir a TestFlight desde un servicio (Codemagic da 500 minutos al
 mes; Capgo Build compila desde Windows), no depurar ni crear la extensión.
 
-Es **una decisión aparte**, con su coste, que solo tiene sentido cuando haya
-un iPhone de verdad que la use y un Mac a mano. El propio repo trata iOS como
-secundario desde el plan anterior. Nada de este diseño lo cierra: el puerto
-de la isla es el mismo y el adaptador iOS sería el tercero.
+Hay un Mac de empresa con el que compilar, así que iOS deja de ser «si algún
+día» y pasa a ser **la última fase, después de Android**: `cap add ios`, el
+*target* de la Widget Extension en Xcode 26 (que pide un macOS reciente en
+ese Mac y permiso para instalar Xcode), el adaptador Swift del mismo puerto, y
+la sesión de audio `.playback` con `[.mixWithOthers, .duckOthers]`, que es la
+única combinación que suena por encima de la música, ignora el interruptor de
+silencio y la baja solo mientras dura el pip. El día a día sigue en Windows:
+el Mac es para compilar y firmar. Dos cosas por ser un Mac que no es tuyo: la
+clave privada del certificado de firma nace en su llavero —se exporta a un
+`.p12` y se guarda fuera, como el keystore de Android— y el Apple Developer
+Program (99 $/año) va a tu nombre, no al de la empresa. Y como no hay iPhone
+propio, la prueba la hacen amigos: **TestFlight interno** admite hasta 100
+probadores sin pasar revisión —les llega un enlace y la app TestFlight hace
+el resto—, que es la versión iOS del botón de la portada. La App Store, con
+su revisión (4.2 y 4.3(b)), solo si algún día se quiere publicar de verdad.
+Nada del diseño de Android cambia por esto: el puerto es el mismo y el
+adaptador iOS es el tercero.
 
 ## Distribución y tiendas
 
@@ -445,7 +461,8 @@ De menos a más peaje:
    declaración del tipo de servicio en primer plano con vídeo. La política de
    «webview de una web ajena» no aplica siendo el dueño, y con notificación y
    audio nativos no es un mero envoltorio.
-5. **App Store**: lo de arriba.
+5. **App Store**: 99 $/año, la revisión de la guía 4.2 y, para que lo prueben
+   amigos sin pasar por ella, TestFlight interno. Está en «iOS».
 
 Actualizar el bundle web fuera de la tienda (OTA) está permitido por escrito
 en Play y en el PLA de Apple mientras no cambie el propósito; Capgo se
@@ -502,7 +519,7 @@ Cada una deja el repo funcionando y desplegable.
 | 4 | **El plugin `Isla`**: notificación con cronómetro, barra y botones, servicio en primer plano, pips con ducking, adaptador `nativa.ts`. **Comprobar**: una taza entera con Spotify sonando y el móvil bloqueado; la música baja en cada pip y vuelve. | Alto |
 | 5 | **Live Update en Android 16** y la guía al interruptor de OxygenOS. | Medio |
 | 6 | **Distribución**: firma, `release:android`, GitHub Releases + Obtainium. Play después, si se quiere. | Bajo |
-| 7 | **iOS**, aparte, cuando haya con qué. | — |
+| 7 | **iOS**, con el Mac de empresa: `cap add ios`, la Live Activity sobre el mismo puerto, pips con `mixWithOthers` + `duckOthers`, TestFlight interno para los amigos. | Alto |
 
 La 1 vale la pena aunque el resto se descarte: deja el reloj sin saber cómo
 se enseña el paso, que es como debería haber nacido. La 3 es la que puede
@@ -527,9 +544,10 @@ Por orden de lo que más duele.
    uno por segundo: todo lo que tenga que pasar con la pantalla bloqueada lo
    hace el servicio. Si en algún momento apetece «que JS mande», es el camino
    equivocado.
-5. **La cápsula depende del usuario y del fabricante.** Sin OxygenOS 16 o sin
-   el interruptor por app, no hay Live Alert; queda la notificación en la
-   pantalla de bloqueo. Y los criterios de OnePlus para promocionar no están
+5. **La cápsula depende del usuario y del fabricante.** El OnePlus 15 la
+   tiene, pero sin el interruptor por app no hay Live Alert (queda la
+   notificación en la pantalla de bloqueo), los OnePlus anteriores solo si
+   llevan OxygenOS 16, y los criterios de OnePlus para promocionar no están
    documentados.
 6. **`specialUse` se revisa** si se publica en Play, y `mediaPlayback` es un
    argumento, no una categoría hecha para esto. Para un APK propio da igual.
@@ -569,24 +587,25 @@ Por orden de lo que más duele.
   TWA, sin precedente documentado. Si la fase 3 se atragantara, es el plan B,
   y el módulo `android/isla/` de la fase 4 es el mismo código con otro
   transporte: por eso se escribe sin saber que Capacitor existe.
-- ~~**Home Assistant.**~~ Tampoco del todo. Las dos capturas de documentación
-  son de la app compañera de HA (la isla dinámica de iOS y los campos de su
-  Live Activity), y desde 2026.3 su app Android hace Live Updates en
-  Android 16 con cronómetro que cuenta solo, barra y hasta tres botones. Si ya
-  hay un HA en casa, la isla —también en el iPhone, sin Mac ni cuenta— se
-  prueba en una tarde: el Worker llama a un webhook de HA y HA avisa al
-  móvil. Lo que no da: la barra no avanza entre envíos (por la nube de HA hay
-  500 al día por dispositivo; por *local push*, sin límite), los botones
-  vuelven a HA y no a la web, y el audio sigue siendo el de la web. Es una
-  isla sin app; no es la app.
+- **Home Assistant.** Se miró porque las dos capturas de documentación son de
+  su app —sus notificaciones «Live Update» son exactamente esto, y con un HA
+  en casa la isla se habría probado desde un webhook sin escribir nada
+  nativo—. Eran solo un ejemplo de notificación viva, así que fuera. Se queda
+  en la tabla por si alguien con HA lee esto: la barra no avanzaría entre
+  envíos, los botones volverían a HA y el audio seguiría siendo el de la web.
 
 ## Lo que hay que decidir
 
-1. **¿Hay un iPhone que la vaya a usar y un Mac a mano?** Si no, iOS sale del
-   alcance y no condiciona nada.
-2. **¿Hay Home Assistant?** Cambia el orden: sería la prueba más barata de la
-   isla, antes de escribir Kotlin.
-3. **¿Qué OnePlus y qué OxygenOS?** Sin 16, la fase 5 no se puede comprobar.
+Contestado el mismo día, 2026-09-25:
+
+1. ~~¿Hay un iPhone y un Mac a mano?~~ **iPhone propio no; Mac de empresa
+   sí**, para compilar. iOS es la fase 7 y la prueban amigos por TestFlight.
+2. ~~¿Hay Home Assistant?~~ **No**: las capturas eran solo un ejemplo.
+3. ~~¿Qué OnePlus?~~ **Un OnePlus 15** (OxygenOS 16) y algunos anteriores:
+   la fase 5 se puede comprobar en el de casa.
+
+Queda:
+
 4. **¿Play de verdad, o basta el APK con Obtainium?** Decide si hay que
    declarar el servicio y reclutar testers.
 5. **¿Botón «dejó de gotear» en la notificación?** Y **¿cuenta atrás al
