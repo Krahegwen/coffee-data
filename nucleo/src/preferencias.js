@@ -44,12 +44,15 @@ export const CATALOGO = {
    */
   cuenta_atras_saltos: { tipo: "booleano", defecto: false },
   /*
-   * El paso en la pantalla de bloqueo, por el reproductor del sistema. Nace
-   * encendido porque es la mitad de avisar con el móvil bloqueado, pero se
-   * puede apagar: para el sistema es una canción, y quien escucha música
-   * mientras prepara pierde los mandos de la suya.
+   * El paso en la pantalla de bloqueo, por el reproductor del sistema. Para el
+   * sistema es una canción, y el audio se lo da a una sola: arrancarla no le
+   * quita los mandos a la música que estuviera sonando, la para. Por eso nace
+   * apagado —un crono que te deja sin música sin haberlo pedido molesta más
+   * que no ver el paso con el móvil bloqueado— y lo enciende quien prepara
+   * sin ella. Si aun así vuelves a poner la tuya, el reloj se aparta hasta la
+   * taza siguiente.
    */
-  pantalla_bloqueo: { tipo: "booleano", defecto: true },
+  pantalla_bloqueo: { tipo: "booleano", defecto: false },
   /*
    * El tema son tres claves y no una, porque son tres decisiones distintas:
    * si seguir al teléfono o mandar tú, y qué juego usar en cada modo. Quien

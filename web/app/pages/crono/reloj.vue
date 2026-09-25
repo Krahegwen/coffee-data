@@ -27,7 +27,7 @@ const { estado, soltarReloj } = useCrono()
 
 const {
   cafeId, recetaId, desdeId, dosis, agua, pasos, corriendo, transcurrido,
-  finGoteo, inicioMs, goteoIba, saltoEnPausa,
+  finGoteo, inicioMs, goteoIba, saltoEnPausa, sistemaCedido,
 } = toRefs(estado.value)
 
 const {
@@ -512,10 +512,12 @@ function parar() {
  * Mientras se mira otra pantalla con el reloj andando, la tarjeta se queda en
  * el último paso que vio el reloj —la barra sigue avanzando sola— y sin
  * botones, que los mandos son funciones de esta pantalla. Al volver, se pone
- * al día.
+ * al día. Y si otra app se quedó con el audio, no hay tarjeta hasta la taza
+ * siguiente: ver `sistemaCedido`.
  */
 const enSistema = computed(
-  () => ajustes.value.pantalla_bloqueo && (enMarcha.value || preroll.value !== null),
+  () => ajustes.value.pantalla_bloqueo && !sistemaCedido.value
+    && (enMarcha.value || preroll.value !== null),
 )
 
 /** «Verter en espiral hasta 120 g»: la báscula es lo que se mira al verter. */
@@ -527,10 +529,14 @@ function tituloDe(p: PasoGuion) {
 /**
  * Lo llaman los gestos que arrancan el reloj: iOS solo deja sonar un audio
  * que arrancó un toque. Desde ahí, la tarjeta la lleva el efecto de abajo.
+ *
+ * Si en esta taza se la llevó otra app, ni se pide: reanudar tras una pausa
+ * te pararía la música que acabas de poner.
  */
 function alSistema() {
-  if (!ajustes.value.pantalla_bloqueo) return
-  void encenderSistema('reloj').catch(() => { /* sin permiso, sin tarjeta */ })
+  if (!ajustes.value.pantalla_bloqueo || sistemaCedido.value) return
+  void encenderSistema('reloj', () => { sistemaCedido.value = true })
+    .catch(() => { /* sin permiso, sin tarjeta */ })
   ponerMandos()
 }
 

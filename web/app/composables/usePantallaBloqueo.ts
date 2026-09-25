@@ -19,6 +19,11 @@
  * del anillo. Con el móvil bloqueado, lo que se lee es cuánto falta para el
  * siguiente, que es el número grande del reloj.
  *
+ * Y al ser una canción, es **la única**: el sistema da el audio a un solo
+ * reproductor, así que arrancar el silencio detiene la música que sonara.
+ * Por eso nace apagado en los ajustes, y por eso, si otra app se queda con el
+ * audio a mitad de taza, esto se aparta en vez de pelearse por él (`ceder`).
+ *
  * Hay dos usuarios: el reloj, que lo maneja desde su estado, y la prueba de la
  * portada. Todo vive a nivel de módulo porque el `<audio>` y la sesión son
  * uno por página, y el que llega detrás le quita el sitio al anterior.
@@ -79,14 +84,65 @@ let audio: HTMLAudioElement | null = null
 let url: string | null = null
 /** Lo último que se escribió, para no repintar la tarjeta del sistema en cada tic. */
 let escrito = ''
-/** Quién tiene la sesión, y cómo se despide cuando llega otro. */
+/**
+ * Quién tiene la sesión, y cómo se despide cuando se la quitan: otro dueño que
+ * llega, u otra app que se queda con el audio.
+ */
 let dueno: string | null = null
 let alQuitarle: (() => void) | null = null
+/**
+ * Si el silencio suena porque lo arrancamos y nadie lo ha parado. Cuando lo
+ * para este módulo —el reloj en pausa— baja antes a false, así que un audio
+ * parado con esto a true lo ha parado otro.
+ */
+let sonando = false
 
 const ACCIONES: (keyof Mandos)[] = ['play', 'pause', 'nexttrack', 'previoustrack', 'stop']
 
 /** Si la sesión es de ése: nadie apaga ni escribe en la de otro. */
 export const sistemaEsDe = (quien: string) => dueno === quien
+
+/** Que suene el silencio. Si el navegador no deja, rechaza y no queda apuntado. */
+async function sonar() {
+  const este = audio!
+  sonando = true
+  try {
+    await este.play()
+  } catch (error) {
+    if (este === audio) sonando = false
+    throw error
+  }
+}
+
+/** La pausa que pide el dueño, apuntada para no confundirla con la de otro. */
+function callar() {
+  sonando = false
+  audio?.pause()
+}
+
+const loParoOtro = () => sonando && audio !== null && audio.paused
+
+/**
+ * Otra app se ha quedado con el audio —la música que vuelves a poner, una
+ * llamada— o se ha tocado la tarjeta sin un reloj que la atienda: el sistema
+ * nos ha parado el silencio. Se suelta la tarjeta y se avisa al dueño para que
+ * no la vuelva a pedir. Volver a sonar en el paso siguiente, que es lo que se
+ * hacía, le quitaba el audio a tu música en cada paso.
+ *
+ * Con el reloj en pausa no hay aviso posible: el silencio ya está parado y
+ * nadie más puede pararlo. Poner tu música entonces y reanudar desde la app te
+ * la para — es el precio de que la tarjeta enseñe en pausa el botón de seguir.
+ */
+function ceder() {
+  const despedida = alQuitarle
+  apagarSistema()
+  despedida?.()
+}
+
+/** El `pause` del silencio: si no lo pedimos, el audio ya es de otro. */
+function alPararse() {
+  if (loParoOtro()) ceder()
+}
 
 /**
  * Arranca el silencio. **Tiene que llamarse desde un toque** la primera vez:
@@ -103,8 +159,9 @@ export async function encenderSistema(quien: string, despedida?: () => void) {
     url = URL.createObjectURL(silencio())
     audio = new Audio(url)
     audio.loop = true
+    audio.addEventListener('pause', alPararse)
   }
-  if (audio.paused) await audio.play()
+  if (audio.paused) await sonar()
 }
 
 /** Los botones del sistema. Los que no se pasan se quitan. */
@@ -120,11 +177,17 @@ export function mandosDelSistema(m: Mandos) {
 /** Escribe el estado en la tarjeta del sistema. Barato si nada cambió. */
 export function contarAlSistema(e: EnSistema) {
   if (!hayPantallaBloqueo() || !audio) return
+  // Parado por otro y sin que el `pause` haya llegado aún: sonar aquí sería
+  // quitarle el audio a quien se lo acaba de llevar.
+  if (loParoOtro()) {
+    ceder()
+    return
+  }
   const ms = navigator.mediaSession
 
   // El audio sigue al reloj: en pausa, el sistema enseña el botón de seguir.
-  if (e.andando && audio.paused) void audio.play().catch(() => { /* sin permiso, sin sonido */ })
-  if (!e.andando && !audio.paused) audio.pause()
+  if (e.andando && audio.paused) void sonar().catch(() => { /* sin permiso, sin sonido */ })
+  if (!e.andando && !audio.paused) callar()
 
   const clave = JSON.stringify([e.titulo, e.subtitulo, e.album, e.tramo, e.andando, e.ancla])
   if (clave === escrito) return
@@ -159,8 +222,18 @@ export function apagarSistema() {
   dueno = null
   alQuitarle = null
   escrito = ''
+  sonando = false
   if (audio) {
+    audio.removeEventListener('pause', alPararse)
     audio.pause()
+    /*
+     * Y sin fuente, que es como el estándar suelta un reproductor. Pausado sin
+     * más sigue vivo hasta que pase el recolector, y con él la tarjeta y su
+     * botón de seguir: tocarlo arrancaría otra vez el silencio, ya sin nadie
+     * que lo pare, y le quitaría el audio a tu música.
+     */
+    audio.removeAttribute('src')
+    audio.load()
     audio = null
   }
   if (url) URL.revokeObjectURL(url)

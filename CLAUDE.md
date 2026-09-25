@@ -345,9 +345,21 @@ sale también en la cápsula de OxygenOS; en un iPhone, falta probarlo.
   o la tarjeta no cambiaría de paso justo cuando es lo único que se ve.
 - Los botones del sistema son funciones de la pantalla del reloj: se quitan al
   salir de ella y se ponen al volver. Parar no está, que restablecer pregunta.
-- Se apaga en el ajuste `pantalla_bloqueo`. La prueba de la portada
-  (`PruebaBloqueo.vue`) es provisional: está para que alguien con iPhone lo
-  pruebe sin saber usar el crono.
+- **Tu música manda.** El sistema da el audio a un solo reproductor, así que
+  arrancar el silencio no le quita los mandos a la música que estuviera
+  sonando, que es lo que se creyó al principio: la para. Por eso el ajuste
+  `pantalla_bloqueo` nace apagado. Con él encendido, si otra app se queda con
+  el audio a mitad de taza, el silencio se para sin que lo paremos:
+  `usePantallaBloqueo` lo nota, suelta la tarjeta y el reloj no la vuelve a
+  pedir hasta la taza siguiente (`sistemaCedido` en `useCrono()`). Sonar otra
+  vez en el paso siguiente, que es lo que hacía, le quitaba la música en cada
+  paso.
+- Los pips y la voz no entran en esa pelea en Android: Web Audio no pide el
+  audio y suena por encima de la música. En un iPhone sí, porque `useSonido`
+  declara la sesión como `playback` para que el interruptor de silencio no los
+  calle, y `playback` no se mezcla con nada.
+- La prueba de la portada (`PruebaBloqueo.vue`) es provisional: está para que
+  alguien con iPhone lo pruebe sin saber usar el crono.
 
 ## Ajustes
 

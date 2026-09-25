@@ -401,7 +401,7 @@
     "latido": "Latido del número",
     "latido_pista": "El número crece con cada aviso: se ve aunque el móvil esté en silencio.",
     "pantalla_bloqueo": "El paso en la pantalla de bloqueo",
-    "pantalla_bloqueo_pista": "Sale como si fuera música, con pausa y saltos desde ahí. Apágalo si escuchas la tuya mientras preparas.",
+    "pantalla_bloqueo_pista": "Sale como si fuera música, con pausa y saltos desde ahí, así que al empezar detiene la que tengas puesta. Si la vuelves a poner, se aparta hasta la taza siguiente.",
     "tema_titulo": "Los colores",
     "tema_intro": "En automático sigue a lo que tengas puesto en el teléfono.",
     "tema_modo": "Cuándo usar el modo oscuro",

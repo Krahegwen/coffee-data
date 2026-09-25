@@ -36,7 +36,7 @@ export function usePreferencias() {
     latido: true,
     cuenta_atras: true,
     cuenta_atras_saltos: false,
-    pantalla_bloqueo: true,
+    pantalla_bloqueo: false,
     tema_modo: 'auto',
     tema_claro: 'papel',
     tema_oscuro: 'tostado',

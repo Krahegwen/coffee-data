@@ -64,6 +64,14 @@ export const CRONO_EN_BLANCO = () => ({
    * círculo al volver.
    */
   saltoEnPausa: false,
+  /**
+   * Si en esta taza otra app se quedó con el audio: la música que vuelves a
+   * poner, una llamada. El sistema lo da a un solo reproductor, así que el
+   * paso deja la pantalla de bloqueo hasta la taza siguiente — pedírselo otra
+   * vez al reanudar te volvería a parar la música. Es de la medición y muere
+   * con ella.
+   */
+  sistemaCedido: false,
 })
 
 export function useCrono() {
@@ -96,6 +104,7 @@ export function useCrono() {
       inicioMs: null,
       goteoIba: false,
       saltoEnPausa: false,
+      sistemaCedido: false,
       /*
        * Y la rama se suelta con la medición, aunque viaje con la selección.
        * Volver a la extracción de anteayer es una decisión **de esa taza**:
