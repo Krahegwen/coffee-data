@@ -553,6 +553,26 @@ se enseña el paso, que es como debería haber nacido. La 3 es la que puede
 perder datos si se hace deprisa: se prueba con la base local o con una taza
 que se retira después, y **antes de registrar nada real se mira el pie**.
 
+## Coste
+
+En tardes, para una persona que hace JS y Python y no ha escrito Kotlin: la
+fase 1 dos o tres (es refactor con tests, nada nuevo que aprender); la 2
+media; la 3 tres o cuatro, y la mitad se va en instalar Android Studio, el
+JDK 17 y el SDK 36 en Windows y en cuadrar `.gitignore`, hooks y firma; la
+sonda una; la 4 cinco a siete —es la parte de Kotlin: servicio, notificación,
+sonido, tramos y su test contra los vectores—; la 5 una o dos; la 6 una. Unas
+**tres o cuatro semanas de tardes** hasta tener isla y *ducking* en el
+OnePlus; un APK con sesión en cuatro. Si se quiere ver algo antes, se recorta
+por el final, no de diseño: la 4 sin *ducking* ya es la isla.
+
+Dinero: 0 € sin tienda; 25 $ una vez si Play; 99 $/año si iOS. Y un
+mantenimiento que hoy no existe: una migración de Capacitor al año (`cap
+migrate`; la 9 ya está en alfa y pedirá Node 24 y SDK 37), Android Studio y
+Gradle al día en Windows, la custodia del keystore, y un APK por cada cambio
+de la web que importe en el móvil —con Obtainium, adjuntar un fichero—. Lo
+que se deja de mantener: el truco del silencio en el móvil, que sigue en la
+web para quien la use en Chrome.
+
 ## Contraindicaciones
 
 Por orden de lo que más duele.
@@ -587,6 +607,11 @@ Por orden de lo que más duele.
    reclutar a doce personas durante dos semanas. Obtainium no pide nada.
 9. **Las licencias de los ejemplos**: dos de los cuatro repos que conviene
    leer son GPL-3.0. Se aprende la estructura; el Kotlin se escribe.
+10. **Dos relojes.** `inicioMs` en JS y el anclaje en el servicio. La regla
+    es que el servicio manda y el reloj reconcilia al volver, pero la
+    semántica de la pausa —`saltoEnPausa`, «siguiente en pausa solo
+    apunta»— se replica en Kotlin, y los vectores del núcleo cubren
+    `tramoEn`, no esa máquina de estados: se prueba a mano, con el móvil.
 
 ## Alternativas que descarto, y por qué
 
