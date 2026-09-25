@@ -35,6 +35,15 @@ pantalla de bloqueo paró la música. Lo grande de ese día no cabe aquí: es
    la pestaña suena de verdad; el silencio a −90 dB no llega y sería el primer
    pip el que se lo quita a la música. Si se confirma, el texto de ayuda del
    ajuste puede decirlo: con el sonido apagado, tarjeta y música a la vez.
+   Ojo al probarlo: el detector de audibilidad muestrea a 15 Hz y un pip de
+   80 ms puede pasarle desapercibido; probar también con el `go` de 300 ms.
+5. **Ducking en la web, sin plugin, quizá.** En Chrome Android un `<audio>`
+   de 5 s o menos pide el foco transitorio con *ducking*: si los pips fueran
+   clips cortos por `<audio>` en vez de Web Audio, la música bajaría y
+   volvería con cada uno sin app nativa. A cambio se pierde la precisión con
+   la que Web Audio los coloca, y con el silencio encendido las dos peticiones
+   se cruzan. Se prueba en el OnePlus en una tarde, antes de decidir cuánto
+   vale la fase del sonido nativo del plan.
 4. **El wake lock no se vuelve a pedir tras el primer bloqueo.** El navegador
    lo suelta solo al ocultar la página, pero `despierta` (`reloj.vue`) no se
    pone a `null` —no se escucha `release`—, así que el `if (!despierta)` de

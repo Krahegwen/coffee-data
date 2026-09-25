@@ -118,9 +118,11 @@ Lo que estorba:
   Worker no emite CORS ni atiende `OPTIONS`. En un WebView con origen propio
   (`https://localhost` en Android) todo eso es una sola causa —la petición
   pasa a ser de otro sitio— y falla **en silencio**: sin CORS el navegador ni
-  deja leer la respuesta, `useSesion` lo toma por «sin red», la app arranca
-  en modo local sin encolar, y el primer refresco con sesión pisaría lo
-  escrito. Una migración a medias aquí no da error: pierde datos.
+  deja leer la respuesta; abrir sesión falla a la vista, pero la comprobación
+  de cada arranque no —`useSesion` lo toma por «sin red» y la app sigue en
+  modo local sin encolar—, y en una migración a medias (CORS puesto, cookie
+  mal) el primer refresco con sesión pisaría lo escrito. Eso no da error:
+  pierde datos.
 - **Hay cosas del build que en nativo sobran o mienten**: el service worker (un
   precache de workbox sobrevive a la actualización del APK y sirve la versión
   vieja), la comprobación de versión con `location.assign`, el botón «Instalar
@@ -187,7 +189,13 @@ para no pisar `web/.output/public`, que es lo que sube wrangler. Con esa
 bandera, `useVersion` no registra nada ni busca versión (la versión llega por
 el APK), `instalar.client.ts` da por instalada la app, y la sección «La
 versión» de ajustes se esconde. Todo lo demás es idéntico: `pnpm run deploy`
-sigue construyendo la web como siempre y no debe tocar lo nativo.
+sigue construyendo la web como siempre y no debe tocar lo nativo. Dos
+precauciones que salen del propio historial del repo: la variable va en la
+línea del script (`COFFEE_NATIVO=1 nuxt generate`), nunca en el entorno de
+la shell, y `comprobar_despliegue.py` se niega si la ve puesta —si se quedara
+en la shell, `pnpm run deploy` generaría el build nativo a otra carpeta y
+wrangler subiría el `.output/public` viejo sin que nada lo dijera—; y los dos
+builds comparten `.nuxt/`: en serie, nunca a la vez.
 
 ### `movil/`: la cáscara
 
@@ -206,7 +214,12 @@ cáscara cambia —o se prefiere la app compañera—, el Kotlin se reutiliza. E
 que `web/` no gane una dependencia que la web de producción no necesita—,
 con la implementación web como reserva. Los clips de voz no se duplican: `cap sync` copia el build
 entero dentro del APK y el servicio los abre de `assets` por la misma ruta
-(`public/audio/<idioma>/<clave>.m4a`).
+(`public/audio/<idioma>/<clave>.m4a`). El servidor local sirve `index.html`
+para toda ruta sin punto en el último tramo, y ningún slug lleva punto
+—`slugDe` los convierte—: ninguna ruta se confunde con un fichero. Y con
+`android:allowBackup="false"`: el WebView guarda el cajón y la cookie de
+sesión en el sandbox de la app, que la copia automática de Android subiría a
+Drive, y eso es una fuga que la web nunca tuvo.
 
 El origen del WebView (`https://localhost`) **se fija en el primer build y no
 se toca nunca más**: ahí viven el IndexedDB del modo local y la cola de
@@ -240,9 +253,9 @@ extrapolación— aplicada al plan entero:
   `pausar`, `moverA` en pausa, `conCuentaAtras` y `marcarFinGoteo`.
 - **Lo nativo deriva el tramo vigente** con `(ahora − epochMs) / 1000`, pinta
   el cronómetro del sistema y se reprograma él mismo en cada `hasta` para
-  cambiar el título: ocho o diez actualizaciones por taza, no una por segundo.
-  JS no lleva el reloj de la isla; cuando la pantalla vuelve, reconcilia
-  `inicioMs` con `leerAnclaje()`.
+  cambiar el título: ocho o diez cambios por taza, y la barra, si se quiere
+  viva, a uno por segundo y sin JS de por medio. JS no lleva el reloj de la
+  isla; cuando la pantalla vuelve, reconcilia `inicioMs` con `leerAnclaje()`.
 - **De vuelta suben sucesos**: los mandos (`pausar`, `reanudar`, `siguiente`,
   `anterior` y, si se decide, `gotear`) con su instante, y `cedida` con motivo
   (`audio` en la web; `descartada` o `sistema` en nativo). `sistemaCedido`
@@ -260,7 +273,10 @@ El adaptador web es el de hoy, con dos mudanzas: el intervalo `aOscuras` sale
 de la pantalla y entra en el adaptador (que ya tiene plan y anclaje y puede
 derivar el tramo solo, a nivel de módulo), y la prueba de la portada pasa a
 ser una consumidora más del puerto —en el navegador prueba Media Session; en
-el APK, la notificación—.
+el APK, la notificación—. Dentro del APK el adaptador web no vale: el WebView
+de Android arranca con la Media Session API desactivada, así que ahí
+`disponible()` es false y, hasta que exista el plugin, el APK no enseña nada
+en la pantalla de bloqueo. Se dice para no descubrirlo.
 
 ### La sesión: dos vías, y se decide con el móvil delante
 
@@ -341,11 +357,18 @@ y `SDK_INT` vale 36 en los dos. Lo que distingue es
 
 - **Cuenta sola.** `setWhen(fin del tramo)` + `setUsesChronometer(true)` +
   `setChronometerCountDown(true)`: la cuenta atrás la pinta el sistema sin
-  que nadie la actualice, y en Android 16 es lo que sale en el chip de la
-  barra de estado. La barra va con `ProgressStyle` (un segmento por tramo, con
-  `setStyledByProgress`) y se actualiza por tramo, no por segundo; el límite
-  del sistema son cinco actualizaciones por segundo y paquete, muy lejos.
-  `setShortCriticalText` lleva lo corto («120 g», «Agita») para el chip.
+  que nadie la actualice, y en Android 16 puede salir en el chip de la barra
+  de estado. La barra va con `ProgressStyle` (un segmento por tramo, con
+  `setStyledByProgress`) y, a diferencia del cronómetro, **no avanza sola**:
+  `setProgress` es un valor fijo hasta republicar. O salta por tramo, o el
+  servicio la mueve una vez por segundo mientras la taza corre —el sistema
+  admite cinco por segundo y el servicio está vivo de todos modos—; lo
+  segundo es lo que se parece a Hevy. En Android < 16 hace falta además el
+  `setProgress()` clásico del *builder*, o no hay barra. Y
+  `setShortCriticalText` lleva lo corto («120 g», «Agita») para el chip, pero
+  **manda sobre el cronómetro**: el chip enseña una cosa o la otra, y las
+  fuentes discrepan sobre si enseña una cuenta atrás de 45 s o solo a partir
+  de dos minutos. Lo decide la sonda; si el chip cuenta, `corto` sobra.
 - **Botones**: hasta tres. Pausa/Reanudar y Siguiente seguro; «Dejó de
   gotear» es candidato porque es reversible (`seguirGoteando`) y es el botón
   que más se pulsa tras arrancar. Parar no está, como en la web. Cada acción
@@ -383,12 +406,17 @@ y `SDK_INT` vale 36 en los dos. Lo que distingue es
   arranque) y muere al cerrar el goteo o al restablecer. Sin él, Android
   congela el proceso a los ~10 s en caché y, desde Android 15, una app que no
   está delante ni tiene servicio **no puede pedir foco de audio**: los pips
-  con la pantalla bloqueada dependen de esto. Para un APK propio no hay
-  revisión de nada; para Play, cada tipo se declara con descripción y vídeo.
+  con la pantalla bloqueada dependen de esto, y Android 17 lo endurece: el
+  foco en segundo plano solo con un servicio de verdad, arrancado desde la app
+  visible, que es como se arranca aquí. Para un APK propio no hay revisión de
+  nada; para Play, cada tipo se declara con descripción y vídeo.
 - **Los pips y la voz los da el servicio**, no el WebView: `SoundPool` con
-  `USAGE_ASSISTANCE_SONIFICATION`, y justo antes de cada ráfaga
-  `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`, que desde Android 8 hace que el
-  sistema baje la música y la restaure solo. A la voz —podcasts,
+  `USAGE_MEDIA` —`USAGE_ASSISTANCE_SONIFICATION` va por el volumen del
+  sistema y se calla con el móvil en silencio o en No molestar, que en una
+  cocina es lo normal; `USAGE_ALARM` sonaría incluso así, y es una
+  decisión—, y justo antes de cada ráfaga `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`,
+  que es lo que provoca el *ducking* (el *usage* no) y que desde Android 8
+  hace que el sistema baje la música y la restaure solo. A la voz —podcasts,
   audiolibros— el sistema no la baja: le avisa y decide ella, y los bien
   hechos se pausan; y a quien nunca pidió foco ni le baja ni le avisa. La voz son los mismos `m4a` del
   bundle; los pips se hornean una vez desde la tabla `TONOS` con un script de
@@ -424,7 +452,8 @@ Las Live Activities encajan casi a medida: `Text(timerInterval:)` y
 `ProgressView(timerInterval:)` cuentan y rellenan solos con una `update()` por
 paso, hay botones desde iOS 17 (con el móvil bloqueado sin autenticar no
 responden), 8 h de vida y 4 KB de estado. Y hay tres plugins de Capacitor
-vivos (kisimedia, ludufre, Capgo), ninguno con botones. Pero todo pasa por un
+vivos (kisimedia, ludufre, Capgo), sin botones, y `@capgo/capacitor-widget-kit`,
+que sí los documenta con `Button(intent:)`. Pero todo pasa por un
 *target* de Widget Extension que se crea en Xcode (el simulador sí las
 enseña; el iPhone de verdad lo ponen los amigos), 99 $/año y una revisión con
 la guía 4.2 delante
@@ -448,7 +477,8 @@ Program (99 $/año) va a tu nombre, no al de la empresa. Y como no hay iPhone
 propio, la prueba la hacen amigos: **TestFlight interno** admite hasta 100
 probadores sin pasar revisión —les llega un enlace y la app TestFlight hace
 el resto—, que es la versión iOS del botón de la portada. La App Store, con
-su revisión (4.2 y 4.3(b)), solo si algún día se quiere publicar de verdad.
+su revisión (4.2 y 4.3(b)) y la declaración de comerciante que la DSA pide en
+la UE, solo si algún día se quiere publicar de verdad.
 Nada del diseño de Android cambia por esto: el puerto es el mismo y el
 adaptador iOS es el tercero.
 
@@ -465,7 +495,9 @@ De menos a más peaje:
    registrar el nombre del paquete en la cuenta gratuita de «distribución
    limitada», que ya existe desde agosto de 2026: 20 dispositivos a la vez,
    sin DNI, y solo admite paquetes que Android no haya visto nunca, así que
-   el `applicationId` se elige una vez y con cuidado.
+   el `applicationId` se elige una vez y con cuidado, y conviene registrarlo
+   ahí cuanto antes —es gratis— tras confirmar en su documentación qué
+   alcance tiene ese «nunca visto».
 2. **GitHub Releases + Obtainium**: el APK se construye en local, se adjunta
    a mano a la *release* y el móvil se actualiza solo. Sin Actions. Con la
    misma clave de firma siempre, y esa clave **no tiene reset** fuera de
@@ -479,7 +511,9 @@ De menos a más peaje:
    subida sí tiene reset). Lo caro no es eso: una cuenta personal nueva tiene
    que pasar **una prueba cerrada con 12 testers durante 14 días seguidos**
    antes de pedir producción (revisión de esa solicitud, ≤7 días). Más la
-   declaración del tipo de servicio en primer plano con vídeo. La política de
+   declaración del tipo de servicio en primer plano con vídeo, el formulario
+   de seguridad de los datos y una URL de política de privacidad, que puede
+   servir el Worker. La política de
    «webview de una web ajena» no aplica siendo el dueño, y con notificación y
    audio nativos no es un mero envoltorio.
 5. **App Store**: 99 $/año, la revisión de la guía 4.2 y, para que lo prueben
@@ -540,12 +574,13 @@ Cada una deja el repo funcionando y desplegable.
 |---|---|---|
 | 0 | **Decidir** lo que queda abajo (tienda o APK, los botones) y, de paso, lo que la web puede hoy: la prueba de campo del foco aplazado y el wake lock (`PENDIENTES.md`, 3 y 4). | — |
 | 1 | **El puerto de la isla en la web.** `tramosDe`/`tramoEn` y `TONOS` al núcleo con vectores; `useIsla()` con el adaptador web de hoy; `aOscuras` al adaptador; la prueba de la portada como consumidora. Sin cambio de comportamiento. | Bajo |
-| 2 | **La bandera de build** y el alta del cuarto paquete en hooks, scripts y `.gitignore`. La web no cambia. | Bajo |
-| 3 | **La cáscara**: `movil/`, `cap add android`, la sesión por la vía A (o la B), el respaldo por Filesystem + Share, el selector de ficheros, Ko-fi por `App.openUrl`. **Comprobar en el OnePlus**: el pie dice «en el servidor», una taza de prueba sube sin duplicar y baja a la web, la foto sube y baja, el respaldo se guarda, y `pnpm run deploy` de la web sigue igual con el árbol limpio tras `cap sync`. | Medio |
-| 3b | **La sonda**, una tarde que luego se tira: un plugin mínimo que publique una notificación con cronómetro y `setRequestPromotedOngoing` dirigida desde JS. **Comprobar en el OnePlus 15**: que OxygenOS la promociona tras activar el interruptor de Live Alerts; que los pips de Web Audio desde el WebView no paran Spotify; que `performance.now()` no se queda corto tras un bloqueo largo. Con eso, el plugin de verdad se escribe sobre certezas y no sobre el dosier. | Bajo |
+| 2 | **La bandera de build**, el alta del cuarto paquete en hooks, scripts y `.gitignore`, Android Studio en el PC y **el keystore** (fuera del repo, con copia) antes de que exista ningún APK. La web no cambia. | Bajo |
+| 2b | **La sonda de la notificación**, en un proyecto Android vacío y en una tarde: una notificación *ongoing* con cronómetro, `ProgressStyle` y `setRequestPromotedOngoing`. **Comprobar en el OnePlus 15**: que OxygenOS 16.1 la promociona tras activar el interruptor de Live Alerts; qué enseña el chip con `corto` y sin él, con `when` a 45 s; si la cápsula sale con la pantalla bloqueada. No necesita la cáscara ni el Worker, y es la incertidumbre más barata de despejar. | Bajo |
+| 3 | **La cáscara**: `movil/`, `cap add android`, la sesión por la vía A (o la B), el respaldo por Filesystem + Share, el selector de ficheros, Ko-fi por `App.openUrl`, iconos y splash, `allowBackup` apagado, y **todo APK que llegue al móvil firmado con la clave definitiva desde el primero** (uno de debug no se actualiza con uno de release: obliga a desinstalar, y desinstalar borra el cajón). **Comprobar en el OnePlus**: el pie dice «en el servidor», una taza de prueba sube sin duplicar y baja a la web, la foto sube desde galería y desde cámara y baja, un respaldo hecho en la web se restaura, el respaldo se guarda, y `pnpm run deploy` de la web sigue igual con el árbol limpio tras `cap sync`. Y saberlo: hasta la fase 4 el APK no enseña nada en la pantalla de bloqueo, porque el WebView de Android arranca sin la Media Session API. | Medio |
+| 3b | **La sonda del WebView**, una tarde que luego se tira: un plugin mínimo que publique la notificación de la 2b dirigida desde JS. **Comprobar**: que los pips de Web Audio desde el WebView no paran Spotify; que `performance.now()` no se queda corto tras un bloqueo largo; que un mando de la notificación llega al JS. Con eso, el plugin de verdad se escribe sobre certezas y no sobre el dosier. | Bajo |
 | 4 | **El plugin `Isla`**: notificación con cronómetro, barra y botones, servicio en primer plano, pips con ducking, adaptador `nativa.ts`. **Comprobar**: una taza entera con Spotify sonando y el móvil bloqueado; la música baja en cada pip y vuelve. | Alto |
 | 5 | **Live Update en Android 16** y la guía al interruptor de OxygenOS. | Medio |
-| 6 | **Distribución**: firma, `release:android`, GitHub Releases + Obtainium. Play después, si se quiere. | Bajo |
+| 6 | **Distribución**: `release:android` con el guardia delante, GitHub Releases + Obtainium. Play después, si se quiere. | Bajo |
 | 7 | **iOS**, con el Mac de empresa: `cap add ios`, la Live Activity sobre el mismo puerto, pips con `mixWithOthers` + `duckOthers`, TestFlight interno para los amigos. | Alto |
 
 La 1 vale la pena aunque el resto se descarte: deja el reloj sin saber cómo
@@ -558,8 +593,8 @@ que se retira después, y **antes de registrar nada real se mira el pie**.
 En tardes, para una persona que hace JS y Python y no ha escrito Kotlin: la
 fase 1 dos o tres (es refactor con tests, nada nuevo que aprender); la 2
 media; la 3 tres o cuatro, y la mitad se va en instalar Android Studio, el
-JDK 17 y el SDK 36 en Windows y en cuadrar `.gitignore`, hooks y firma; la
-sonda una; la 4 cinco a siete —es la parte de Kotlin: servicio, notificación,
+JDK 17 y el SDK 36 en Windows y en cuadrar `.gitignore`, hooks y firma; las
+dos sondas, una cada una; la 4 cinco a siete —es la parte de Kotlin: servicio, notificación,
 sonido, tramos y su test contra los vectores—; la 5 una o dos; la 6 una. Unas
 **tres o cuatro semanas de tardes** hasta tener isla y *ducking* en el
 OnePlus; un APK con sesión en cuatro. Si se quiere ver algo antes, se recorta
@@ -587,7 +622,9 @@ Por orden de lo que más duele.
    publicar es perder el cajón local y la cola sin aviso (los datos se quedan
    en el disco bajo el origen viejo, pero no hay quien los migre). Y el
    `applicationId` tampoco se cambia: para Android sería otra app, con el
-   cajón vacío.
+   cajón vacío. Ni la firma: un APK con otra clave no actualiza al anterior,
+   obliga a desinstalar, y desinstalar borra el cajón. Por eso el keystore
+   existe antes que el primer APK.
 3. **La sesión falla en silencio.** Está dicho arriba; se repite porque es la
    única contraindicación que cuesta datos.
 4. **El WebView no es un reloj.** Congelado en caché, con temporizadores a
@@ -670,6 +707,13 @@ Queda:
 6. **La sesión: vía A (`CapacitorHttp`, el Worker intacto) o vía B (CORS y
    cookie por origen).** A primero; se decide en la fase 3 con el móvil
    delante, y en las dos se mira el pie antes de registrar nada.
+7. **Cómo preparas.** ¿Móvil bloqueado en la encimera, o pantalla encendida
+   (el wake lock la mantiene)? ¿Música, o podcast (a la voz el sistema no la
+   baja: la app decide)? ¿En silencio o en No molestar? Decide el orden de
+   las fases 4 y 5, el *usage* del audio y cuánto importa la isla frente al
+   *ducking*.
+8. **¿El Kotlin lo escribes tú?** Son 400-600 líneas más tests. Si no
+   apetece, la fase 4 se aplaza y hasta ahí ya hay un APK con sesión.
 
 ## Fuentes
 
