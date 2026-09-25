@@ -355,11 +355,17 @@ sale también en la cápsula de OxygenOS; en un iPhone, falta probarlo.
   vez en el paso siguiente, que es lo que hacía, le quitaba la música en cada
   paso.
 - Los pips y la voz no entran en esa pelea en Android: Web Audio no pide el
-  audio y suena por encima de la música. En un iPhone sí, porque `useSonido`
-  declara la sesión como `playback` para que el interruptor de silencio no los
-  calle, y `playback` no se mezcla con nada.
+  audio y suena por encima de la música (tampoco puede bajarla: el *ducking*
+  solo existe en nativo). En un iPhone sí, porque `useSonido` declara la
+  sesión como `playback` para que el interruptor de silencio no los calle, y
+  en WebKit `playback` no se mezcla con nada; `transient` mezclaría, pero el
+  interruptor la calla. No hay tipo que haga las dos cosas.
 - La prueba de la portada (`PruebaBloqueo.vue`) es provisional: está para que
   alguien con iPhone lo pruebe sin saber usar el crono.
+- **La isla de verdad no la puede dar la web**: ni notificación viva con
+  cronómetro y botones, ni foco de audio con *ducking*. El camino —Capacitor
+  sobre el mismo build y un plugin propio en Kotlin, con la web intacta— está
+  razonado en `PLAN-app-nativa.md`. No está decidido.
 
 ## Ajustes
 

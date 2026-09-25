@@ -4,14 +4,43 @@ Cosas vistas usando la app de verdad, para abordar más adelante. No es un
 backlog de deseos: cada punto sale de una extracción registrada a mano y
 lleva anotado lo que ya se sabe, para no volver a investigarlo desde cero.
 
-**Vacío desde el 2026-08-10.** Las anotadas el 2026-08-07 sobre la versión
-0.1.40 están todas hechas, y el sitio queda abierto para la siguiente.
+Estuvo vacío desde el 2026-08-10 —las del 2026-08-07 sobre la 0.1.40 se
+hicieron todas— y entre medias entraron el bloque de sonido, ajustes, temas y
+flujo (2026-08-18) y dos tandas sueltas (2026-09-04 y 2026-09-14) sin dejar
+nada aquí. Lo de abajo es del **2026-09-25**, sobre la 0.1.108, el día que la
+pantalla de bloqueo paró la música. Lo grande de ese día no cabe aquí: es
+`PLAN-app-nativa.md`.
 
-Que siga vacío no quiere decir que nadie haya mirado: desde entonces han
-entrado el bloque de sonido, ajustes, temas y flujo (cerrado el 2026-08-18) y
-dos tandas sueltas, el 2026-09-04 y el 2026-09-14. Ninguna dejó nada apuntado
-aquí. Si lees esto meses después, la fecha de arriba es la que dice cuándo se
-revisó por última vez — `git log -- PENDIENTES.md` lo confirma.
+## Del 2026-09-25
+
+1. **El aviso de «esto te para la música», solo si hace falta.** Con el ajuste
+   `pantalla_bloqueo` apagado de fábrica no hay nada que avisar, y su texto de
+   ayuda ya lo dice al encenderlo. Si un día se quiere un aviso en el reloj
+   antes de arrancar, lo que ya se sabe: **la web no puede saber si otra app
+   está sonando** —no hay API; solo se entera a posteriori, cuando le quitan
+   el audio, que es lo que ya usa `ceder`—, así que sería genérico, una vez,
+   y con «no volver a avisar». En nativo sí se consulta
+   (`AudioManager.isMusicActive()` en Android;
+   `secondaryAudioShouldBeSilencedHint` en iOS), pero ahí el aviso sobra:
+   los pips harían *ducking* y la música no se para.
+2. **En el iPhone los pips paran la música aunque el ajuste esté apagado.**
+   `useSonido` pone `audioSession.type = 'playback'` para que el interruptor
+   de silencio no calle los pips, y en WebKit `playback` no se mezcla: corta
+   la música al activarse. `transient` mezcla, pero el interruptor la calla.
+   No hay tipo que haga las dos cosas, así que es una decisión: `transient` y
+   un aviso de «quita el silencio para oír los pips», o `playback` como
+   ahora. Falta un iPhone con el que probarlo, como todo lo de iOS.
+3. **Probar en el OnePlus si con los sonidos apagados la tarjeta convive con
+   la música.** Desde febrero de 2024 Chrome aplaza pedir el audio hasta que
+   la pestaña suena de verdad; el silencio a −90 dB no llega y sería el primer
+   pip el que se lo quita a la música. Si se confirma, el texto de ayuda del
+   ajuste puede decirlo: con el sonido apagado, tarjeta y música a la vez.
+4. **El wake lock no se vuelve a pedir tras el primer bloqueo.** El navegador
+   lo suelta solo al ocultar la página, pero `despierta` (`reloj.vue`) no se
+   pone a `null` —no se escucha `release`—, así que el `if (!despierta)` de
+   `rearmar()` no lo pide más en toda la taza: tras bloquear una vez, la
+   pantalla se apaga sola el resto de la extracción. Es escuchar el evento
+   `release` del sentinel, o volver a pedirlo en `visibilitychange`.
 
 ## Lo que salió de aquí
 
