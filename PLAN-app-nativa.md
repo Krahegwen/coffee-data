@@ -116,10 +116,11 @@ Lo que estorba:
 - **La sesión descansa en que app y API comparten origen.** La cookie es
   `HttpOnly; SameSite=Strict; Path=/api`, `$fetch` no lleva `credentials` y el
   Worker no emite CORS ni atiende `OPTIONS`. En un WebView con origen propio
-  (`https://localhost` en Android) las cuatro cosas fallan **a la vez y en
-  silencio**: `GET /api/sesion` diría `activa: false`, la app arrancaría en
-  modo local sin encolar, y el primer refresco con sesión pisaría lo escrito.
-  Una migración a medias aquí no da error: pierde datos.
+  (`https://localhost` en Android) todo eso es una sola causa —la petición
+  pasa a ser de otro sitio— y falla **en silencio**: sin CORS el navegador ni
+  deja leer la respuesta, `useSesion` lo toma por «sin red», la app arranca
+  en modo local sin encolar, y el primer refresco con sesión pisaría lo
+  escrito. Una migración a medias aquí no da error: pierde datos.
 - **Hay cosas del build que en nativo sobran o mienten**: el service worker (un
   precache de workbox sobrevive a la actualización del APK y sirve la versión
   vieja), la comprobación de versión con `location.assign`, el botón «Instalar
@@ -142,7 +143,7 @@ Lo que cubre cada vía de lo que se pide:
 | | Web intacta | Isla (Android) | Música | APK / Play | iOS | Coste para una persona |
 |---|---|---|---|---|---|---|
 | **Capacitor** | Sí: el mismo build, un puerto con dos adaptadores | Sí, con un plugin propio en Kotlin (~200 líneas) | Sí: pips nativos con ducking, sin silencio ni Media Session | Sí | Posible, con Mac | Kotlin, Android Studio; sin Rust |
-| **Tauri 2 móvil** | Sí | Igual: Kotlin propio, más una capa de Rust obligatoria | Igual | Sí (APK 43-45 MB frente a ~8) | Solo con Mac; hoy no enlaza con Xcode 27 | Rust + Kotlin; sus dos bugs abiertos más graves en Android son justo «servicio en primer plano + actividad destruida» |
+| **Tauri 2 móvil** | Sí | Igual: Kotlin propio, más una capa de Rust obligatoria | Igual | Sí (APK bastante mayor: lleva Rust) | Solo con Mac; hoy no enlaza con Xcode 27 | Rust + Kotlin; su bug abierto más grave en Android es justo «servicio en primer plano + actividad destruida» |
 | **TWA (Bubblewrap / PWABuilder)** | Sí: el APK *es* Chrome | **No**: sin código nativo | Igual que hoy | Play sí; con riesgo de «webview spam» | PWABuilder iOS archivado en 2025 | Una tarde |
 | **React Native / Flutter** | No: se reescribe la interfaz | Sí (voltra, flutter_activity_kit) | Sí | Sí | Sí | Reescribir Vue; en RN el núcleo se importa tal cual, en Flutter no |
 | **App compañera (Kotlin)** | Sí, sin tocarla | Sí | Sí, si ella da los pips | Sí | No | Dos apps; la web tiene que emparejarse con ella por `ws://127.0.0.1` |
@@ -168,11 +169,12 @@ registrados con `registerPlugin` y una implementación web de cada uno, y un
 servicio en primer plano en Kotlin.
 
 Tauri se descarta con pena: es viable y hay plantillas Nuxt 4, pero pone Rust
-entre JS y Kotlin para no dar nada a cambio en este problema, y sus dos
-incidencias abiertas más votadas en Android (#11609 desde 2024, #15671 de
-julio de 2026, sin respuesta) describen exactamente la isla: un servicio en
-primer plano que mantiene vivo el proceso deja la actividad filtrada o un
-WebView en blanco al volver.
+entre JS y Kotlin para no dar nada a cambio en este problema, y su incidencia
+abierta más grave en Android (#15671, de julio de 2026, con un arreglo
+propuesto sin mezclar) describe exactamente la isla: un servicio en primer
+plano que mantiene vivo el proceso deja un WebView en blanco al volver. La
+anterior del mismo escenario (#11609, la actividad filtrada) se corrigió en
+2025; que haya habido dos dice algo del terreno.
 
 ## Arquitectura propuesta
 
@@ -423,8 +425,9 @@ Las Live Activities encajan casi a medida: `Text(timerInterval:)` y
 paso, hay botones desde iOS 17 (con el móvil bloqueado sin autenticar no
 responden), 8 h de vida y 4 KB de estado. Y hay tres plugins de Capacitor
 vivos (kisimedia, ludufre, Capgo), ninguno con botones. Pero todo pasa por un
-*target* de Widget Extension que se crea en Xcode, un iPhone real (el
-simulador no las soporta), 99 $/año y una revisión con la guía 4.2 delante
+*target* de Widget Extension que se crea en Xcode (el simulador sí las
+enseña; el iPhone de verdad lo ponen los amigos), 99 $/año y una revisión con
+la guía 4.2 delante
 («web reempaquetada») y la 4.3(b) de junio de 2026, que nombra los «simple
 timers» entre lo que no aceptan si no aporta algo distinto; una bitácora con
 motor de sugerencias lo aporta, pero hay que contarlo. Sin Mac se puede
@@ -433,8 +436,8 @@ mes; Capgo Build compila desde Windows), no depurar ni crear la extensión.
 
 Hay un Mac de empresa con el que compilar, así que iOS deja de ser «si algún
 día» y pasa a ser **la última fase, después de Android**: `cap add ios`, el
-*target* de la Widget Extension en Xcode 26 (que pide un macOS reciente en
-ese Mac y permiso para instalar Xcode), el adaptador Swift del mismo puerto, y
+*target* de la Widget Extension en Xcode 26 o posterior —hoy va por el 27—
+(que pide un macOS reciente en ese Mac y permiso para instalar Xcode), el adaptador Swift del mismo puerto, y
 la sesión de audio `.playback` con `[.mixWithOthers, .duckOthers]`, que es la
 única combinación que suena por encima de la música, ignora el interruptor de
 silencio y la baja solo mientras dura el pip. El día a día sigue en Windows:
@@ -453,11 +456,16 @@ adaptador iOS es el tercero.
 
 De menos a más peaje:
 
-1. **El APK en el OnePlus**, por `adb` o abriendo el fichero. Sin peaje, y sin
-   peaje también con la verificación de desarrolladores de Android: empieza
-   el 30-09-2026 en cuatro países que no son España, llega en 2027, y cuando
-   llegue habrá una cuenta gratuita de «distribución limitada» para 20
-   dispositivos sin DNI.
+1. **El APK en el OnePlus**, por `adb` o abriendo el fichero. Sin peaje, y
+   `adb` seguirá sin pagarlo cuando la verificación de desarrolladores de
+   Android llegue a España en 2027 (el 30-09-2026 empieza solo en cuatro
+   países y solo para tiendas). Lo que sí cambiará entonces es instalar y
+   actualizar un APK por otras vías —Obtainium incluido—: o el «flujo
+   avanzado» del móvil (modo desarrollador, un día de espera, biometría), o
+   registrar el nombre del paquete en la cuenta gratuita de «distribución
+   limitada», que ya existe desde agosto de 2026: 20 dispositivos a la vez,
+   sin DNI, y solo admite paquetes que Android no haya visto nunca, así que
+   el `applicationId` se elige una vez y con cuidado.
 2. **GitHub Releases + Obtainium**: el APK se construye en local, se adjunta
    a mano a la *release* y el móvil se actualiza solo. Sin Actions. Con la
    misma clave de firma siempre, y esa clave **no tiene reset** fuera de
@@ -513,7 +521,8 @@ por OTA es el plugin.
 - **`.gitattributes`**: `*.bat text eol=crlf` para `gradlew.bat`, y
   `gradlew` con bit de ejecución (`git update-index --chmod=+x`), que es lo
   mismo que le pasaba a `hooks/pre-push`: estaba en el índice como `100644` y
-  git lo ignoraba fuera de Windows. Ya está arreglado (0.1.110).
+  git lo ignoraba fuera de Windows. Arreglado en esta rama (0.1.110); llega
+  a `main` con la mezcla.
 - **Python solo stdlib**: nada del build tiene que ser Python. Si algo lo es,
   `json` basta (como en `subir_version.py`); no hay `pyyaml` ni SDK de Play:
   la subida a la tienda es a mano por consola.
@@ -555,7 +564,10 @@ Por orden de lo que más duele.
    API tiene que seguir aceptando lo que manda el APK anterior. Es la misma
    regla que ya rige para la cola vieja y los respaldos.
 2. **El origen del WebView es para siempre.** Cambiar esquema o hostname tras
-   publicar es perder el cajón local y la cola sin aviso.
+   publicar es perder el cajón local y la cola sin aviso (los datos se quedan
+   en el disco bajo el origen viejo, pero no hay quien los migre). Y el
+   `applicationId` tampoco se cambia: para Android sería otra app, con el
+   cajón vacío.
 3. **La sesión falla en silencio.** Está dicho arriba; se repite porque es la
    única contraindicación que cuesta datos.
 4. **El WebView no es un reloj.** Congelado en caché, con temporizadores a
@@ -579,8 +591,9 @@ Por orden de lo que más duele.
 ## Alternativas que descarto, y por qué
 
 - **Electron.** Escritorio. Arriba.
-- **Tauri 2.** Rust de por medio para el mismo Kotlin, APK cinco veces más
-  grande, y sus bugs abiertos son este escenario.
+- **Tauri 2.** Rust de por medio para el mismo Kotlin, un APK bastante mayor
+  (lleva el runtime de Rust; la cifra que circula, 45 MB, es de una beta de
+  2024) y su bug abierto es este escenario.
 - **TWA / PWABuilder.** Pone la web en Play en una tarde —y merece tenerlo en
   cuenta como «reserva del nombre» si algún día importa— pero es Chrome a
   pantalla completa: ni notificación viva ni foco de audio, y PWABuilder
