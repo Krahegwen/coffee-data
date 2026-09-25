@@ -20,7 +20,8 @@ la web no tiene ninguna otra forma de enseñar una notificación viva.
    móvil bloqueado, que es cuando se mira.
 3. **Que no pare la música.** Los pips y la voz suenan por encima; si acaso,
    la música baja un instante y vuelve.
-4. **Un APK** para el OnePlus 15, y la opción de Play. iOS después: no hay
+4. **Un APK** para el OnePlus 15, por Obtainium primero y con Play como
+   opción después, sin que lo uno cierre lo otro. iOS después: no hay
    iPhone propio, pero sí un Mac de empresa con el que compilar, y amigos con
    iPhone que prueban lo que se les ponga a un toque.
 5. Que lo mantenga **una persona desde Windows**, sin GitHub Actions, con el
@@ -257,7 +258,7 @@ extrapolación— aplicada al plan entero:
   viva, a uno por segundo y sin JS de por medio. JS no lleva el reloj de la
   isla; cuando la pantalla vuelve, reconcilia `inicioMs` con `leerAnclaje()`.
 - **De vuelta suben sucesos**: los mandos (`pausar`, `reanudar`, `siguiente`,
-  `anterior` y, si se decide, `gotear`) con su instante, y `cedida` con motivo
+  `anterior` y `gotear`) con su instante, y `cedida` con motivo
   (`audio` en la web; `descartada` o `sistema` en nativo). `sistemaCedido`
   pasa a llamarse `islaCedida` y sigue significando lo mismo: en esta taza no
   se vuelve a pedir.
@@ -369,9 +370,12 @@ y `SDK_INT` vale 36 en los dos. Lo que distingue es
   **manda sobre el cronómetro**: el chip enseña una cosa o la otra, y las
   fuentes discrepan sobre si enseña una cuenta atrás de 45 s o solo a partir
   de dos minutos. Lo decide la sonda; si el chip cuenta, `corto` sobra.
-- **Botones**: hasta tres. Pausa/Reanudar y Siguiente seguro; «Dejó de
-  gotear» es candidato porque es reversible (`seguirGoteando`) y es el botón
-  que más se pulsa tras arrancar. Parar no está, como en la web. Cada acción
+- **Botones**: hasta tres, y son tres: Pausa/Reanudar, Siguiente y «Dejó de
+  gotear» —decidido el 2026-09-25: entra porque es reversible
+  (`seguirGoteando`) y es el botón que más se pulsa tras arrancar—. Parar no
+  está, como en la web. Reanudar desde la notificación **arranca en el acto,
+  sin cuenta atrás**: quien toca la cápsula ya tiene el hervidor en la mano;
+  `cuenta_atras` sigue mandando en la pantalla del reloj. Cada acción
   es un `PendingIntent` a un `BroadcastReceiver`: el servicio re-ancla él
   mismo con el plan que tiene, republica, y sube el suceso con
   `notifyListeners(..., retainUntilConsumed)`; si el WebView duerme, lo
@@ -413,12 +417,19 @@ y `SDK_INT` vale 36 en los dos. Lo que distingue es
 - **Los pips y la voz los da el servicio**, no el WebView: `SoundPool` con
   `USAGE_MEDIA` —`USAGE_ASSISTANCE_SONIFICATION` va por el volumen del
   sistema y se calla con el móvil en silencio o en No molestar, que en una
-  cocina es lo normal; `USAGE_ALARM` sonaría incluso así, y es una
-  decisión—, y justo antes de cada ráfaga `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`,
+  cocina es lo normal; `USAGE_ALARM` sonaría incluso así—. Decidido el
+  2026-09-25: el móvil va en silencio o en No molestar según el día, y
+  `USAGE_MEDIA` vale para los dos, porque el volumen multimedia no es el del
+  timbre y No molestar deja pasar los sonidos multimedia salvo que se le
+  quite; si un día no suenan, es ese ajuste del sistema, y la respuesta no es
+  `USAGE_ALARM`. Y justo antes de cada ráfaga `AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`,
   que es lo que provoca el *ducking* (el *usage* no) y que desde Android 8
   hace que el sistema baje la música y la restaure solo. A la voz —podcasts,
   audiolibros— el sistema no la baja: le avisa y decide ella, y los bien
-  hechos se pausan; y a quien nunca pidió foco ni le baja ni le avisa. La voz son los mismos `m4a` del
+  hechos se pausan; y a quien nunca pidió foco ni le baja ni le avisa. Se
+  prepara tanto con música como con podcast, así que la 4a se prueba con los
+  dos: si el podcast que se pausa en cada pip molesta, pedir el foco o no es
+  un interruptor más de `preferencias`, no un cambio de diseño. La voz son los mismos `m4a` del
   bundle; los pips se hornean una vez desde la tabla `TONOS` con un script de
   Node sin dependencias a `web/public/audio/tonos/*.wav`, para que web y
   nativo suenen igual desde la misma tabla. Un solo productor: con adaptador
@@ -519,6 +530,35 @@ De menos a más peaje:
 5. **App Store**: 99 $/año, la revisión de la guía 4.2 y, para que lo prueben
    amigos sin pasar por ella, TestFlight interno. Está en «iOS».
 
+**Obtainium ahora y Play después son compatibles**, y es lo decidido el
+2026-09-25. Lo que lo hace posible son tres cosas que ya están en el plan y
+una que hay que hacer bien el día de Play:
+
+- El **mismo `applicationId`**: para Android, el paquete es la app.
+- La **misma clave de firma**: al dar de alta la app en Play App Signing se
+  elige «subir la clave que ya tengo» (exportada con la herramienta PEPK que
+  da la consola), **no** «que Google genere una». Con la clave subida, los
+  APK que Play sirve llevan la misma firma que los de la *release* de
+  GitHub: el móvil que instaló por Obtainium se actualiza desde Play y al
+  revés, con el cajón intacto. Con una clave generada por Google serían dos
+  firmas —dos apps para Android—: desinstalar, y desinstalar borra el cajón.
+  Es la única decisión sin vuelta atrás; la clave de subida sí puede ser
+  otra, y esa sí tiene reset.
+- El **mismo `versionCode`** en los dos canales: sale del `package.json`,
+  así que el mismo commit da el mismo número, y Play no admite bajar. Cada
+  versión que vaya a Play va también a la *release* de GitHub, del mismo
+  commit.
+- Los **artefactos**: Play quiere el AAB y Obtainium un APK. Salen de la
+  misma build (`bundleRelease` y `assembleRelease`, la misma firma), o el APK
+  universal se saca del AAB con `bundletool`, que es el mismo contenido que
+  Play reparte.
+
+Lo que queda por confirmar el día de Play es la verificación de
+desarrolladores: si el nombre del paquete está registrado en la cuenta
+gratuita de distribución limitada, hay que mirar en su documentación que
+pase a la cuenta de Play sin conflicto antes de subir nada; no se ha
+encontrado escrito.
+
 Actualizar el bundle web fuera de la tienda (OTA) está permitido por escrito
 en Play y en el PLA de Apple mientras no cambie el propósito; Capgo se
 autoaloja (AGPL) y el bundle podría servirlo el mismo Worker. Es opcional: con
@@ -529,7 +569,7 @@ por OTA es el plugin.
 ## Encaje con las reglas del repo
 
 - **Nada de GitHub Actions**: el build es local (Android Studio, Gradle,
-  JDK 17), y un `pnpm run release:android` llama al mismo
+  JDK 21), y un `pnpm run release:android` llama al mismo
   `comprobar_despliegue.py` que `deploy` (solo habla con git; sirve tal cual)
   antes de construir. No puede llamarse `deploy` a secas ni chocar con
   comandos de pnpm: `test_scripts.py` lo vigila.
@@ -572,13 +612,13 @@ Cada una deja el repo funcionando y desplegable.
 
 | # | Qué | Riesgo |
 |---|---|---|
-| 0 | **Decidir** lo que queda abajo (tienda o APK, los botones) y, de paso, lo que la web puede hoy: la prueba de campo del foco aplazado y el wake lock (`PENDIENTES.md`, 3 y 4). | — |
+| 0 | ~~Decidir lo que queda abajo (tienda o APK, los botones)~~ —decidido el 2026-09-25, salvo la sesión, que es de la fase 3— y lo que la web puede hoy: la prueba de campo del foco aplazado y el wake lock (`PENDIENTES.md`, 3 y 4). Con la pantalla encendida como modo normal, el wake lock es el que sostiene ese modo y va primero. | — |
 | 1 | **El puerto de la isla en la web.** `tramosDe`/`tramoEn` y `TONOS` al núcleo con vectores; `useIsla()` con el adaptador web de hoy; `aOscuras` al adaptador; la prueba de la portada como consumidora. Sin cambio de comportamiento. | Bajo |
 | 2 | **La bandera de build**, el alta del cuarto paquete en hooks, scripts y `.gitignore`, Android Studio en el PC y **el keystore** (fuera del repo, con copia) antes de que exista ningún APK. La web no cambia. | Bajo |
 | 2b | **La sonda de la notificación**, en un proyecto Android vacío y en una tarde: una notificación *ongoing* con cronómetro, `ProgressStyle` y `setRequestPromotedOngoing`. **Comprobar en el OnePlus 15**: que OxygenOS 16.1 la promociona tras activar el interruptor de Live Alerts; qué enseña el chip con `corto` y sin él, con `when` a 45 s; si la cápsula sale con la pantalla bloqueada. No necesita la cáscara ni el Worker, y es la incertidumbre más barata de despejar. | Bajo |
 | 3 | **La cáscara**: `movil/`, `cap add android`, la sesión por la vía A (o la B), el respaldo por Filesystem + Share, el selector de ficheros, Ko-fi por `App.openUrl`, iconos y splash, `allowBackup` apagado, y **todo APK que llegue al móvil firmado con la clave definitiva desde el primero** (uno de debug no se actualiza con uno de release: obliga a desinstalar, y desinstalar borra el cajón). **Comprobar en el OnePlus**: el pie dice «en el servidor», una taza de prueba sube sin duplicar y baja a la web, la foto sube desde galería y desde cámara y baja, un respaldo hecho en la web se restaura, el respaldo se guarda, y `pnpm run deploy` de la web sigue igual con el árbol limpio tras `cap sync`. Y saberlo: hasta la fase 4 el APK no enseña nada en la pantalla de bloqueo, porque el WebView de Android arranca sin la Media Session API. | Medio |
 | 3b | **La sonda del WebView**, una tarde que luego se tira: un plugin mínimo que publique la notificación de la 2b dirigida desde JS. **Comprobar**: que los pips de Web Audio desde el WebView no paran Spotify; que `performance.now()` no se queda corto tras un bloqueo largo; que un mando de la notificación llega al JS. Con eso, el plugin de verdad se escribe sobre certezas y no sobre el dosier. | Bajo |
-| 4 | **El plugin `Isla`**: notificación con cronómetro, barra y botones, servicio en primer plano, pips con ducking, adaptador `nativa.ts`. **Comprobar**: una taza entera con Spotify sonando y el móvil bloqueado; la música baja en cada pip y vuelve. | Alto |
+| 4 | **El plugin `Isla`**, en dos mitades y en este orden: **4a** el servicio en primer plano con su notificación mínima, los pips y la voz con *ducking*, y el adaptador `nativa.ts` —lo que se usa a diario con la pantalla encendida—; **4b** la notificación con cronómetro, barra y los tres botones, para cuando se bloquea. **Comprobar** la 4a: una taza entera con Spotify y otra con un podcast, pantalla encendida; la música baja en cada pip y vuelve. La 4b: la misma taza con el móvil bloqueado, y los tres botones desde la pantalla de bloqueo. | Alto |
 | 5 | **Live Update en Android 16** y la guía al interruptor de OxygenOS. | Medio |
 | 6 | **Distribución**: `release:android` con el guardia delante, GitHub Releases + Obtainium. Play después, si se quiere. | Bajo |
 | 7 | **iOS**, con el Mac de empresa: `cap add ios`, la Live Activity sobre el mismo puerto, pips con `mixWithOthers` + `duckOthers`, TestFlight interno para los amigos. | Alto |
@@ -593,12 +633,32 @@ que se retira después, y **antes de registrar nada real se mira el pie**.
 En tardes, para una persona que hace JS y Python y no ha escrito Kotlin: la
 fase 1 dos o tres (es refactor con tests, nada nuevo que aprender); la 2
 media; la 3 tres o cuatro, y la mitad se va en instalar Android Studio, el
-JDK 17 y el SDK 36 en Windows y en cuadrar `.gitignore`, hooks y firma; las
+JDK 21 —el que Capacitor pide desde la 7; Android Studio lo trae— y el SDK 36
+en Windows y en cuadrar `.gitignore`, hooks y firma; las
 dos sondas, una cada una; la 4 cinco a siete —es la parte de Kotlin: servicio, notificación,
 sonido, tramos y su test contra los vectores—; la 5 una o dos; la 6 una. Unas
 **tres o cuatro semanas de tardes** hasta tener isla y *ducking* en el
 OnePlus; un APK con sesión en cuatro. Si se quiere ver algo antes, se recorta
-por el final, no de diseño: la 4 sin *ducking* ya es la isla.
+por el final, no de diseño: la 4a sola ya es lo que se usa a diario.
+
+**El Kotlin no lo escribe el usuario** (decidido el 2026-09-25): lo escribe
+Claude en sesiones sobre el repo, y eso cambia el reparto de la 4, no el
+diseño. El módulo `isla/` (tramos, anclajes, la máquina de la pausa) es JVM
+puro y se prueba en la propia sesión contra los vectores del núcleo: la
+sesión en la nube tiene JDK 21 y Gradle, y llega a Maven Central, al portal
+de plugins de Gradle y al repositorio del SDK de Android (comprobado el
+2026-09-25), así que también puede bajar las *command-line tools* y compilar
+el módulo Android y el APK sin firmar. Lo que no puede es firmar ni probar:
+el keystore no sale del PC y no hay OnePlus en la nube. El bucle es: la
+sesión escribe, compila y deja la rama; en Windows se construye desde
+Android Studio con las variables del keystore puestas (o se firma con
+`apksigner` el APK que dejó la sesión), se instala, se hace una taza y
+vuelven las capturas y el `logcat`. Las tardes de la 4 pasan a ser dos o
+tres de probar y contar lo que se ve —la notificación se ajusta mirando el
+móvil, no el código—, y las sondas 2b y 3b siguen siendo tardes del usuario:
+son proyectos de una tarde que se instalan y se miran. Lo que pesa es lo de
+hoy: las sesiones largas se comen el límite de uso, así que la 4 se hace en
+varias, una mitad cada una.
 
 Dinero: 0 € sin tienda; 25 $ una vez si Play; 99 $/año si iOS. Y un
 mantenimiento que hoy no existe: una migración de Capacitor al año (`cap
@@ -697,23 +757,32 @@ Contestado el mismo día, 2026-09-25:
 3. ~~¿Qué OnePlus?~~ **Un OnePlus 15** (OxygenOS 16) y algunos anteriores:
    la fase 5 se puede comprobar en el de casa.
 
-Queda:
+Contestado también el 2026-09-25, en la segunda vuelta:
 
-4. **¿Play de verdad, o basta el APK con Obtainium?** Decide si hay que
-   declarar el servicio y reclutar testers.
-5. **¿Botón «dejó de gotear» en la notificación?** Y **¿cuenta atrás al
-   reanudar desde ella?** (quien toca la cápsula ya tiene el hervidor en la
-   mano; lo razonable es reanudar en el acto).
+4. ~~¿Play de verdad, o basta el APK con Obtainium?~~ **Obtainium ahora y
+   Play más adelante**, que son compatibles con la misma clave, el mismo
+   paquete y el mismo `versionCode` (está en «Distribución y tiendas»). La
+   declaración del servicio y los doce testers se quedan para el día de Play.
+5. ~~¿Botón «dejó de gotear»?~~ **Sí**, y reanudar desde la notificación es
+   en el acto, sin cuenta atrás.
+7. ~~¿Cómo preparas?~~ **Normalmente con la pantalla encendida**, y lo demás
+   indistinto: música o podcast, silencio o No molestar según el día. De ahí
+   que la 4 se parta en dos mitades con el sonido primero, que `USAGE_MEDIA`
+   se confirme, y que la isla (4b y 5) sea para cuando se bloquea, no el
+   centro. Y que el wake lock de `PENDIENTES.md` (4) sea lo primero que
+   arreglar en la web: es lo que sostiene ese modo.
+8. ~~¿El Kotlin lo escribes tú?~~ **No**: lo escribe Claude en sesiones, y
+   el usuario compila, firma, instala y cuenta lo que ve (está en «Coste»).
+   La fase 4 no se aplaza.
+
+Queda una, y no es de ahora:
+
 6. **La sesión: vía A (`CapacitorHttp`, el Worker intacto) o vía B (CORS y
    cookie por origen).** A primero; se decide en la fase 3 con el móvil
    delante, y en las dos se mira el pie antes de registrar nada.
-7. **Cómo preparas.** ¿Móvil bloqueado en la encimera, o pantalla encendida
-   (el wake lock la mantiene)? ¿Música, o podcast (a la voz el sistema no la
-   baja: la app decide)? ¿En silencio o en No molestar? Decide el orden de
-   las fases 4 y 5, el *usage* del audio y cuánto importa la isla frente al
-   *ducking*.
-8. **¿El Kotlin lo escribes tú?** Son 400-600 líneas más tests. Si no
-   apetece, la fase 4 se aplaza y hasta ahí ya hay un APK con sesión.
+
+Y lo que no se ha decidido es **hacerlo**: el plan sigue siendo una
+propuesta hasta que se abra la fase 1.
 
 ## Fuentes
 

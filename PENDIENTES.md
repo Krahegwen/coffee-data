@@ -49,7 +49,9 @@ pantalla de bloqueo paró la música. Lo grande de ese día no cabe aquí: es
    pone a `null` —no se escucha `release`—, así que el `if (!despierta)` de
    `rearmar()` no lo pide más en toda la taza: tras bloquear una vez, la
    pantalla se apaga sola el resto de la extracción. Es escuchar el evento
-   `release` del sentinel, o volver a pedirlo en `visibilitychange`.
+   `release` del sentinel, o volver a pedirlo en `visibilitychange`. Es el
+   primero de la lista: preparar con la pantalla encendida es el modo normal
+   (decidido el 2026-09-25 para el plan), y esto es lo que la sostiene.
 
 ## Lo que salió de aquí
 
