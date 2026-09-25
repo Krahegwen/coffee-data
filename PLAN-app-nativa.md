@@ -197,8 +197,10 @@ notificación, el sonido, la derivación de tramos y su test JVM) y un
 adaptador fino `IslaPlugin.kt` con `@CapacitorPlugin` y su
 `registerPlugin(IslaPlugin::class.java)` en `MainActivity`. Si un día la
 cáscara cambia —o se prefiere la app compañera—, el Kotlin se reutiliza. En
-`web/app/isla/nativa.ts`, el `registerPlugin('Isla')` con la implementación
-web como reserva. Los clips de voz no se duplican: `cap sync` copia el build
+`web/app/isla/nativa.ts`, el `registerPlugin('Isla')` sobre el global
+`window.Capacitor` que inyecta el bridge —no sobre `@capacitor/core`, para
+que `web/` no gane una dependencia que la web de producción no necesita—,
+con la implementación web como reserva. Los clips de voz no se duplican: `cap sync` copia el build
 entero dentro del APK y el servicio los abre de `assets` por la misma ruta
 (`public/audio/<idioma>/<clave>.m4a`).
 
@@ -221,7 +223,9 @@ extrapolación— aplicada al plan entero:
   etiquetas de los botones **ya traducidos**, el idioma (para encontrar los
   clips de voz en el bundle) y los ajustes de sonido. Nada de `notas` ni del
   guion entero: la isla compacta de iOS y el chip de Android 16 caben en
-  ~7 caracteres, y una Live Activity tiene 4 KB de estado.
+  ~7 caracteres, y una Live Activity tiene 4 KB de estado. Y lleva un número
+  de versión del protocolo: un APK viejo con una web nueva se declara
+  incompatible en vez de fallar en silencio.
 - **Después solo viajan anclajes**: `{estado: 'corriendo', epochMs}`,
   `{estado: 'pausado', segundo}`,
   `{estado: 'cuenta_atras', segundo, arrancaEnEpochMs}` y
@@ -323,7 +327,8 @@ de que los ajustes van a `preferencias`.
 Una sola notificación construida con `NotificationCompat`, que en Android 16
 sale promocionada y en los anteriores como notificación *ongoing* de toda la
 vida (`ProgressStyle` cae al estilo por defecto por debajo de la API 36 y
-`setRequestPromotedOngoing` es un no-op: mismo código, `androidx.core` 1.17+).
+`setRequestPromotedOngoing` es un no-op: mismo código, `androidx.core` 1.17+,
+a fijar en `build.gradle` si la plantilla de Capacitor trae menos).
 
 - **Cuenta sola.** `setWhen(fin del tramo)` + `setUsesChronometer(true)` +
   `setChronometerCountDown(true)`: la cuenta atrás la pinta el sistema sin
@@ -492,11 +497,15 @@ por OTA es el plugin.
 - **Los hooks**: `pnpm-workspace.yaml`, `subir_version.py`, la línea del
   `git add` del `pre-commit`, `PAQUETES` en `test_scripts.py` y los globs de
   `node --test`, una línea cada uno. `allowBuilds` de pnpm si entra alguna
-  dependencia con `postinstall` (p. ej. `sharp` por `@capacitor/assets`).
+  dependencia con `postinstall` (p. ej. `sharp` por `@capacitor/assets`). Y el
+  test JVM del módulo `isla/` corre en el `pre-commit` **solo cuando el commit
+  toca `movil/android/isla/`** —el precedente es la excepción de `datos/`— y
+  se salta con aviso si no hay JDK: así un cambio en `tramosDe` sin regenerar
+  los vectores rompe en el commit que lo hace, no semanas después.
 - **`.gitattributes`**: `*.bat text eol=crlf` para `gradlew.bat`, y
-  `gradlew` con bit de ejecución (`git update-index --chmod=+x`). Ojo:
-  `hooks/pre-push` está en el índice como `100644` y por eso git lo ignora
-  fuera de Windows —esta sesión lo comprobó—; se arregla igual.
+  `gradlew` con bit de ejecución (`git update-index --chmod=+x`), que es lo
+  mismo que le pasaba a `hooks/pre-push`: estaba en el índice como `100644` y
+  git lo ignoraba fuera de Windows. Ya está arreglado (0.1.110).
 - **Python solo stdlib**: nada del build tiene que ser Python. Si algo lo es,
   `json` basta (como en `subir_version.py`); no hay `pyyaml` ni SDK de Play:
   la subida a la tienda es a mano por consola.
@@ -512,10 +521,11 @@ Cada una deja el repo funcionando y desplegable.
 
 | # | Qué | Riesgo |
 |---|---|---|
-| 0 | **Decidir** lo de abajo: iOS, Home Assistant, qué OnePlus, tienda o APK. | — |
+| 0 | **Decidir** lo que queda abajo (tienda o APK, los botones) y, de paso, lo que la web puede hoy: la prueba de campo del foco aplazado y el wake lock (`PENDIENTES.md`, 3 y 4). | — |
 | 1 | **El puerto de la isla en la web.** `tramosDe`/`tramoEn` y `TONOS` al núcleo con vectores; `useIsla()` con el adaptador web de hoy; `aOscuras` al adaptador; la prueba de la portada como consumidora. Sin cambio de comportamiento. | Bajo |
 | 2 | **La bandera de build** y el alta del cuarto paquete en hooks, scripts y `.gitignore`. La web no cambia. | Bajo |
 | 3 | **La cáscara**: `movil/`, `cap add android`, la sesión por la vía A (o la B), el respaldo por Filesystem + Share, el selector de ficheros, Ko-fi por `App.openUrl`. **Comprobar en el OnePlus**: el pie dice «en el servidor», una taza de prueba sube sin duplicar y baja a la web, la foto sube y baja, el respaldo se guarda, y `pnpm run deploy` de la web sigue igual con el árbol limpio tras `cap sync`. | Medio |
+| 3b | **La sonda**, una tarde que luego se tira: un plugin mínimo que publique una notificación con cronómetro y `setRequestPromotedOngoing` dirigida desde JS. **Comprobar en el OnePlus 15**: que OxygenOS la promociona tras activar el interruptor de Live Alerts; que los pips de Web Audio desde el WebView no paran Spotify; que `performance.now()` no se queda corto tras un bloqueo largo. Con eso, el plugin de verdad se escribe sobre certezas y no sobre el dosier. | Bajo |
 | 4 | **El plugin `Isla`**: notificación con cronómetro, barra y botones, servicio en primer plano, pips con ducking, adaptador `nativa.ts`. **Comprobar**: una taza entera con Spotify sonando y el móvil bloqueado; la música baja en cada pip y vuelve. | Alto |
 | 5 | **Live Update en Android 16** y la guía al interruptor de OxygenOS. | Medio |
 | 6 | **Distribución**: firma, `release:android`, GitHub Releases + Obtainium. Play después, si se quiere. | Bajo |
