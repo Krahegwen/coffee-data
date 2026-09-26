@@ -44,16 +44,16 @@ pantalla de bloqueo paró la música. Lo grande de ese día no cabe aquí: es
    la que Web Audio los coloca, y con el silencio encendido las dos peticiones
    se cruzan. Se prueba en el OnePlus en una tarde, antes de decidir cuánto
    vale la fase del sonido nativo del plan.
-4. **El wake lock no se vuelve a pedir tras el primer bloqueo.** El navegador
-   lo suelta solo al ocultar la página, pero `despierta` (`reloj.vue`) no se
-   pone a `null` —no se escucha `release`—, así que el `if (!despierta)` de
-   `rearmar()` no lo pide más en toda la taza: tras bloquear una vez, la
-   pantalla se apaga sola el resto de la extracción. Es escuchar el evento
-   `release` del sentinel, o volver a pedirlo en `visibilitychange`. Es el
-   primero de la lista: preparar con la pantalla encendida es el modo normal
-   (decidido el 2026-09-25 para el plan), y esto es lo que la sostiene.
 
 ## Lo que salió de aquí
+
+Del 2026-09-25, el punto 4 —**el wake lock que no se volvía a pedir tras un
+bloqueo**—, hecho el 2026-09-26 como fase 0 del plan: el navegador lo suelta
+al ocultar la página y avisa con `release`, que ahora se escucha, y se vuelve
+a pedir al verse la página con el reloj andando; en pausa no se pide, que ahí
+la pantalla puede apagarse. Lo que conviene recordar: un sentinel guardado en
+una variable no dice si sigue vivo, y el `if (!despierta)` que protegía de
+pedirlo dos veces acabó impidiendo pedirlo la segunda.
 
 Del 2026-08-10, con lo que conviene recordar de cada una:
 

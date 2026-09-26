@@ -295,16 +295,40 @@ async function rearmar() {
     }, 500)
   }
 
-  // Que no se apague la pantalla con las manos ocupadas.
-  if (!despierta) {
-    try {
-      despierta = await navigator.wakeLock?.request('screen')
-    } catch { /* sin wake lock se sigue igual */ }
-  }
+  await mantenerDespierta()
 
   // La agenda al bucle de audio, re-anclada desde cero: así los saltos de
   // paso y el volver a la pantalla no dejan sonidos mentirosos pendientes.
   programar({ cues: cues.value, ahora, activo: () => corriendo.value })
+}
+
+/**
+ * Que no se apague la pantalla con las manos ocupadas.
+ *
+ * El navegador suelta el wake lock él solo al ocultar la página —bloquear el
+ * móvil, cambiar de app— y lo dice con `release`. Sin escucharlo, `despierta`
+ * seguía apuntando a un sentinel muerto y no se volvía a pedir en toda la
+ * taza: tras bloquear una vez, la pantalla se apagaba sola el resto de la
+ * extracción. Se vuelve a pedir al volver a verse (`alVerse`); pedirlo con la
+ * página oculta lo rechaza el navegador, de ahí la guarda.
+ */
+async function mantenerDespierta() {
+  if (despierta || document.hidden) return
+  try {
+    const sentinel = await navigator.wakeLock?.request('screen')
+    if (!sentinel) return
+    sentinel.addEventListener('release', () => {
+      // Solo si sigue siendo éste: soltar y volver a pedir van seguidos, y el
+      // aviso del viejo no debe borrar al nuevo.
+      if (despierta === sentinel) despierta = null
+    })
+    despierta = sentinel
+  } catch { /* sin wake lock se sigue igual */ }
+}
+
+/** Al volver a verse con el reloj andando, el wake lock que el navegador soltó. */
+function alVerse() {
+  if (!document.hidden && corriendo.value) void mantenerDespierta()
 }
 
 /**
@@ -611,6 +635,7 @@ function reiniciar() {
  * estado se queda, que es la gracia.
  */
 onMounted(() => {
+  document.addEventListener('visibilitychange', alVerse)
   if (corriendo.value && inicioMs.value !== null) void rearmar()
   // Los botones del sistema se quitaron al salir: son de esta pantalla.
   if (sistemaEsDe('reloj')) ponerMandos()
@@ -635,6 +660,7 @@ function registrar() {
 }
 
 onUnmounted(() => {
+  document.removeEventListener('visibilitychange', alVerse)
   // La cuenta atrás es del componente; los avisos del reloj andando, no:
   // esos siguen sonando aunque salgas a mirar una ficha, igual que el
   // tiempo sigue corriendo. Los para quien pare el reloj.
