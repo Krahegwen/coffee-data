@@ -1,6 +1,6 @@
 {
   "name": "coffee-data",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Bitácora de extracciones de café: API en Workers y app instalable",
@@ -13,5 +13,6 @@
     "deploy": "python herramientas/comprobar_despliegue.py && pnpm run build:web && pnpm run deploy:api",
     "db:local": "pnpm --filter @coffee/api run db:local",
     "db:remoto": "pnpm --filter @coffee/api run db:remoto"
-  }
+  },
+  "packageManager": "pnpm@11.20.0"
 }
