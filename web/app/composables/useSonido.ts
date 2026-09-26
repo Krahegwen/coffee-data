@@ -17,6 +17,8 @@
  * ficha no calla los avisos, igual que no para el tiempo.
  */
 
+import { TONOS as TABLA } from '@coffee/nucleo/crono'
+
 export type Cue = { t: number; tipo: string; clave?: string }
 
 /**
@@ -33,19 +35,11 @@ let manifiesto: Record<string, number> | null = null
 type Tono = [number, number, number, number]
 
 /**
- * El vocabulario entero: pips agudos y GO una octava justa por encima, que
- * es la distancia que se distingue con el molinillo puesto. La cadencia
- * desciende —se lee como «ya está» sin explicarla— y la confirmación es un
- * toque corto y grave. La ganancia baja al subir la frecuencia, que el oído
- * ya la sube solo.
+ * El vocabulario entero vive en el núcleo (`TONOS` en `crono.js`): es un dato
+ * y no código, para que lo que suene en otro sitio —un servicio nativo— salga
+ * de la misma tabla. Aquí solo se le pone el tipo.
  */
-const TONOS: Record<string, Tono[]> = {
-  pip: [[880, 0, 0.08, 0.22]],
-  go: [[1760, 0, 0.3, 0.15]],
-  go_doble: [[1760, 0, 0.16, 0.15], [1760, 0.28, 0.16, 0.15]],
-  cadencia: [[587, 0, 0.18, 0.22], [392, 0.19, 0.18, 0.22]],
-  confirmacion: [[523, 0, 0.06, 0.2]],
-}
+const TONOS = TABLA as Record<string, Tono[]>
 
 /** Cuánto plan se ancla al reloj de audio por adelantado. */
 const HORIZONTE_S = 2

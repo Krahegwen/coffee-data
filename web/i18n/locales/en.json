@@ -401,7 +401,7 @@
     "latido": "Pulsing number",
     "latido_pista": "The number grows with every warning: visible even on silent.",
     "pantalla_bloqueo": "Step on the lock screen",
-    "pantalla_bloqueo_pista": "Shows up as if it were music, with pause and skip from there. Turn it off if you play your own while brewing.",
+    "pantalla_bloqueo_pista": "Shows up as if it were music, with pause and skip from there, so it stops whatever you're playing when you start. Play yours again and it steps aside until the next brew.",
     "tema_titulo": "Colours",
     "tema_intro": "On automatic it follows whatever your phone is set to.",
     "tema_modo": "When to use dark mode",

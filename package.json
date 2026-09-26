@@ -1,6 +1,6 @@
 {
   "name": "coffee-data",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "Bitácora de extracciones de café: API en Workers y app instalable",

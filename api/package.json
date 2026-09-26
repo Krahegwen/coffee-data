@@ -1,6 +1,6 @@
 {
   "name": "@coffee/api",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "API de la bitácora sobre Cloudflare Workers y D1",

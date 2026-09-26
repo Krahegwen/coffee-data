@@ -327,29 +327,66 @@ Lo que se decidió escuchando, por si hay que rehacerlos:
 `m4a` está en `globPatterns` de workbox: sin eso los clips no se precachean y
 la cocina sin cobertura se queda muda.
 
-## El cronómetro en la pantalla de bloqueo
+## El cronómetro en la pantalla de bloqueo: el puerto de la isla
 
 Una web no llega a las Live Activities de iOS ni a las notificaciones con
 cronómetro de Android. Lo que sí llega es el reproductor del sistema, así que
-`usePantallaBloqueo` reproduce **un silencio en bucle por un `<audio>`** y
-escribe el paso como si fuera una canción (Media Session): título, el siguiente
-paso debajo y la barra del paso, que es la vuelta del anillo. En el OnePlus
-sale también en la cápsula de OxygenOS; en un iPhone, falta probarlo.
+el adaptador web de la isla (`web/app/isla/web.ts`) reproduce **un silencio en
+bucle por un `<audio>`** y escribe el paso como si fuera una canción (Media
+Session): título, el siguiente paso debajo y la barra del paso, que es la
+vuelta del anillo. En el OnePlus sale también en la cápsula de OxygenOS; en un
+iPhone, falta probarlo.
+
+**El reloj no sabe cómo se enseña el paso.** Habla con un puerto
+(`web/app/isla/puerto.ts`, desde los componentes `useIsla()`): le da **el plan
+una vez** —los tramos con sus textos ya traducidos, la agenda, los mandos— y
+después **solo anclajes**: corriendo desde este instante, en pausa en este
+segundo, en cuenta atrás, cerrado. El tramo vigente lo deriva el adaptador con
+`tramosDe`/`tramoEn` del núcleo (`crono.js`), las mismas funciones con las que
+el reloj pinta su pantalla, y `tramos.test.js` exporta sus casos a
+`nucleo/test/vectores/tramos.json` para que el adaptador nativo del plan se
+pruebe contra los mismos (se regeneran con `VECTORES=1`). Si añades un estado
+al reloj, es un anclaje (`anclarIsla()` en `reloj.vue`), no una escritura en
+Media Session; y `sistemaCedido` se llama ahora `islaCedida`.
 
 - El silencio **no puede ir por Web Audio**, que es por donde suenan los pips:
   el sistema solo ve elementos multimedia. Y dura más de 5 s, porque Chrome
   trata lo más corto como un aviso suelto.
 - La primera reproducción **tiene que salir de un toque** (iOS); por eso el
-  reloj llama a `alSistema()` desde los gestos que arrancan, y a partir de ahí
-  el audio sigue solo al reloj.
-- Con la pantalla bloqueada `requestAnimationFrame` no pinta: el reloj lleva un
-  intervalo de respaldo que avanza `transcurrido` mientras `document.hidden`,
-  o la tarjeta no cambiaría de paso justo cuando es lo único que se ve.
-- Los botones del sistema son funciones de la pantalla del reloj: se quitan al
-  salir de ella y se ponen al volver. Parar no está, que restablecer pregunta.
-- Se apaga en el ajuste `pantalla_bloqueo`. La prueba de la portada
-  (`PruebaBloqueo.vue`) es provisional: está para que alguien con iPhone lo
-  pruebe sin saber usar el crono.
+  reloj llama a `alIsla()` desde los gestos que arrancan, y a partir de ahí
+  el audio sigue solo al anclaje.
+- Con la pantalla bloqueada `requestAnimationFrame` no pinta: el adaptador
+  lleva su propio intervalo y cambia de tramo él solo, también mientras se
+  mira otra pantalla de la app. `transcurrido` es de la pantalla del reloj y
+  se pone al día al volver.
+- Los botones del sistema son funciones de la pantalla del reloj (`atender`):
+  se quitan al salir de ella y se ponen al volver. Parar no está, que
+  restablecer pregunta; `gotear` está en el puerto para la notificación
+  nativa, y en la web no tiene botón.
+- **Tu música manda.** El sistema da el audio a un solo reproductor, así que
+  arrancar el silencio no le quita los mandos a la música que estuviera
+  sonando, que es lo que se creyó al principio: la para. Por eso el ajuste
+  `pantalla_bloqueo` nace apagado. Con él encendido, si otra app se queda con
+  el audio a mitad de taza, el silencio se para sin que lo paremos: el
+  adaptador lo nota, suelta la tarjeta y avisa (`alCeder`), y el reloj no la
+  vuelve a pedir hasta la taza siguiente (`islaCedida` en `useCrono()`). Sonar
+  otra vez en el paso siguiente, que es lo que hacía, le quitaba la música en
+  cada paso.
+- Los pips y la voz no entran en esa pelea en Android: Web Audio no pide el
+  audio y suena por encima de la música (tampoco puede bajarla: el *ducking*
+  solo existe en nativo). En un iPhone sí, porque `useSonido` declara la
+  sesión como `playback` para que el interruptor de silencio no los calle, y
+  en WebKit `playback` no se mezcla con nada; `transient` mezclaría, pero el
+  interruptor la calla. No hay tipo que haga las dos cosas.
+- La prueba de la portada (`PruebaBloqueo.vue`, `usePruebaIsla`) es
+  provisional: está para que alguien con iPhone lo pruebe sin saber usar el
+  crono. Es una consumidora más del puerto, así que en una cáscara nativa
+  probaría la notificación.
+- **La isla de verdad no la puede dar la web**: ni notificación viva con
+  cronómetro y botones, ni foco de audio con *ducking*. El camino —Capacitor
+  sobre el mismo build y un plugin propio en Kotlin, con la web intacta— está
+  razonado en `PLAN-app-nativa.md`. La fase 1, este puerto, está hecha; el
+  resto no está decidido.
 
 ## Ajustes
 

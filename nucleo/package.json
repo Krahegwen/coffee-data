@@ -1,6 +1,6 @@
 {
   "name": "@coffee/nucleo",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "type": "module",
   "description": "La lógica de la bitácora, sin saber dónde corre: recetas, sugerencias, validación y derivados",
