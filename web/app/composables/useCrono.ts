@@ -1,4 +1,5 @@
 import type { PasoGuion } from '~/composables/useApi'
+import { isla } from '~/isla'
 
 /**
  * El estado del cronómetro, fuera de sus pantallas.
@@ -65,13 +66,14 @@ export const CRONO_EN_BLANCO = () => ({
    */
   saltoEnPausa: false,
   /**
-   * Si en esta taza otra app se quedó con el audio: la música que vuelves a
-   * poner, una llamada. El sistema lo da a un solo reproductor, así que el
-   * paso deja la pantalla de bloqueo hasta la taza siguiente — pedírselo otra
-   * vez al reanudar te volvería a parar la música. Es de la medición y muere
-   * con ella.
+   * Si en esta taza el sistema se quedó la isla. En la web es otra app que se
+   * lleva el audio —la música que vuelves a poner, una llamada—, que el
+   * sistema lo da a un solo reproductor; en nativo será descartar la
+   * notificación. El paso deja la pantalla de bloqueo hasta la taza siguiente
+   * — pedírselo otra vez al reanudar te volvería a parar la música. Es de la
+   * medición y muere con ella.
    */
-  sistemaCedido: false,
+  islaCedida: false,
 })
 
 export function useCrono() {
@@ -104,7 +106,7 @@ export function useCrono() {
       inicioMs: null,
       goteoIba: false,
       saltoEnPausa: false,
-      sistemaCedido: false,
+      islaCedida: false,
       /*
        * Y la rama se suelta con la medición, aunque viaje con la selección.
        * Volver a la extracción de anteayer es una decisión **de esa taza**:
@@ -124,12 +126,12 @@ export function useCrono() {
   }
 
   /**
-   * Sin medición no hay nada que enseñar en la pantalla de bloqueo. Lo apaga
-   * el reloj al cerrar el goteo, pero soltar también se hace desde el alta,
-   * con el reloj fuera de pantalla.
+   * Sin medición no hay nada que enseñar en la isla. La apaga el reloj al
+   * cerrar el goteo, pero soltar también se hace desde el alta, con el reloj
+   * fuera de pantalla.
    */
   function apagarDelReloj() {
-    if (sistemaEsDe('reloj')) apagarSistema()
+    if (isla.esDe('reloj')) isla.apagar()
   }
 
   return { estado, hayMedicion, soltarReloj, olvidarTodo }

@@ -162,6 +162,69 @@ export function vozDe(paso) {
   return String(paso?.accion ?? "");
 }
 
+/**
+ * Los tramos del reloj: en qué segundo empieza cada paso y en cuál acaba.
+ *
+ * Es la derivación del paso vigente, escrita una sola vez: el reloj, la
+ * tarjeta de la pantalla de bloqueo y —cuando exista— la notificación nativa
+ * la leen de aquí, y `tramos.test.js` exporta sus casos como JSON para que
+ * una implementación en otro lenguaje se pruebe contra los mismos vectores.
+ *
+ * Cubren desde el segundo 0 sin huecos: si la receta arranca más tarde, el
+ * primer tramo es la espera hasta ese paso y va sin paso (`paso: null`). El
+ * último queda abierto (`hasta: null`), que ya no hay siguiente contra el que
+ * contar. Los pasos sin hora no forman tramo —no se pueden situar—, igual que
+ * no suenan. `paso` es el índice en la lista que se recibió.
+ */
+export function tramosDe(pasos) {
+  const conHora = [];
+  (pasos ?? []).forEach((paso, i) => {
+    if (tieneHora(paso)) conHora.push({ paso: i, t: Number(paso.t_inicio_s) });
+  });
+
+  const tramos = [];
+  const primero = conHora[0]?.t ?? 0;
+  if (primero > 0) tramos.push({ desde: 0, hasta: primero, paso: null });
+  conHora.forEach(({ paso, t }, n) => {
+    tramos.push({ desde: t, hasta: conHora[n + 1]?.t ?? null, paso });
+  });
+  // Sin nada que situar, un solo tramo abierto: el reloj cuenta y ya.
+  if (tramos.length === 0) tramos.push({ desde: 0, hasta: null, paso: null });
+  return tramos;
+}
+
+/**
+ * El índice del tramo que va en ese segundo: el último que ya ha empezado.
+ * Antes del 0 —no debería pasar— es el primero, y pasado el final, el último.
+ */
+export function tramoEn(tramos, segundo) {
+  let vigente = 0;
+  tramos.forEach((tramo, n) => {
+    if (tramo.desde <= segundo) vigente = n;
+  });
+  return vigente;
+}
+
+/**
+ * El vocabulario sonoro: frecuencia (Hz), inicio relativo (s), duración (s)
+ * y ganancia de cada tono, por tipo de cue.
+ *
+ * Pips agudos y GO una octava justa por encima, que es la distancia que se
+ * distingue con el molinillo puesto. La cadencia desciende —se lee como «ya
+ * está» sin explicarla— y la confirmación es un toque corto y grave. La
+ * ganancia baja al subir la frecuencia, que el oído ya la sube solo.
+ *
+ * Es un dato y no código para que quien lo sintetice —Web Audio en la app,
+ * un servicio nativo algún día— suene igual desde la misma tabla.
+ */
+export const TONOS = {
+  pip: [[880, 0, 0.08, 0.22]],
+  go: [[1760, 0, 0.3, 0.15]],
+  go_doble: [[1760, 0, 0.16, 0.15], [1760, 0.28, 0.16, 0.15]],
+  cadencia: [[587, 0, 0.18, 0.22], [392, 0.19, 0.18, 0.22]],
+  confirmacion: [[523, 0, 0.06, 0.2]],
+};
+
 /** Situable en el reloj: sin hora, un paso no puede sonar. */
 function tieneHora(paso) {
   const t = paso?.t_inicio_s;

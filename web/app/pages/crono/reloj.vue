@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { cuentaAtrasDe, cuesDe } from '@coffee/nucleo/crono'
+import { cuentaAtrasDe, cuesDe, tramoEn, tramosDe } from '@coffee/nucleo/crono'
 import { finDeLosVertidos } from '@coffee/nucleo/recetas'
 import { relojDe } from '@coffee/nucleo/validacion'
-import type { PasoGuion } from '~/composables/useApi'
+import type { Mando } from '~/isla/puerto'
 
 /**
  * El reloj. La otra mitad de `/crono`, ahora con URL propia: se puede volver
@@ -27,7 +27,7 @@ const { estado, soltarReloj } = useCrono()
 
 const {
   cafeId, recetaId, desdeId, dosis, agua, pasos, corriendo, transcurrido,
-  finGoteo, inicioMs, goteoIba, saltoEnPausa, sistemaCedido,
+  finGoteo, inicioMs, goteoIba, saltoEnPausa, islaCedida,
 } = toRefs(estado.value)
 
 const {
@@ -35,6 +35,7 @@ const {
 } = useSonido()
 const { ajustes, cargar: cargarAjustes } = usePreferencias()
 void cargarAjustes()
+const isla = useIsla()
 
 /**
  * Las duraciones de los clips, que es lo que el núcleo necesita para colocar
@@ -79,8 +80,6 @@ if (!pasos.value.length) await router.replace(localePath('/crono'))
 
 let animacion = 0
 let despierta: WakeLockSentinel | null = null
-/** El tic de respaldo para cuando la pantalla no pinta: ver `rearmar`. */
-let aOscuras: ReturnType<typeof setInterval> | null = null
 
 /**
  * Cuando acaba el último vertido: desde ahí se cuenta el goteo.
@@ -94,10 +93,21 @@ const finVertidos = computed(() => finDeLosVertidos(pasos.value))
 /** La agenda sonora del guion, del núcleo: qué suena en qué segundo. */
 const cues = computed(() => cuesDe(pasos.value, vozLista.value))
 
-/** Los pasos con hora, los únicos que el reloj puede situar. */
-const conTiempo = computed(() => pasos.value.filter((p) => p.t_inicio_s !== null))
+/**
+ * Los tramos del reloj —en qué segundo empieza cada paso y en cuál acaba— y
+ * el vigente. La derivación es del núcleo y la comparte con la isla: el paso
+ * que enseña la pantalla y el que enseña la tarjeta salen de la misma
+ * función, y algún día también el de la notificación nativa.
+ */
+const tramos = computed(() => tramosDe(pasos.value))
+const indiceTramo = computed(() => tramoEn(tramos.value, transcurrido.value))
+const tramoActual = computed(() => tramos.value[indiceTramo.value]!)
 
-const ultimoPaso = computed(() => conTiempo.value[conTiempo.value.length - 1] ?? null)
+/** El último paso con hora: el que cierra el plan. */
+const ultimoPaso = computed(() => {
+  const tramo = tramos.value[tramos.value.length - 1]!
+  return tramo.paso === null ? null : pasos.value[tramo.paso]!
+})
 
 /**
  * El plan acaba en retirar: trae escrita la hora de bajarse del dripper, y
@@ -112,34 +122,25 @@ const acabaEnRetirar = computed(() => ultimoPaso.value?.accion === 'retirar')
  * Casi siempre es lo que dura el primer paso, pero una receta puede empezar
  * en un segundo que no sea el cero —la validación solo pide tiempos
  * crecientes—, y entonces lo primero que se cuenta es la espera hasta ese
- * paso. Enseñar la duración del paso ahí daba un salto al arrancar.
+ * paso: el primer tramo, que va sin paso. Enseñar la duración del paso ahí
+ * daba un salto al arrancar. Null si no hay contra qué contar.
  */
-const primerTramo = computed(() => {
-  const [a, b] = conTiempo.value
-  if (!a) return null
-  const t0 = Number(a.t_inicio_s)
-  if (t0 > 0) return t0
-  return b ? Number(b.t_inicio_s) - t0 : null
+const primerTramo = computed(() => tramos.value[0]!.hasta)
+
+/** El paso del tramo vigente; ninguno en la espera de una receta que empieza tarde. */
+const actual = computed(() => {
+  const paso = tramoActual.value.paso
+  return paso === null ? null : pasos.value[paso]!
 })
 
-const indiceActual = computed(() => {
-  let i = -1
-  pasos.value.forEach((p, n) => {
-    if (p.t_inicio_s !== null && transcurrido.value >= p.t_inicio_s) i = n
-  })
-  return i
-})
-
-const actual = computed(() => pasos.value[indiceActual.value] ?? null)
+/** El del tramo siguiente, si lo hay: contra él cuenta el círculo. */
 const siguiente = computed(() => {
-  for (let i = indiceActual.value + 1; i < pasos.value.length; i += 1) {
-    if (pasos.value[i]!.t_inicio_s !== null) return pasos.value[i]!
-  }
-  return null
+  const paso = tramos.value[indiceTramo.value + 1]?.paso
+  return paso == null ? null : pasos.value[paso]!
 })
 
 const faltan = computed(() =>
-  siguiente.value ? Math.max(0, siguiente.value.t_inicio_s! - transcurrido.value) : null,
+  tramoActual.value.hasta !== null ? Math.max(0, tramoActual.value.hasta - transcurrido.value) : null,
 )
 
 /** Segundos de goteo, si ya se marcó el final. */
@@ -249,10 +250,8 @@ const VUELTA = 2 * Math.PI * RADIO
  * lo que queda es esperar al goteo.
  */
 const progresoPaso = computed(() => {
-  if (!actual.value || siguiente.value === null) return 1
-  const desde = actual.value.t_inicio_s ?? 0
-  const hasta = siguiente.value.t_inicio_s!
-  if (hasta <= desde) return 1
+  const { desde, hasta } = tramoActual.value
+  if (!actual.value || hasta === null || hasta <= desde) return 1
   return Math.min(1, Math.max(0, (transcurrido.value - desde) / (hasta - desde)))
 })
 
@@ -281,19 +280,6 @@ async function rearmar() {
     animacion = requestAnimationFrame(tic)
   }
   animacion = requestAnimationFrame(tic)
-
-  /*
-   * Con el móvil bloqueado o la app de fondo, requestAnimationFrame no pinta
-   * y `transcurrido` se quedaba quieto: la tarjeta del sistema no cambiaba de
-   * paso justo cuando es lo único que se ve. Un intervalo sigue vivo —el
-   * navegador lo estrangula a uno por segundo, y con el audio sonando ni
-   * eso— y solo hace falta mientras la pantalla no se ve.
-   */
-  if (!aOscuras) {
-    aOscuras = setInterval(() => {
-      if (document.hidden && corriendo.value) transcurrido.value = ahora()
-    }, 500)
-  }
 
   await mantenerDespierta()
 
@@ -346,20 +332,30 @@ async function arrancarDesde(desde: number) {
   // o un salto— nadie más lo despertaba: tras un bloqueo de pantalla en
   // iOS, el resto de la extracción iba muda.
   desbloquear()
-  alSistema()
+  alIsla()
   inicioMs.value = performance.now() - desde * 1000
   transcurrido.value = desde
   corriendo.value = true
   // El paso elegido en pausa, si lo había, ya ha empezado.
   saltoEnPausa.value = false
+  anclarIsla()
   await rearmar()
+}
+
+/** Para los pips y el número de la cuenta, sin decidir qué viene después. */
+function pararCuenta() {
+  cancelarPreroll?.()
+  cancelarPreroll = null
+  preroll.value = null
 }
 
 /** Deja la cuenta atrás a medias como si no hubiera pasado nada. */
 function cancelarCuentaAtras() {
-  cancelarPreroll?.()
-  cancelarPreroll = null
-  preroll.value = null
+  if (preroll.value === null) return
+  pararCuenta()
+  // La isla vuelve a donde estaba el reloj: en pausa, o a nada si aún no
+  // había empezado.
+  anclarIsla()
 }
 
 /**
@@ -372,7 +368,7 @@ function cancelarCuentaAtras() {
  * reanudar miran uno, los saltos el otro.
  */
 function conCuentaAtras(desde: number, cuenta: boolean) {
-  cancelarCuentaAtras()
+  pararCuenta()
   // Sin ella, el reloj arranca en el acto: quien la apaga es porque prefiere
   // el control de siempre, no porque quiera esperar tres segundos en silencio.
   if (!cuenta) {
@@ -383,6 +379,14 @@ function conCuentaAtras(desde: number, cuenta: boolean) {
   // de más antes del 3.
   const agenda = cuentaAtrasDe(pasos.value, desde, ajustes.value.sonido ? vozLista.value : null)
   preroll.value = 0
+  // La isla enseña el paso que va a arrancar, y andando: el reloj está a punto.
+  if (isla.esDe('reloj')) {
+    isla.anclar({
+      estado: 'cuenta_atras',
+      segundo: desde,
+      arrancaEnEpochMs: Date.now() + (agenda[agenda.length - 1]?.t ?? 0) * 1000,
+    })
+  }
   cancelarPreroll = cuentaAtras(agenda, {
     alTic: (n) => { preroll.value = n },
     alGo: () => {
@@ -394,7 +398,7 @@ function conCuentaAtras(desde: number, cuenta: boolean) {
 }
 
 function iniciar() {
-  alSistema()
+  alIsla()
   finGoteo.value = null
   conCuentaAtras(0, ajustes.value.cuenta_atras)
 }
@@ -403,6 +407,7 @@ function iniciar() {
 function pausar() {
   transcurrido.value = ahora()
   parar()
+  anclarIsla()
 }
 
 /**
@@ -411,7 +416,7 @@ function pausar() {
  */
 function tocarEsfera() {
   if (finGoteo.value !== null) return
-  alSistema()
+  alIsla()
   // A mitad de cuenta atrás, tocar es arrepentirse: aún no ha empezado nada.
   if (preroll.value !== null) {
     cancelarCuentaAtras()
@@ -463,13 +468,14 @@ function moverA(segundo: number) {
   if (!corriendo.value) {
     transcurrido.value = segundo
     saltoEnPausa.value = true
+    anclarIsla()
     return
   }
   empezarPaso(segundo)
 }
 
 function alSiguientePaso() {
-  if (siguiente.value?.t_inicio_s != null) moverA(siguiente.value.t_inicio_s)
+  if (tramoActual.value.hasta !== null) moverA(tramoActual.value.hasta)
 }
 
 /**
@@ -478,16 +484,12 @@ function alSiguientePaso() {
  * seguidas encadenan pasos hacia atrás.
  */
 function alInicioDePaso() {
-  const desde = actual.value?.t_inicio_s ?? 0
+  const desde = tramoActual.value.desde
   if (transcurrido.value - desde >= 3) {
     moverA(desde)
     return
   }
-  let previo = 0
-  for (const p of pasos.value) {
-    if (p.t_inicio_s !== null && p.t_inicio_s < desde) previo = p.t_inicio_s
-  }
-  moverA(previo)
+  moverA(tramos.value[indiceTramo.value - 1]?.desde ?? 0)
 }
 
 function marcarFinGoteo() {
@@ -499,6 +501,7 @@ function marcarFinGoteo() {
   if (corriendo.value) transcurrido.value = ahora()
   finGoteo.value = transcurrido.value
   parar()
+  anclarIsla()
 }
 
 /**
@@ -516,7 +519,6 @@ function seguirGoteando() {
 /** Suelta el bucle y el wake lock sin tocar el estado: es lo del componente. */
 function soltar() {
   if (animacion) { cancelAnimationFrame(animacion); animacion = 0 }
-  if (aOscuras) { clearInterval(aOscuras); aOscuras = null }
   despierta?.release?.()
   despierta = null
 }
@@ -529,84 +531,97 @@ function parar() {
 }
 
 /*
- * El reloj en la pantalla de bloqueo, por el reproductor del sistema: el paso
- * de título, el siguiente debajo y la barra del paso, que es la vuelta del
- * anillo. Cómo se hace está en `usePantallaBloqueo`; aquí solo qué se cuenta.
+ * El reloj en la isla —en la web, la pantalla de bloqueo por el reproductor
+ * del sistema—: el paso de título, el siguiente debajo y la barra del paso,
+ * que es la vuelta del anillo. Cómo se pinta es del adaptador (`isla/web.ts`);
+ * aquí se le da el plan una vez y se le dice dónde está el reloj cada vez que
+ * cambia (`anclarIsla`). El tramo lo deriva ella sola, también con la
+ * pantalla bloqueada.
  *
- * Mientras se mira otra pantalla con el reloj andando, la tarjeta se queda en
- * el último paso que vio el reloj —la barra sigue avanzando sola— y sin
- * botones, que los mandos son funciones de esta pantalla. Al volver, se pone
- * al día. Y si otra app se quedó con el audio, no hay tarjeta hasta la taza
- * siguiente: ver `sistemaCedido`.
+ * Mientras se mira otra pantalla con el reloj andando, la tarjeta sigue
+ * —cambia de paso sola— pero sin botones, que los mandos son funciones de
+ * esta pantalla. Al volver, se ponen. Y si el sistema se la quedó, no hay
+ * tarjeta hasta la taza siguiente: ver `islaCedida`.
  */
-const enSistema = computed(
-  () => ajustes.value.pantalla_bloqueo && !sistemaCedido.value
-    && (enMarcha.value || preroll.value !== null),
-)
+const plan = computed(() => isla.planDe(pasos.value, {
+  album: t('app.nombre'),
+  cues: cues.value,
+  mandos: {
+    pausar: t('reloj.pausa'),
+    reanudar: t('reloj.reanudar'),
+    siguiente: t('reloj.siguiente_paso'),
+    anterior: t('reloj.inicio_del_paso'),
+    gotear: t('reloj.dejo_de_gotear'),
+  },
+  sonido: ajustes.value.sonido,
+  voz: ajustes.value.voz,
+}))
 
-/** «Verter en espiral hasta 120 g»: la báscula es lo que se mira al verter. */
-function tituloDe(p: PasoGuion) {
-  const que = etiquetaPaso(p.accion, p.estilo)
-  return p.accion === 'verter' ? t('sistema.titulo_verter', { paso: que, n: p.acumulado_g }) : que
-}
+// Cambia la agenda al cargar la voz, o un ajuste: la isla recibe el plan nuevo.
+watch(plan, (nuevo) => { if (isla.esDe('reloj')) isla.planificar(nuevo) })
+
+// Apagar el ajuste a mitad de taza —desde otro dispositivo, que se
+// sincroniza— quita la tarjeta en el acto.
+watch(() => ajustes.value.pantalla_bloqueo, (puesta) => {
+  if (!puesta && isla.esDe('reloj')) isla.apagar()
+})
 
 /**
  * Lo llaman los gestos que arrancan el reloj: iOS solo deja sonar un audio
- * que arrancó un toque. Desde ahí, la tarjeta la lleva el efecto de abajo.
- *
- * Si en esta taza se la llevó otra app, ni se pide: reanudar tras una pausa
- * te pararía la música que acabas de poner.
+ * que arrancó un toque. Si en esta taza el sistema se quedó la isla, ni se
+ * pide: reanudar tras una pausa te pararía la música que acabas de poner.
  */
-function alSistema() {
-  if (!ajustes.value.pantalla_bloqueo || sistemaCedido.value) return
-  void encenderSistema('reloj', () => { sistemaCedido.value = true })
+function alIsla() {
+  if (!ajustes.value.pantalla_bloqueo || islaCedida.value) return
+  void isla.encender('reloj', plan.value, () => { islaCedida.value = true })
     .catch(() => { /* sin permiso, sin tarjeta */ })
-  ponerMandos()
+  isla.atender(alMando)
 }
 
 /**
- * Los botones del sistema hacen lo que los de la pantalla. Parar no está: aquí
- * restablecer tira una medición, y eso no se hace desde un botón que no
- * pregunta.
+ * Le dice a la isla dónde está el reloj. Solo anclajes: el tramo lo deriva
+ * ella con el plan que ya tiene. A mitad de cuenta atrás no se toca, que ese
+ * anclaje lo pone la cuenta; y sin medición no hay nada que enseñar.
  */
-function ponerMandos() {
-  mandosDelSistema({
-    play: () => { if (pausado.value && preroll.value === null) tocarEsfera() },
-    pause: () => {
-      if (preroll.value !== null) cancelarCuentaAtras()
-      else if (corriendo.value) pausar()
-    },
-    nexttrack: alSiguientePaso,
-    previoustrack: alInicioDePaso,
-  })
+function anclarIsla() {
+  if (!isla.esDe('reloj') || preroll.value !== null) return
+  if (corriendo.value && inicioMs.value !== null) {
+    isla.anclar({ estado: 'corriendo', epochMs: Date.now() - (performance.now() - inicioMs.value) })
+  } else if (enMarcha.value) {
+    isla.anclar({ estado: 'pausado', segundo: transcurrido.value })
+  } else {
+    isla.apagar()
+  }
 }
 
-watchEffect(() => {
-  if (!enSistema.value) {
-    if (sistemaEsDe('reloj')) apagarSistema()
-    return
+/**
+ * Los botones del sistema hacen lo que los de la pantalla. Parar no está:
+ * aquí restablecer tira una medición, y eso no se hace desde un botón que no
+ * pregunta. `gotear` lo ofrecerá la notificación nativa; en la web no hay
+ * botón para él.
+ */
+function alMando(mando: Mando) {
+  switch (mando) {
+    case 'reanudar':
+      if (pausado.value && preroll.value === null) tocarEsfera()
+      break
+    case 'pausar':
+      if (preroll.value !== null) cancelarCuentaAtras()
+      else if (corriendo.value) pausar()
+      break
+    case 'siguiente':
+      alSiguientePaso()
+      break
+    case 'anterior':
+      alInicioDePaso()
+      break
+    case 'gotear':
+      if (finGoteo.value === null) marcarFinGoteo()
+      break
+    default:
+      break
   }
-  if (!sistemaEsDe('reloj')) return
-  const paso = actual.value ?? conTiempo.value[0]
-  if (!paso) return
-  contarAlSistema({
-    titulo: enGoteoVivo.value ? t('sistema.goteando') : tituloDe(paso),
-    subtitulo: siguiente.value
-      ? t('sistema.luego', { paso: tituloDe(siguiente.value) })
-      : t('sistema.ultimo'),
-    album: t('app.nombre'),
-    tramo: actual.value && siguiente.value
-      ? { desde: actual.value.t_inicio_s ?? 0, hasta: siguiente.value.t_inicio_s! }
-      : null,
-    // Andando se lee del reloj del sistema y no de `transcurrido`: con él
-    // dentro, el efecto se repetiría en cada frame.
-    segundo: corriendo.value && inicioMs.value !== null
-      ? (performance.now() - inicioMs.value) / 1000
-      : transcurrido.value,
-    andando: corriendo.value || preroll.value !== null,
-    ancla: inicioMs.value ?? 0,
-  })
-})
+}
 
 const dialogo = ref<HTMLDialogElement | null>(null)
 
@@ -638,7 +653,7 @@ onMounted(() => {
   document.addEventListener('visibilitychange', alVerse)
   if (corriendo.value && inicioMs.value !== null) void rearmar()
   // Los botones del sistema se quitaron al salir: son de esta pantalla.
-  if (sistemaEsDe('reloj')) ponerMandos()
+  if (isla.esDe('reloj')) isla.atender(alMando)
 })
 
 /** Al alta, con lo que el cronómetro ya sabe. */
@@ -667,7 +682,7 @@ onUnmounted(() => {
   cancelarCuentaAtras()
   soltar()
   // Llamarían a funciones de una pantalla que ya no está.
-  if (sistemaEsDe('reloj')) mandosDelSistema({})
+  if (isla.esDe('reloj')) isla.atender(null)
 })
 </script>
 

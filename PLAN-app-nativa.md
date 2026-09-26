@@ -96,10 +96,11 @@ Lo bueno, que es mucho:
   plan del reloj son datos —`guion()` da `PasoGuion[]` con `t_inicio_s` y
   `acumulado_g`; `cuesDe()` y `cuentaAtrasDe()` dan la agenda como
   `{t, tipo, clave}`—: se puede mandar entero a un plugin nativo de una vez.
-- **`usePantallaBloqueo` ya es un puente**: un estado serializable
-  (`EnSistema`), mandos como mapa de funciones, un dueño (`sistemaEsDe`) y la
-  idea de escribir «por cambio» y dejar que el sistema extrapole la barra. El
-  adaptador nativo hereda ese contrato; el reloj apenas cambia.
+- **`usePantallaBloqueo` ya era un puente** —un estado serializable, mandos
+  como mapa de funciones, un dueño y la idea de escribir «por cambio» y dejar
+  que el sistema extrapole la barra—, y desde la fase 1 (2026-09-26) es el
+  puerto de la isla, en `web/app/isla/`. El adaptador nativo hereda ese
+  contrato; el reloj no cambia.
 - **El tiempo se ancla a `performance.now()`** (`inicioMs`) y el estado vive
   fuera del componente: sobrevive a navegar y a que la cáscara duerma el
   WebView. Lo que necesita un cronómetro nativo es `inicioMs` y `pasos`.
@@ -229,8 +230,10 @@ salida, y cambiarlo es perderlos sin aviso. Se apunta junto a la regla del
 
 ### El puerto de la isla
 
-`usePantallaBloqueo` se generaliza a un puerto con dos adaptadores, y la
-generalización es exactamente la idea que ya tiene para la barra —anclaje y
+`usePantallaBloqueo` se generalizó en la fase 1 (2026-09-26) a un puerto
+—`web/app/isla/puerto.ts`, con el adaptador web al lado y `useIsla()` para
+componer el plan— al que el nativo será el segundo adaptador, y la
+generalización es exactamente la idea que ya tenía para la barra —anclaje y
 extrapolación— aplicada al plan entero:
 
 - **El plan se manda una vez**: tramos ya resueltos
@@ -612,8 +615,8 @@ Cada una deja el repo funcionando y desplegable.
 
 | # | Qué | Riesgo |
 |---|---|---|
-| 0 | ~~Decidir lo que queda abajo (tienda o APK, los botones)~~ —decidido el 2026-09-25, salvo la sesión, que es de la fase 3— y lo que la web puede hoy: la prueba de campo del foco aplazado y el wake lock (`PENDIENTES.md`, 3 y 4). Con la pantalla encendida como modo normal, el wake lock es el que sostiene ese modo y va primero. | — |
-| 1 | **El puerto de la isla en la web.** `tramosDe`/`tramoEn` y `TONOS` al núcleo con vectores; `useIsla()` con el adaptador web de hoy; `aOscuras` al adaptador; la prueba de la portada como consumidora. Sin cambio de comportamiento. | Bajo |
+| 0 | ~~Decidir lo que queda abajo (tienda o APK, los botones)~~ —decidido el 2026-09-25, salvo la sesión, que es de la fase 3— y lo que la web puede hoy: **el wake lock, arreglado el 2026-09-26** (0.1.118), y la prueba de campo del foco aplazado (`PENDIENTES.md`, 3), que es del OnePlus. | — |
+| 1 | ~~**El puerto de la isla en la web.**~~ **Hecha el 2026-09-26.** `tramosDe`/`tramoEn` y `TONOS` en `crono.js`, con `tramos.test.js` y sus vectores en `nucleo/test/vectores/tramos.json`; el puerto en `web/app/isla/` (`puerto.ts`, el adaptador `web.ts`, `index.ts` que elige) y `useIsla()` con `planDe`; el reloj deriva su paso con las mismas funciones y ancla en vez de contar (`anclarIsla`); el intervalo a oscuras vive en el adaptador; la prueba de la portada es una consumidora más (`usePruebaIsla`). Sin cambio de comportamiento, salvo uno a mejor: la tarjeta sigue cambiando de paso mientras se mira otra pantalla. | Bajo |
 | 2 | **La bandera de build**, el alta del cuarto paquete en hooks, scripts y `.gitignore`, Android Studio en el PC y **el keystore** (fuera del repo, con copia) antes de que exista ningún APK. La web no cambia. | Bajo |
 | 2b | **La sonda de la notificación**, en un proyecto Android vacío y en una tarde: una notificación *ongoing* con cronómetro, `ProgressStyle` y `setRequestPromotedOngoing`. **Comprobar en el OnePlus 15**: que OxygenOS 16.1 la promociona tras activar el interruptor de Live Alerts; qué enseña el chip con `corto` y sin él, con `when` a 45 s; si la cápsula sale con la pantalla bloqueada. No necesita la cáscara ni el Worker, y es la incertidumbre más barata de despejar. | Bajo |
 | 3 | **La cáscara**: `movil/`, `cap add android`, la sesión por la vía A (o la B), el respaldo por Filesystem + Share, el selector de ficheros, Ko-fi por `App.openUrl`, iconos y splash, `allowBackup` apagado, y **todo APK que llegue al móvil firmado con la clave definitiva desde el primero** (uno de debug no se actualiza con uno de release: obliga a desinstalar, y desinstalar borra el cajón). **Comprobar en el OnePlus**: el pie dice «en el servidor», una taza de prueba sube sin duplicar y baja a la web, la foto sube desde galería y desde cámara y baja, un respaldo hecho en la web se restaura, el respaldo se guarda, y `pnpm run deploy` de la web sigue igual con el árbol limpio tras `cap sync`. Y saberlo: hasta la fase 4 el APK no enseña nada en la pantalla de bloqueo, porque el WebView de Android arranca sin la Media Session API. | Medio |
